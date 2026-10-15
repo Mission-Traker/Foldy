@@ -31,6 +31,7 @@ const ERR = {
   LOGIN_TAKEN: '이미 쓰고 있는 아이디예요',
   LOGIN_FAILED: '아이디 또는 비밀번호가 맞지 않아요',
   PASSWORD_SHORT: '비밀번호는 4자 이상이에요',
+  LOGIN_LOCKED: '여러 번 틀려서 15분 동안 잠겼어요. 잠시 뒤 다시 해 주세요',
 }
 function friendly(error) {
   const m = error?.message || String(error)
@@ -55,6 +56,7 @@ export async function signup(login, password, name) {
 export async function login(loginId, password) {
   const { data, error } = await client.rpc('foldy_login', { p_login: loginId, p_password: password })
   if (error) throw new Error(friendly(error))
+  if (data?.error) throw new Error(friendly({ message: data.error }))
   setSession({ ...data, login_id: loginId.trim().toLowerCase() })
   return data
 }

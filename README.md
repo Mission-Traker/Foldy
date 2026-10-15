@@ -79,13 +79,13 @@ src/lib/        grading 채점 · study 상태·복습·정렬·입력검증 · 
 src/pages/      Auth Profiles Home Wordbook AddWords Study Quiz WrongNote Expand Me LevelTest
 src/components/ ui.jsx (캐릭터 블롭, ○△✕ 표시, 하단 메뉴 등)
 src/data/       levels.json (기본 어휘 3,000개 레벨 분류)
-supabase/       001_init.sql
+supabase/       001_init.sql, 002_login_lock.sql (둘 다 적용 완료)
 tests/          logic·api 단위 테스트, e2e.mjs 브라우저 점검
 ```
 
 ## 알려진 한계
 - 발음 인식은 브라우저 기능이라 기기마다 정확도가 다르고, 짧은 단어(red/read)는 오인식이 잦음. 아이폰은 사파리에서, 홈 화면 앱 모드에서는 동작하지 않을 수 있음
 - 예문 "관련 이미지"는 현재 장면 이모지로 표시(실사 이미지 생성은 비용 때문에 다음 단계)
-- 로그인 시도 횟수 제한이 없음(가족·지인 범위 사용 전제)
+- 로그인은 같은 아이디로 15분에 10번 틀리면 잠김(그 이상의 보안 장치는 없음)
 - 단어 번호는 지운 번호를 다시 쓰지 않음(빈 번호가 생길 수 있음)
 - SNS 사용 시 학습 잠금은 웹앱으로는 불가능해 제외(추후 앱 포장 시)
