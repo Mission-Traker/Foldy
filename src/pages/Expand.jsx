@@ -4,7 +4,8 @@ import { useApp } from '../App.jsx'
 import { gradeMeaning, gradeSpeech } from '../lib/grading.js'
 import { expandStage, shuffle } from '../lib/study.js'
 import { canListen, listenOnce, speak } from '../lib/speech.js'
-import { Blob, Empty, Header } from '../components/ui.jsx'
+import { Blob, Empty, Header, Reaction } from '../components/ui.jsx'
+import * as sfx from '../lib/sfx.js'
 
 const KIND = { syn: { label: '유의어', hint: '비슷한 뜻', color: 'text-sage' }, ant: { label: '반의어', hint: '반대 뜻', color: 'text-coral' } }
 
@@ -74,6 +75,7 @@ export default function Expand() {
     if (res) return
     const g = gradeMeaning(input, d.meaning)
     setRes(g)
+    g.ok ? sfx.correct() : sfx.wrong()
     if (g.ok) {
       const patch = { [`${item.kind}_ok`]: true }
       const after = { ...w, ...patch }
@@ -96,7 +98,8 @@ export default function Expand() {
   return (
     <div>
       <Header title="확장 학습" back right={<span className="font-jua text-soft">{idx + 1}/{queue.length}</span>} />
-      <div className={`card mb-4 flex flex-col items-center gap-2 p-6 text-center ${res && !res.ok ? 'wiggle' : ''} ${res?.ok ? 'pop' : ''}`}>
+      <div className={`card relative mb-4 flex flex-col items-center gap-2 p-6 text-center ${res && !res.ok ? 'wiggle border-no' : ''} ${res?.ok ? 'pop glow-ok border-ok' : ''}`}>
+        <Reaction kind={res ? (res.ok ? 'ok' : 'no') : null} k={`${idx}-${res?.ok}`} />
         <p className="text-sm text-soft"><b className="font-title text-base text-ink">{w.word}</b> ({w.meaning}) 의 <b className={`font-jua ${k.color}`}>{k.label}</b> · {k.hint}</p>
         <div className="flex items-center gap-3">
           <p className="font-title text-4xl font-bold">{d.word}</p>
@@ -109,9 +112,9 @@ export default function Expand() {
       </div>
       {!res ? (
         <form onSubmit={submit} className="space-y-2">
-          <input ref={inputRef} className="field text-center text-xl" placeholder={`${d.word}의 뜻`} value={input} onChange={(e) => setInput(e.target.value)} maxLength={60} />
+          <input ref={inputRef} className="field text-center text-xl" placeholder={`${d.word}의 뜻`} value={input} onChange={(e) => { setInput(e.target.value); sfx.tap() }} maxLength={60} />
           <div className="flex gap-2">
-            <button type="button" className="btn-ghost flex-1" onClick={() => setRes({ ok: false })}>모르겠어요</button>
+            <button type="button" className="btn-ghost flex-1" onClick={() => { sfx.wrong(); setRes({ ok: false }) }}>모르겠어요</button>
             <button className="btn-main flex-[2]" disabled={!input.trim()}>확인</button>
           </div>
         </form>

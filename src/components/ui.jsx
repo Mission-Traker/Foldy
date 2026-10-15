@@ -146,3 +146,44 @@ export function fmtDate(iso) {
   const d = new Date(iso)
   return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
 }
+
+// 정답·오답 반응 캐릭터 + 색종이
+const BURST = ['#E9954B', '#8DAE78', '#E08A7B', '#E3B23C', '#7E9AD0', '#C98BB9']
+export function Reaction({ kind, k }) {
+  if (!kind) return null
+  const ok = kind === 'ok'
+  return (
+    <div key={k} className="pointer-events-none absolute inset-0 z-10 overflow-visible" aria-hidden="true">
+      {ok && Array.from({ length: 14 }, (_, i) => {
+        const a = (i / 14) * Math.PI * 2
+        const dist = 90 + (i % 3) * 30
+        return (
+          <span key={i} className="burst absolute left-1/2 top-1/2"
+            style={{
+              '--tx': `${Math.cos(a) * dist}px`, '--ty': `${Math.sin(a) * dist - 20}px`, '--rot': `${i * 47}deg`,
+              background: BURST[i % BURST.length], width: i % 2 ? 10 : 14, height: i % 2 ? 10 : 6,
+              borderRadius: i % 3 === 0 ? '50%' : '3px', animationDelay: `${(i % 4) * 15}ms`,
+            }} />
+        )
+      })}
+      <div className={`absolute -top-9 right-3 ${ok ? 'hop' : 'shake'}`}>
+        <svg viewBox="0 0 100 100" width="66" height="66">
+          <g fill={ok ? '#8DAE78' : '#E08A7B'}>
+            <circle cx="50" cy="55" r="30" /><circle cx="30" cy="42" r="17" /><circle cx="70" cy="42" r="17" /><circle cx="50" cy="30" r="16" />
+          </g>
+          {ok ? (
+            <g stroke="#2E2E3A" strokeWidth="5" fill="none" strokeLinecap="round">
+              <path d="M32 48 q8 -10 16 0" /><path d="M54 48 q8 -10 16 0" /><path d="M40 62 q10 10 20 0" />
+            </g>
+          ) : (
+            <g stroke="#2E2E3A" strokeWidth="5" strokeLinecap="round">
+              <path d="M34 42 l10 10 M44 42 l-10 10" /><path d="M56 42 l10 10 M66 42 l-10 10" />
+              <path d="M42 68 q8 -7 16 0" fill="none" />
+            </g>
+          )}
+          {!ok && <path d="M80 26 q6 10 0 14 q-6 -4 0 -14z" fill="#7E9AD0" />}
+        </svg>
+      </div>
+    </div>
+  )
+}

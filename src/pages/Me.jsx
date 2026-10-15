@@ -6,10 +6,12 @@ import { LEVELS } from '../lib/levels.js'
 import { statusOf } from '../lib/study.js'
 import { Blob, Header } from '../components/ui.jsx'
 import { MemberForm } from './Profiles.jsx'
+import { soundOn, setSoundOn, correct } from '../lib/sfx.js'
 
 export default function Me() {
   const { member, members, setMember, updateMember, words, session, setSession, showToast, setMembers, aiState } = useApp()
   const [adding, setAdding] = useState(false)
+  const [sound, setSound] = useState(soundOn())
   const done = words.filter((w) => statusOf(w) === 'o').length
 
   async function setLevel(id) {
@@ -63,6 +65,18 @@ export default function Me() {
             <button key={n} onClick={() => setGoal(n)} className={`chip flex-1 justify-center ${member.daily_goal === n ? 'chip-on' : ''}`}>{n}개</button>
           ))}
         </div>
+      </section>
+
+      <section className="card mb-4 flex items-center justify-between p-4">
+        <div>
+          <h2 className="font-jua text-lg text-slate-deep">효과음</h2>
+          <p className="text-xs text-soft">타자 소리·정답·오답 소리 (이 기기에만 적용)</p>
+        </div>
+        <button role="switch" aria-checked={sound} aria-label="효과음"
+          onClick={() => { const v = !sound; setSound(v); setSoundOn(v); if (v) correct() }}
+          className={`relative h-8 w-14 rounded-full transition ${sound ? 'bg-sage' : 'bg-line'}`}>
+          <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${sound ? 'left-7' : 'left-1'}`} />
+        </button>
       </section>
 
       <section className="card mb-4 p-4">

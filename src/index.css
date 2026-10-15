@@ -35,3 +35,20 @@ input, button, textarea, select { font: inherit; }
 .bob { animation: bob 3.2s ease-in-out infinite; }
 @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
 .safe-b { padding-bottom: max(env(safe-area-inset-bottom), 8px); }
+
+/* 정답·오답 반응 */
+.burst { opacity: 0; animation: burst .75s cubic-bezier(.2,.8,.3,1) forwards; }
+@keyframes burst {
+  0% { transform: translate(-50%,-50%) scale(.4) rotate(0); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1) rotate(var(--rot)); opacity: 0; }
+}
+.hop { animation: hop .7s cubic-bezier(.3,1.6,.5,1) both; }
+@keyframes hop { 0% { transform: translateY(30px) scale(.3); opacity: 0 } 50% { transform: translateY(-12px) scale(1.1); opacity: 1 } 75% { transform: translateY(2px) scale(.97) } 100% { transform: none } }
+.shake { animation: shake .6s ease both; }
+@keyframes shake { 0% { transform: translateY(20px) scale(.4); opacity: 0 } 30% { transform: none; opacity: 1 } 45% { transform: rotate(-12deg) } 60% { transform: rotate(10deg) } 75% { transform: rotate(-6deg) } 100% { transform: none } }
+.glow-ok { animation: glowok .7s ease; }
+@keyframes glowok { 0% { box-shadow: 0 0 0 0 #8DAE78aa, 0 3px 0 #E2D5BF } 100% { box-shadow: 0 0 0 18px #8DAE7800, 0 3px 0 #E2D5BF } }
+.border-ok { border-color: #8DAE78 !important; background: #F3F8EE !important; }
+.border-no { border-color: #E08A7B !important; background: #FCF1EE !important; }
+@media (prefers-reduced-motion: reduce) { .burst, .hop, .shake, .glow-ok, .wiggle, .pop, .bob { animation: none !important; } .burst { display: none } }

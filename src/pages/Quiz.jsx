@@ -5,7 +5,8 @@ import * as db from '../lib/db.js'
 import { gradeMeaning, gradeSpeech, gradeSpelling } from '../lib/grading.js'
 import { applyAnswer, applyReview, isDue, MODE_LABEL, pickQuiz, sendToWrongNote, shuffle, ymd } from '../lib/study.js'
 import { canListen, listenOnce, speak } from '../lib/speech.js'
-import { Blob, Empty, Header } from '../components/ui.jsx'
+import { Blob, Empty, Header, Reaction } from '../components/ui.jsx'
+import * as sfx from '../lib/sfx.js'
 
 function buildQueue(words, mode, src) {
   if (mode === 'review') {
@@ -34,6 +35,7 @@ export default function Quiz() {
   const [judging, setJudging] = useState(false)
   const [sent, setSent] = useState(false)
   const inputRef = useRef()
+  const endSound = useRef(false)
   const item = queue?.[idx]
   const w = useMemo(() => words.find((x) => x.id === item?.id), [words, item])
   const qmode = item?.mode
@@ -63,6 +65,7 @@ export default function Quiz() {
 
   if (idx >= queue.length || !w) {
     const perfect = score.ok === score.total
+    if (!endSound.current) { endSound.current = true; setTimeout(() => (perfect ? sfx.fanfare() : sfx.correct()), 50) }
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-center">
         <Blob i={perfect ? 1 : 3} size={110} className="pop" />
@@ -78,6 +81,7 @@ export default function Quiz() {
 
   async function record(ok, extra = {}) {
     setRes({ ok, ...extra })
+    ok ? sfx.correct() : sfx.wrong()
     setScore((s) => ({ ok: s.ok + (ok ? 1 : 0), total: s.total + 1 }))
     const patch = item.review ? applyReview(w, qmode, ok) : applyAnswer(w, qmode, ok)
     if (ok) setTimeout(() => setIdx((i) => i + 1), 900)
@@ -104,7 +108,7 @@ export default function Quiz() {
       const alts = await listenOnce()
       const ok = gradeSpeech(alts, w.word)
       if (ok) record(true, { heard: alts[0] })
-      else setRes({ ok: false, retry: true, heard: alts[0] || '(잘 안 들렸어요)' })
+      else { sfx.wrong(); setRes({ ok: false, retry: true, heard: alts[0] || '(잘 안 들렸어요)' }) }
     } catch (err) {
       showToast(err.message === 'not-allowed' ? '마이크 권한을 허용해 주세요' : '음성 인식 오류: ' + err.message)
     } finally { setListening(false) }
@@ -120,6 +124,7 @@ export default function Quiz() {
         await patchWord(w.id, { ...fixed, accepted })
         setScore((s) => ({ ...s, ok: s.ok + 1 }))
         setRes({ ok: true, judged: r.reason })
+        sfx.correct()
         bumpDaily()
         setTimeout(() => setIdx((i) => i + 1), 1400)
       } else {
@@ -144,7 +149,8 @@ export default function Quiz() {
       <Header title={title} back right={<span className="font-jua text-soft">{idx + 1}/{queue.length}</span>} />
       <div className="mb-4 h-3 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full bg-sage transition-all" style={{ width: `${progress}%` }} /></div>
 
-      <div className={`card mb-4 flex min-h-[220px] flex-col items-center justify-center gap-3 p-6 text-center ${res && !res.ok && !res.retry ? 'wiggle' : ''} ${res?.ok ? 'pop' : ''}`}>
+      <div className={`card relative mb-4 flex min-h-[220px] flex-col items-center justify-center gap-3 p-6 text-center ${res && !res.ok ? 'wiggle border-no' : ''} ${res?.ok ? 'pop glow-ok border-ok' : ''}`}>
+        <Reaction kind={res ? (res.ok ? 'ok' : 'no') : null} k={`${idx}-${res?.ok}-${res?.heard || ''}`} />
         <p className="font-jua text-sm text-soft">{qmode === 'ko' ? '뜻을 적어 보세요' : qmode === 'en' ? '영어로 적어 보세요' : '마이크를 누르고 또박또박 읽어 보세요'}</p>
         {qmode === 'en' ? (
           <>
@@ -183,7 +189,7 @@ export default function Quiz() {
       ) : (
         !res && (
           <form onSubmit={submit} className="space-y-2">
-            <input ref={inputRef} className="field text-center text-xl" value={input} onChange={(e) => setInput(e.target.value)}
+            <input ref={inputRef} className="field text-center text-xl" value={input} onChange={(e) => { setInput(e.target.value); sfx.tap() }}
               placeholder={qmode === 'ko' ? '한글 뜻' : 'English'} autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false} lang={qmode === 'ko' ? 'ko' : 'en'} maxLength={60} />
             <div className="flex gap-2">
               <button type="button" onClick={() => record(false)} className="btn-ghost flex-1">모르겠어요</button>
@@ -200,7 +206,7 @@ export default function Quiz() {
           )}
           <div className="flex gap-2">
             {!already && !sent ? (
-              <button onClick={toWrongNote} className="btn-coral flex-1">📌 오답노트로 보내기</button>
+              <button onClick={toWrongNote} className="btn-coral flex-1 whitespace-nowrap px-3">📌 오답노트로</button>
             ) : (
               <span className="flex-1 self-center text-center text-sm text-soft">📌 오답노트에 있어요</span>
             )}

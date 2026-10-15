@@ -4,6 +4,7 @@ import * as db from './lib/db.js'
 import { enrichPending } from './lib/enrich.js'
 import { nextStreak, ymd } from './lib/study.js'
 import { BottomNav, Confetti, Toast } from './components/ui.jsx'
+import { fanfare } from './lib/sfx.js'
 import Auth from './pages/Auth.jsx'
 import Profiles from './pages/Profiles.jsx'
 import Home from './pages/Home.jsx'
@@ -121,10 +122,11 @@ export default function App() {
     const done = (daily?.day === day ? daily.done : 0) + 1
     const row = { member_id: member.id, day, done, recs: daily?.day === day ? daily.recs : null }
     setDaily(row)
+    if (done === member.daily_goal) { setTimeout(fanfare, 700); showToast('🎉 오늘 목표 달성!') }
     try { await db.upsertDaily(row) } catch { /* 다음 정답 때 다시 저장 */ }
     const s = nextStreak(member, day)
     if (s) { try { await updateMember(s) } catch { /* */ } }
-  }, [member, daily, updateMember])
+  }, [member, daily, updateMember, showToast])
 
   const value = useMemo(() => ({
     session, setSession, members, setMembers, member, setMember: (m) => { db.saveMemberId(m?.id || null); setMember(m); setWords([]); setDaily(null); enrichedOnce.current = null },
