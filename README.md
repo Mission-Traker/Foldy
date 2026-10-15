@@ -89,7 +89,7 @@ npx vercel dev       # AI 경로까지 (Vercel CLI 로그인 + ANTHROPIC_API_KEY
 ```bash
 npm test                                   # 단위 테스트 97개(채점·상태·복습·정렬·레벨·입력검증·AI 경로 보호)
 npm run build && npx vite preview --port 4173 &
-BASE=http://localhost:4173 node tests/e2e.mjs   # 브라우저 자동 점검 51개(390px)
+BASE=http://localhost:4173 node tests/e2e.mjs   # 브라우저 자동 점검 52개(390px)
 BASE=http://localhost:4173 node tests/e2e-retry.mjs  # '한 번 더' 검수 7개(느린 인터넷 흉내)
 ```
 e2e는 실제 DB에 `e2e_`로 시작하는 테스트 가족을 만듭니다.
