@@ -77,13 +77,17 @@ function Todo({ w }) {
   )
 }
 
-function Row({ w, hide, peek, onPeek, onEdit }) {
+function Row({ w, hide, peek, onPeek, onEdit, selecting, selected, onSelect }) {
   const s = statusOf(w)
   const coverWord = hide === 'word' && !peek
   const coverMeaning = hide === 'meaning' && !peek
   return (
     <li className="border-b-2 border-dashed border-line last:border-0">
       <div className="flex items-stretch gap-2 py-2.5 pr-1">
+        {selecting && (
+          <button onClick={onSelect} aria-label={`${w.word} 선택`} aria-pressed={selected}
+            className={`ml-1 flex h-7 w-7 shrink-0 items-center justify-center self-center rounded-lg border-2 font-bold ${selected ? 'border-coral bg-coral text-white' : 'border-line bg-white text-transparent'}`}>✓</button>
+        )}
         <div className="flex w-[3.75rem] shrink-0 items-center gap-1.5 pl-1">
           <span className="w-6 text-right font-title text-xs text-soft">{w.seq}</span>
           <Mark s={s} />
@@ -99,7 +103,7 @@ function Row({ w, hide, peek, onPeek, onEdit }) {
             탭해서 보기
           </span>
         </button>
-        <button onClick={onEdit} aria-label="단어 고치기" className="w-6 shrink-0 text-soft">⋯</button>
+        {!selecting && <button onClick={onEdit} aria-label="단어 고치기" className="w-6 shrink-0 text-soft">⋯</button>}
       </div>
       {s !== 'o' && <Todo w={w} />}
       <Extras w={w} />
@@ -150,6 +154,21 @@ export default function Wordbook() {
   const [peek, setPeek] = useState(() => new Set())
   const [q, setQ] = useState('')
   const [edit, setEdit] = useState(null)
+  const [selecting, setSelecting] = useState(false)
+  const [sel, setSel] = useState(() => new Set())
+  const [deleting, setDeleting] = useState(false)
+  const { removeWord, showToast } = useApp()
+  const toggleSel = (id) => setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
+  async function deleteSelected() {
+    if (!sel.size) return
+    if (!confirm(`단어 ${sel.size}개를 단어장에서 지울까요? 학습 기록도 함께 지워져요.`)) return
+    setDeleting(true)
+    let ok = 0
+    for (const id of sel) { try { await removeWord(id); ok++ } catch (e) { showToast(e.message); break } }
+    setDeleting(false)
+    setSel(new Set()); setSelecting(false)
+    if (ok) showToast(`${ok}개를 지웠어요`)
+  }
   const filter = params.get('f') || 'all'
 
   const list = useMemo(() => {
@@ -192,10 +211,12 @@ export default function Wordbook() {
         </div>
         <input className="field !py-1.5 !text-sm flex-1" placeholder="찾기" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
-      <div className="mb-3 flex gap-2">
+      <div className="mb-3 flex flex-wrap gap-2">
         {HIDES.map(([k, l]) => (
           <button key={k} onClick={() => { setHide(k); setPeek(new Set()) }} className={`chip ${hide === k ? 'border-tang bg-tang text-white' : ''}`}>{l}</button>
         ))}
+        <button onClick={() => { setSelecting(!selecting); setSel(new Set()) }}
+          className={`chip ml-auto shrink-0 ${selecting ? 'border-coral bg-coral text-white' : ''}`}>{selecting ? '취소' : '🗑 지우기'}</button>
       </div>
 
       {ready && (counts.t + counts.x) > 0 && filter !== 'o' && (
@@ -224,12 +245,23 @@ export default function Wordbook() {
           </div>
           <ul>
             {list.map((w) => (
-              <Row key={w.id} w={w} hide={hide} peek={peek.has(w.id)} onPeek={() => togglePeek(w.id)} onEdit={() => setEdit(w)} />
+              <Row key={w.id} w={w} hide={hide} peek={peek.has(w.id)} onPeek={() => togglePeek(w.id)} onEdit={() => setEdit(w)}
+                selecting={selecting} selected={sel.has(w.id)} onSelect={() => toggleSel(w.id)} />
             ))}
           </ul>
         </div>
       )}
       {list.length > 0 && <p className="mt-3 text-center text-xs text-soft">가림판을 탭하면 정답이 열려요 · 영어를 탭하면 발음을 들려줘요</p>}
+      {selecting && (
+        <div className="safe-b fixed inset-x-0 bottom-[64px] z-30 mx-auto flex max-w-md gap-2 bg-cream/95 px-4 pt-2">
+          <button className="btn-ghost flex-1 py-2.5 text-base" onClick={() => setSel(sel.size === list.length ? new Set() : new Set(list.map((w) => w.id)))}>
+            {sel.size === list.length ? '선택 풀기' : `보이는 ${list.length}개 모두`}
+          </button>
+          <button className="btn-coral flex-1 py-2.5 text-base" disabled={!sel.size || deleting} onClick={deleteSelected}>
+            {deleting ? '지우는 중…' : `🗑 ${sel.size}개 지우기`}
+          </button>
+        </div>
+      )}
       {edit && <EditSheet w={edit} onClose={() => setEdit(null)} />}
     </div>
   )

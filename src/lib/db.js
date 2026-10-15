@@ -152,7 +152,10 @@ export async function updateWord(id, patch) {
   if (!rows.length) throw new Error(friendly({ message: 'FORBIDDEN' }))
   return rows[0]
 }
-export const deleteWord = (id) => q(client.from('foldy_words').delete().eq('id', id))
+export async function deleteWord(id) {
+  const rows = await q(client.from('foldy_words').delete().eq('id', id).select('id'))
+  if (!rows.length) throw new Error(friendly({ message: 'FORBIDDEN' }))
+}
 
 // 하루 기록
 export async function getDaily(memberId, day) {

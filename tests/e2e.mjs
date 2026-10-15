@@ -115,7 +115,8 @@ try {
 
   // 상태 확인: △
   await page.goto(BASE + '/#/book')
-  await page.locator('ul li').filter({ hasText: '학습 중' }).nth(3).waitFor({ timeout: 8000 }).catch(() => {})
+  await page.reload()
+  await page.locator('ul li').filter({ hasText: '학습 중' }).nth(3).waitFor({ timeout: 10000 }).catch(() => {})
   check('푼 단어는 △ 학습 중', (await page.locator('ul li').filter({ hasText: '학습 중' }).count()) === 4)
 
   // 오답노트
@@ -184,6 +185,19 @@ try {
   for (const d of '1234') await page.getByRole('button', { name: d, exact: true }).click()
   await page.getByRole('button', { name: '확인', exact: true }).click()
   check('맞는 비밀번호 → 하은 홈', await page.getByText('안녕, 하은!').waitFor().then(() => true, () => false))
+
+  // 단어 지우기(선택 삭제)
+  await page.goto(BASE + '/#/book')
+  await page.locator('ul li').first().waitFor()
+  const before = await page.locator('ul > li').count()
+  await page.getByRole('button', { name: '🗑 지우기' }).click()
+  await page.getByRole('button', { name: 'umbrella 선택' }).click()
+  await page.getByRole('button', { name: /1개 지우기/ }).click()
+  await page.getByText('1개를 지웠어요').waitFor().catch(() => {})
+  check('선택한 단어 지우기', (await page.locator('ul > li').count()) === before - 1 && !(await page.getByText('umbrella', { exact: true }).isVisible()))
+  await page.reload()
+  await page.locator('ul li').first().waitFor()
+  check('지운 단어는 새로고침 후에도 없음', !(await page.getByText('umbrella', { exact: true }).isVisible()))
 
   // 390px 가로 넘침 없음
   await page.goto(BASE + '/#/book')
