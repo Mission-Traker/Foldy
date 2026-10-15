@@ -39,6 +39,49 @@ export function hasKey() {
   return !!process.env.ANTHROPIC_API_KEY
 }
 
+// 무료 LLM(OpenAI 호환 주소: FreeLLMAPI·OpenRouter·Groq·Gemini 등)
+export function hasFree() {
+  return !!(process.env.FREE_LLM_BASE_URL && process.env.FREE_LLM_API_KEY)
+}
+
+async function freeChat({ system, text, maxTokens }) {
+  const base = process.env.FREE_LLM_BASE_URL.replace(/\/+$/, '')
+  const r = await fetch(`${base}/chat/completions`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.FREE_LLM_API_KEY}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: process.env.FREE_LLM_MODEL || 'auto',
+      max_tokens: maxTokens,
+      messages: [{ role: 'system', content: system }, { role: 'user', content: text }],
+    }),
+    signal: AbortSignal.timeout(40000),
+  })
+  const data = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(data?.error?.message || `무료 LLM ${r.status}`)
+  const out = data?.choices?.[0]?.message?.content
+  if (!out) throw new Error('무료 LLM 응답이 비었어요')
+  return out
+}
+
+// 글자만 다루는 작업: 무료 LLM을 먼저 쓰고, 실패하면 Claude로 대신함
+// check(text)가 false면(형식이 깨진 응답) 역시 Claude로 다시 시도
+export async function textLLM({ system, text, maxTokens = 2000, check = () => true }) {
+  if (hasFree()) {
+    try {
+      const out = await freeChat({ system, text, maxTokens })
+      if (check(out)) return { text: out, via: 'free' }
+    } catch (e) {
+      if (!hasKey()) throw e
+    }
+  }
+  const out = await claude({ model: MODEL_TEXT, system, content: [{ type: 'text', text }], maxTokens })
+  return { text: out, via: 'claude' }
+}
+
+export function canParse(t) {
+  try { parseJson(t); return true } catch { return false }
+}
+
 export async function claude({ model, system, content, maxTokens = 2000 }) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -67,10 +110,12 @@ export function parseJson(text) {
 }
 
 // 공통 진입: 메서드·로그인·키 확인
-export async function guard(req, res) {
+// needVision: 사진 읽기처럼 Claude만 가능한 작업
+export async function guard(req, res, { needVision = false } = {}) {
   if (req.method !== 'POST') { send(res, 405, { error: 'POST만 가능해요' }); return false }
   const fam = await requireFamily(req)
   if (!fam) { send(res, 401, { error: '로그인이 필요해요' }); return false }
-  if (!hasKey()) { send(res, 503, { error: 'AI 키가 아직 설정되지 않았어요(ANTHROPIC_API_KEY)', code: 'NO_KEY' }); return false }
+  const ok = needVision ? hasKey() : hasKey() || hasFree()
+  if (!ok) { send(res, 503, { error: 'AI 키가 아직 설정되지 않았어요', code: 'NO_KEY' }); return false }
   return true
 }

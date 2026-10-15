@@ -50,7 +50,13 @@
 |---|---|---|
 | `ANTHROPIC_API_KEY` | AI 기능에 필요 | 없으면 사진 읽기·유의어/반의어·예문·연관 추천·AI 재채점이 꺼지고 나머지는 정상 동작 |
 | `FOLDY_MODEL_VISION` | 선택 | 사진 읽기 모델(기본 `claude-sonnet-5-5`) |
-| `FOLDY_MODEL_TEXT` | 선택 | 나머지 AI 모델(기본 `claude-haiku-5-5`) — 나중에 무료 모델로 바꿀 때 이 부분만 교체 |
+| `FOLDY_MODEL_TEXT` | 선택 | 글자 작업의 Claude 모델(기본 `claude-haiku-5-5`) |
+| `FREE_LLM_BASE_URL` | 선택 | 무료 LLM의 OpenAI 호환 주소(예: `https://…/v1`). 넣으면 유의어·예문·채점·추천을 무료 LLM이 먼저 처리하고, 실패하거나 형식이 깨지면 Claude가 대신함 |
+| `FREE_LLM_API_KEY` | 선택 | 위 주소의 API 키 |
+| `FREE_LLM_MODEL` | 선택 | 모델 이름(기본 `auto`) |
+
+사진 읽기는 이미지 인식이 필요해 항상 Claude를 씁니다.
+※ 맥에서 돌리는 FreeLLMAPI(`localhost:3001`)는 Vercel 서버가 접근할 수 없습니다. 인터넷에서 닿는 주소(배포한 FreeLLMAPI, OpenRouter·Groq 등 무료 키)를 넣어야 합니다.
 
 Supabase 주소·공개 키는 코드에 기본값이 들어 있습니다(공개용 키, RLS로 보호).
 
@@ -65,7 +71,7 @@ npx vercel dev       # AI 경로까지 (Vercel CLI 로그인 + ANTHROPIC_API_KEY
 ## 테스트
 
 ```bash
-npm test                                   # 단위 테스트 63개(채점·상태·복습·정렬·레벨·입력검증·AI 경로 보호)
+npm test                                   # 단위 테스트 66개(채점·상태·복습·정렬·레벨·입력검증·AI 경로 보호)
 npm run build && npx vite preview --port 4173 &
 BASE=http://localhost:4173 node tests/e2e.mjs   # 브라우저 자동 점검 25개(390px)
 ```

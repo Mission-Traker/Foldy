@@ -10,7 +10,7 @@ function mockRes() {
 const req = (body, token = 'tok', method = 'POST') => ({ method, headers: token ? { 'x-foldy-token': token } : {}, body })
 
 describe('AI 서버 경로 보호', () => {
-  beforeEach(() => { vi.restoreAllMocks(); delete process.env.ANTHROPIC_API_KEY })
+  beforeEach(() => { vi.restoreAllMocks(); for (const k of ['ANTHROPIC_API_KEY', 'FREE_LLM_BASE_URL', 'FREE_LLM_API_KEY']) delete process.env[k] })
 
   it('GET은 405', async () => {
     const { default: h } = await import('../api/judge.js')
@@ -58,6 +58,39 @@ describe('AI 서버 경로 보호', () => {
     const { default: h } = await import('../api/extract.js')
     const res = mockRes(); await h(req({}), res)
     expect(res.statusCode).toBe(400)
+  })
+  it('무료 LLM만 있어도 판정은 동작(무료 응답 사용)', async () => {
+    process.env.FREE_LLM_BASE_URL = 'https://free.example/v1'
+    process.env.FREE_LLM_API_KEY = 'f'
+    const calls = []
+    vi.stubGlobal('fetch', vi.fn(async (url) => { calls.push(url); return url.includes('free.example')
+      ? { ok: true, json: async () => ({ choices: [{ message: { content: '{"ok":true,"reason":"같은 뜻"}' } }] }) }
+      : { ok: true, json: async () => 'family-uuid' } }))
+    const { default: h } = await import('../api/judge.js')
+    const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '기분 좋은' }), res)
+    expect(JSON.parse(res.body).ok).toBe(true)
+    expect(calls.some((u) => u.includes('anthropic'))).toBe(false)
+  })
+  it('무료 LLM 응답이 깨지면 Claude로 대신', async () => {
+    process.env.FREE_LLM_BASE_URL = 'https://free.example/v1'
+    process.env.FREE_LLM_API_KEY = 'f'
+    process.env.ANTHROPIC_API_KEY = 'test'
+    vi.stubGlobal('fetch', vi.fn(async (url) => url.includes('free.example')
+      ? { ok: true, json: async () => ({ choices: [{ message: { content: '죄송해요 모르겠어요' } }] }) }
+      : url.includes('anthropic')
+        ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '{"ok":false,"reason":"다른 뜻"}' }] }) }
+        : { ok: true, json: async () => 'family-uuid' }))
+    const { default: h } = await import('../api/judge.js')
+    const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '자동차' }), res)
+    expect(JSON.parse(res.body)).toEqual({ ok: false, reason: '다른 뜻' })
+  })
+  it('사진 읽기는 무료 LLM만으로는 안 됨(503)', async () => {
+    process.env.FREE_LLM_BASE_URL = 'https://free.example/v1'
+    process.env.FREE_LLM_API_KEY = 'f'
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => 'family-uuid' })))
+    const { default: h } = await import('../api/extract.js')
+    const res = mockRes(); await h(req({ image: 'AAAA' }), res)
+    expect(res.statusCode).toBe(503)
   })
   it('JSON 꺼내기', () => {
     expect(parseJson('설명입니다 {"ok":true} 끝')).toEqual({ ok: true })

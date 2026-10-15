@@ -4,7 +4,7 @@ import { guard, send, readBody, claude, parseJson, MODEL_VISION } from './_lib.j
 export const config = { maxDuration: 60 }
 
 export default async function handler(req, res) {
-  if (!(await guard(req, res))) return
+  if (!(await guard(req, res, { needVision: true }))) return
   try {
     const { image, mediaType } = await readBody(req)
     if (!image || typeof image !== 'string') return send(res, 400, { error: '사진이 없어요' })

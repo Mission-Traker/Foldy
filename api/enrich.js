@@ -1,5 +1,5 @@
 // 단어마다: 허용 답안(비슷한 뜻들) · 유의어 · 반의어 · 예문 · 장면 이모지
-import { guard, send, readBody, claude, parseJson, MODEL_TEXT } from './_lib.js'
+import { guard, send, readBody, textLLM, parseJson, canParse } from './_lib.js'
 
 export const config = { maxDuration: 60 }
 
@@ -13,8 +13,8 @@ export default async function handler(req, res) {
       .slice(0, 15)
     if (!list.length) return send(res, 400, { error: '단어가 없어요' })
     const kid = ['e1', 'e3', 'e5'].includes(level)
-    const text = await claude({
-      model: MODEL_TEXT,
+    const { text } = await textLLM({
+      check: canParse,
       maxTokens: 6000,
       system:
         '너는 한국 학생용 영어 단어 학습 데이터를 만든다. 각 단어에 대해 아래 JSON을 만든다.\n' +
@@ -24,7 +24,7 @@ export default async function handler(req, res) {
         '- ant: 반의어 1개 {"word","meaning"} (자연스러운 반의어가 없으면 null)\n' +
         `- example: {"en": 그 단어가 쓰이는 ${kid ? '초등학생이 이해할 수 있는 짧은(10단어 이하)' : '일상에서 자주 쓰는 자연스러운'} 영어 문장, "ko": 자연스러운 한글 해석, "scene": 문장 장면을 보여주는 이모지 3~4개}\n` +
         '정치·폭력·선정적 내용 금지. 반드시 JSON 배열만 출력: [{"word":"happy","meaning":"행복한","accepted":[...],"syn":{...},"ant":{...},"example":{...}}]',
-      content: [{ type: 'text', text: JSON.stringify(list) }],
+      text: JSON.stringify(list),
     })
     const arr = parseJson(text)
     const out = (Array.isArray(arr) ? arr : []).map((x) => ({
