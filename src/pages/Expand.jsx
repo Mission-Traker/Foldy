@@ -4,7 +4,7 @@ import { useApp } from '../App.jsx'
 import { gradeMeaning, speechScore, SPEECH_PASS } from '../lib/grading.js'
 import { expandStage, shuffle } from '../lib/study.js'
 import { canListen, listenOnce, speak } from '../lib/speech.js'
-import { Blob, Empty, Header, Reaction } from '../components/ui.jsx'
+import { Blob, Empty, Header, Reaction, fitWord } from '../components/ui.jsx'
 import * as sfx from '../lib/sfx.js'
 import { savedMic } from '../lib/mic.js'
 
@@ -34,7 +34,7 @@ export default function Expand() {
   const w = useMemo(() => words.find((x) => x.id === item?.id), [words, item])
   const d = w && item ? w[item.kind] : null
 
-  useEffect(() => { setInput(''); setRes(null); setHeard(''); if (d) setTimeout(() => speak(d.word), 250); setTimeout(() => inputRef.current?.focus(), 100) }, [idx]) // eslint-disable-line
+  useEffect(() => { setInput(''); setRes(null); setHeard(''); if (d) setTimeout(() => speak(d.word), 250); setTimeout(() => inputRef.current?.focus(), 100) }, [idx, queue]) // eslint-disable-line
 
   if (!queue) return <p className="py-20 text-center text-soft">불러오는 중…</p>
   const waiting = words.filter((x) => expandStage(x) === 'synant' && !x.enriched).length
@@ -102,8 +102,8 @@ export default function Expand() {
       <div className={`card relative mb-4 flex flex-col items-center gap-2 p-6 text-center ${res && !res.ok ? 'wiggle border-no' : ''} ${res?.ok ? 'pop glow-ok border-ok' : ''}`}>
         <Reaction kind={res ? (res.ok ? 'ok' : 'no') : null} k={`${idx}-${res?.ok}`} />
         <p className="text-sm text-soft"><b className="font-title text-base text-ink">{w.word}</b> ({w.meaning}) 의 <b className={`font-jua ${k.color}`}>{k.label}</b> · {k.hint}</p>
-        <div className="flex items-center gap-3">
-          <p className="font-title text-4xl font-bold">{d.word}</p>
+        <div className="flex max-w-full items-center justify-center gap-3">
+          <p className={`min-w-0 break-words font-title font-bold leading-tight [overflow-wrap:anywhere] ${fitWord(d.word, ['text-4xl', 'text-3xl', 'text-2xl'])}`}>{d.word}</p>
           <button onClick={() => speak(d.word)} className="h-11 w-11 rounded-full bg-slate/10 text-xl" aria-label="듣기">🔊</button>
         </div>
         <button onClick={practice} className="chip">🎤 발음 연습</button>

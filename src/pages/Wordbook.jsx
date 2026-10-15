@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import { expandStage, sortWords, statusOf, STATUS_LABEL, cleanEntry, MODE_FIELD } from '../lib/study.js'
-import { Empty, Header, Mark, Speak, fmtDate } from '../components/ui.jsx'
+import { Empty, Header, Speak, fmtDate, fitWord } from '../components/ui.jsx'
 import { speak } from '../lib/speech.js'
 
 const SORTS = [['seq', '번호'], ['date', '날짜'], ['abc', 'ABC']]
@@ -21,7 +21,7 @@ function Extras({ w }) {
   if (stage === 'none') return null
   const pair = [['syn', '유의어', w.syn, w.syn_ok], ['ant', '반의어', w.ant, w.ant_ok]].filter(([, , d]) => d)
   return (
-    <div className="ml-[4.25rem] mr-1 mb-2 space-y-2">
+    <div className="ml-8 mr-1 mb-2 space-y-2">
       {!w.enriched && <p className="text-xs text-soft">유의어·반의어를 준비하는 중이에요…</p>}
       {pair.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -59,7 +59,7 @@ function Todo({ w }) {
   const nav = useNavigate()
   const left = STEPS.filter(([m]) => !w[MODE_FIELD[m]]).length
   return (
-    <div className="mb-2 ml-[4.25rem] mr-1 flex items-center gap-1.5">
+    <div className="mb-2 ml-8 mr-1 flex items-center gap-1.5">
       {STEPS.map(([m, label]) => {
         const ok = w[MODE_FIELD[m]]
         return (
@@ -103,19 +103,16 @@ function Row({ w, hide, peek, onPeek, onEdit }) {
   return (
     <li className="relative border-b-2 border-dashed border-line last:border-0">
       <div className="flex items-stretch gap-2 py-2.5 pr-1">
-        <div className="flex w-[3.75rem] shrink-0 items-center gap-1.5 pl-1">
-          <span className="w-6 text-right font-title text-xs text-soft">{w.seq}</span>
-          <Mark s={s} />
-        </div>
-        <div className="relative flex min-w-0 flex-[1.1] items-center gap-1">
+        <span className="w-6 shrink-0 self-center pl-1 text-right font-title text-xs text-soft">{w.seq}</span>
+        <div className="relative flex min-w-0 flex-[1.5] items-center gap-1">
           <button onClick={() => (coverWord ? onPeek() : speak(w.word))} className="relative min-w-0 text-left">
-            <span className="block truncate font-title text-[19px] font-semibold text-ink">{w.word}</span>
-            <span className="block text-[11px] text-soft">{fmtDate(w.created_at)} · {STATUS_LABEL[s]}</span>
+            <span className={`block break-words font-title font-semibold leading-tight text-ink [overflow-wrap:anywhere] ${fitWord(w.word)}`}>{w.word}</span>
+            <span className="block text-[11px] text-soft">{fmtDate(w.created_at)} · {s === 'o' ? <b className="text-sage">○ 완료</b> : s === 't' ? <b className="text-mustard">△ 학습 중</b> : '미학습'}</span>
             {coverWord && <span className="absolute inset-0 rounded-xl bg-[repeating-linear-gradient(0deg,#FFFBF4,#FFFBF4_9px,#EFE5D3_10px)] border-2 border-line" />}
           </button>
           <Speak text={w.word} size="sm" className="!h-7 !w-7 !text-xs" label="발음 듣기" />
         </div>
-        <button onClick={onPeek} className="relative min-w-0 flex-1 overflow-hidden rounded-xl text-left" aria-label="뜻 보기">
+        <button onClick={onPeek} className="relative min-w-[84px] flex-1 overflow-hidden rounded-xl text-left" aria-label="뜻 보기">
           <span className="flex h-full items-center px-2 text-[15px] leading-tight text-slate-deep">{w.meaning}</span>
           <span className={`flap absolute inset-0 flex items-center justify-center rounded-xl border-2 border-line bg-[repeating-linear-gradient(0deg,#FFFBF4,#FFFBF4_9px,#EFE5D3_10px)] text-xs text-soft ${coverMeaning ? '' : 'open'}`}>
             탭해서 보기
@@ -198,7 +195,7 @@ export default function Wordbook() {
       <Header title="단어장" right={<Link to="/add" className="btn-tang px-4 py-2 text-base">＋ 추가</Link>} />
 
       <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
-        {[['all', '전체'], ['x', '✕ 미학습'], ['t', '△ 학습 중'], ['o', '○ 완료']].map(([k, l]) => (
+        {[['all', '전체'], ['x', '미학습'], ['t', '△ 학습 중'], ['o', '○ 완료']].map(([k, l]) => (
           <button key={k} onClick={() => setParams(k === 'all' ? {} : { f: k })} className={`chip shrink-0 ${filter === k ? 'chip-on' : ''}`}>
             {l} <span className="opacity-70">{counts[k]}</span>
           </button>
@@ -225,8 +222,8 @@ export default function Wordbook() {
         <Link to="/quiz/focus" className="nudge mb-3 flex items-center gap-3 rounded-3xl border-2 border-tang/50 bg-tang/10 p-3">
           <span className="text-2xl">🎯</span>
           <span className="flex-1 text-sm">
-            <b className="font-jua text-slate-deep">✕ {counts.x} · △ {counts.t} 단어가 ○를 기다려요</b>
-            <span className="block text-xs text-soft">뜻·철자·발음 세 가지를 모두 맞히면 ○ 완료!</span>
+            <b className="font-jua text-slate-deep">○를 기다리는 단어 {counts.x + counts.t}개</b>
+            <span className="block text-xs text-soft">뜻·철자·발음을 모두 맞히면 ○ 완료!</span>
           </span>
           <span className="rounded-full bg-tang px-3 py-1.5 font-jua text-sm text-white">지금 끝내기</span>
         </Link>

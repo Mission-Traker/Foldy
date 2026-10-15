@@ -1,16 +1,16 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
 import { LEVELS } from '../lib/levels.js'
 import { statusOf } from '../lib/study.js'
-import { Blob, Header } from '../components/ui.jsx'
+import { Blob, Header, GoalStepper } from '../components/ui.jsx'
 import { MemberForm } from './Profiles.jsx'
 import { soundOn, setSoundOn, correct } from '../lib/sfx.js'
 import MicPicker from '../components/MicPicker.jsx'
 
 export default function Me() {
-  const { member, members, setMember, updateMember, words, session, setSession, showToast, setMembers, aiState } = useApp()
+  const { member, members, setMember, updateMember, patchMemberLocal, words, session, setSession, showToast, setMembers, aiState } = useApp()
   const [adding, setAdding] = useState(false)
   const [sound, setSound] = useState(soundOn())
   const done = words.filter((w) => statusOf(w) === 'o').length
@@ -18,8 +18,11 @@ export default function Me() {
   async function setLevel(id) {
     try { await updateMember({ level: id }); showToast('레벨을 바꿨어요. 내일 추천부터 반영돼요') } catch (e) { showToast(e.message) }
   }
-  async function setGoal(n) {
-    try { await updateMember({ daily_goal: n }) } catch (e) { showToast(e.message) }
+  const goalTimer = useRef()
+  function setGoal(n) {
+    patchMemberLocal({ daily_goal: n }) // 바로 보이게
+    clearTimeout(goalTimer.current)
+    goalTimer.current = setTimeout(() => updateMember({ daily_goal: n }).catch((e) => showToast(e.message)), 500)
   }
   async function removeMember(m) {
     if (!confirm(`${m.name}의 프로필과 단어장을 모두 지울까요? 되돌릴 수 없어요.`)) return
@@ -60,11 +63,15 @@ export default function Me() {
       </section>
 
       <section className="card mb-4 p-4">
-        <h2 className="mb-2 font-jua text-lg text-slate-deep">하루 목표 (맞힌 문제 수)</h2>
-        <div className="flex gap-2">
-          {[5, 10, 20, 30].map((n) => (
-            <button key={n} onClick={() => setGoal(n)} className={`chip flex-1 justify-center ${member.daily_goal === n ? 'chip-on' : ''}`}>{n}개</button>
-          ))}
+        <h2 className="mb-1 font-jua text-lg text-slate-deep">오늘의 목표</h2>
+        <p className="mb-3 text-xs text-soft">기본 5개 · 하루에 맞힐 문제 수이자, 홈에 나오는 오늘의 추천 단어 수예요(최대 50).</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <GoalStepper value={member.daily_goal} onChange={setGoal} />
+          <div className="flex gap-1.5">
+            {[5, 10, 20, 30].map((n) => (
+              <button key={n} onClick={() => setGoal(n)} className={`chip ${member.daily_goal === n ? 'chip-on' : ''}`}>{n}</button>
+            ))}
+          </div>
         </div>
       </section>
 

@@ -1,14 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
 import { dailyPick, levelLabel } from '../lib/levels.js'
 import { meaningsFor } from '../lib/enrich.js'
 import { expandStage, isDue, statusOf, ymd } from '../lib/study.js'
-import { Blob, Ring, Speak } from '../components/ui.jsx'
+import { Blob, Ring, Speak, GoalStepper } from '../components/ui.jsx'
 
 export default function Home() {
-  const { member, words, daily, setDaily, addWords, showToast, aiState, ready, openProfile } = useApp()
+  const { member, words, daily, setDaily, addWords, showToast, aiState, ready, openProfile, updateMember, patchMemberLocal } = useApp()
+  const [goalEdit, setGoalEdit] = useState(false)
+  const goalTimer = useRef()
+  const goal = member.daily_goal
+  const [recGoal, setRecGoal] = useState(goal) // 추천 단어 수(목표를 다 바꾼 뒤에 반영)
+  function changeGoal(n) {
+    patchMemberLocal({ daily_goal: n })
+    clearTimeout(goalTimer.current)
+    goalTimer.current = setTimeout(() => { setRecGoal(n); updateMember({ daily_goal: n }).catch((e) => showToast(e.message)) }, 600)
+  }
   const [recs, setRecs] = useState(null)
   const [recBusy, setRecBusy] = useState(false)
   const today = ymd()
@@ -26,7 +35,7 @@ export default function Home() {
   // 오늘의 추천 5개: 처음엔 레벨 목록에서, 단어가 20개 이상 쌓이면 내 단어와 연관된 단어로
   useEffect(() => {
     if (!ready) return
-    if (daily?.day === today && Array.isArray(daily.recs) && daily.recs.length) { setRecs(daily.recs); return }
+    if (daily?.day === today && Array.isArray(daily.recs) && daily.recs.length >= recGoal) { setRecs(daily.recs.slice(0, recGoal)); return }
     let alive = true
     ;(async () => {
       setRecBusy(true)
@@ -34,13 +43,13 @@ export default function Home() {
       if (words.length >= 20) {
         try {
           const recent = [...words].sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 30).map((w) => w.word)
-          const r = await db.ai('recommend', { recent, owned: [...owned], level: member.level })
+          const r = await db.ai('recommend', { recent, owned: [...owned], level: member.level, count: Math.min(recGoal, 10) })
           items = r.items.map((x) => ({ ...x, related: true }))
         } catch { /* 레벨 목록으로 대체 */ }
       }
-      if (items.length < 5) {
+      if (items.length < recGoal) {
         const have = new Set([...owned, ...items.map((x) => x.word.toLowerCase())])
-        const picks = dailyPick(member.level, have, `${member.id}-${today}`, 5 - items.length)
+        const picks = dailyPick(member.level, have, `${member.id}-${today}`, recGoal - items.length)
         items = [...items, ...(await meaningsFor(picks, member.level))]
       }
       if (!alive) return
@@ -54,7 +63,7 @@ export default function Home() {
     })()
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, member.id, today])
+  }, [ready, member.id, today, recGoal])
 
   async function add(list) {
     const ok = list.filter((r) => r.meaning && !owned.has(r.word.toLowerCase()))
@@ -88,8 +97,18 @@ export default function Home() {
           <p className="font-jua text-lg text-slate-deep">{done >= member.daily_goal ? '오늘 목표 달성! 🎉' : '오늘의 목표'}</p>
           <p className="text-sm text-soft">문제 {member.daily_goal}개 맞히기 · 지금 {done}개</p>
         </div>
-        <Link to="/study" className="btn-main px-4 py-2 text-base">학습</Link>
+        <div className="flex flex-col items-end gap-1">
+          <Link to="/study" className="btn-main px-4 py-2 text-base">학습</Link>
+          <button onClick={() => setGoalEdit((v) => !v)} className="text-xs text-soft underline">✎ 목표 바꾸기</button>
+        </div>
       </div>
+      {goalEdit && (
+        <div className="card -mt-2 mb-4 flex flex-wrap items-center justify-between gap-2 p-3">
+          <span className="font-jua text-slate-deep">하루 목표</span>
+          <GoalStepper value={goal} onChange={changeGoal} />
+          <button className="chip" onClick={() => setGoalEdit(false)}>완료</button>
+        </div>
+      )}
 
       <div className="mb-4 grid grid-cols-3 gap-2 text-center">
         {[['x', '미학습', 'text-coral'], ['t', '학습 중', 'text-mustard'], ['o', '완료', 'text-sage']].map(([k, l, c]) => (
@@ -138,7 +157,7 @@ export default function Home() {
               <li key={r.word} className="flex items-center gap-2 py-2.5">
                 <Speak text={r.word} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-title text-lg font-semibold text-ink">{r.word}</p>
+                  <p className="break-words font-title text-lg font-semibold leading-tight text-ink [overflow-wrap:anywhere]">{r.word}</p>
                   <p className="truncate text-sm text-soft">{r.meaning || (recBusy ? '뜻 불러오는 중…' : '뜻은 AI 연결 후 표시돼요')}{r.why ? ` · ${r.why}` : ''}</p>
                 </div>
                 <button disabled={has} onClick={() => add([r])} className={`chip ${has ? '' : 'border-sage text-sage'}`}>{has ? '담음' : '＋ 담기'}</button>

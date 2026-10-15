@@ -40,7 +40,29 @@ function loadAudioSet() {
   return audioLoading
 }
 export const audioSlug = (w) => String(w).toLowerCase().trim().replace(/[^a-z0-9'-]+/g, '_')
-let current = null
+
+// 휴대폰(특히 아이폰)은 "사용자가 누른 순간"에만 소리를 허락함.
+// → 하나의 재생기를 계속 다시 쓰고, 첫 터치 때 무음으로 한 번 재생해 잠금을 풀어 둠
+const SILENT = '/silence.mp3' // 0.15초 무음
+let player = null
+function getPlayer() {
+  if (!player && typeof Audio !== 'undefined') { player = new Audio(); player.preload = 'auto' }
+  return player
+}
+let unlocked = false
+function unlock() {
+  if (unlocked) return
+  unlocked = true
+  try {
+    const p = getPlayer()
+    if (p) { p.src = SILENT; p.play().catch(() => {}) }
+    if (typeof speechSynthesis !== 'undefined') { const u = new SpeechSynthesisUtterance(''); u.volume = 0; speechSynthesis.speak(u) }
+  } catch { /* */ }
+}
+if (typeof window !== 'undefined') {
+  ;['pointerdown', 'touchend', 'keydown', 'click'].forEach((ev) => window.addEventListener(ev, unlock, { passive: true, capture: true }))
+  loadAudioSet() // 녹음 목록을 미리 불러와 재생이 늦어지지 않게
+}
 
 // 단어 하나는 녹음 파일 우선, 문장·없는 단어는 기기 음성
 export function speak(text, opts = {}) {
@@ -50,11 +72,14 @@ export function speak(text, opts = {}) {
   if (!isWord) return speakTTS(t, opts)
   const play = (set) => {
     if (!set.has(t.toLowerCase())) return speakTTS(t, opts)
+    const p = getPlayer()
+    if (!p) return speakTTS(t, opts)
     try {
-      if (current) current.pause()
       if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel()
-      current = new Audio(`/audio/${audioSlug(t)}.mp3`)
-      current.play().catch(() => speakTTS(t, opts))
+      p.pause()
+      p.src = `/audio/${audioSlug(t)}.mp3`
+      p.currentTime = 0
+      p.play().catch(() => speakTTS(t, opts)) // 재생이 막히거나 파일이 없으면 기기 음성으로
     } catch { speakTTS(t, opts) }
   }
   if (audioSet) play(audioSet)

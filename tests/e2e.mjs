@@ -75,7 +75,7 @@ try {
   // 단어장
   await page.getByRole('heading', { name: '단어장' }).waitFor()
   const rows = page.locator('ul li').filter({ hasText: '미학습' })
-  check('단어장 4개 모두 ✕ 미학습', (await rows.count()) === 4)
+  check('단어장 4개 모두 미학습', (await rows.count()) === 4)
   check('뜻 가림판 닫혀 있음', (await page.locator('.flap:not(.open)').count()) === 4)
   await page.getByRole('button', { name: '뜻 보기' }).first().click()
   check('가림판 탭 → 열림', (await page.locator('.flap.open').count()) === 1)
@@ -86,8 +86,14 @@ try {
   const firstDesc = await page.locator('ul li .font-title.text-\\[19px\\]').first().textContent()
   check('알파벳 역순', firstDesc === 'umbrella', firstDesc)
 
-  // 퀴즈: 영어 → 뜻 (맥락 채점)
+  // 퀴즈: 영어 → 뜻 (맥락 채점) — 첫 문제부터 발음 자동 재생
+  const audioReq = []
+  page.on('request', (r) => { if (r.url().includes('/audio/')) audioReq.push(decodeURIComponent(r.url().split('/audio/')[1])) })
   await page.goto(BASE + '/#/quiz/ko')
+  await page.getByPlaceholder('한글 뜻').waitFor()
+  const firstQ = (await page.locator('.card p.font-title').first().textContent()).trim()
+  await page.waitForTimeout(1200)
+  check('첫 문제 발음 자동 재생', audioReq.includes(firstQ + ".mp3"), `${firstQ} / ${audioReq.join(',')}`)
   for (let i = 0; i < 4; i++) {
     const w = (await page.locator('.card p.font-title').first().textContent()).trim()
     const ans = { apple: '사과', happy: '즐겁고 행복하다', library: '자동차', umbrella: '우산' }[w]
@@ -104,7 +110,12 @@ try {
     } else {
       await page.getByText('정답!').waitFor()
       check(`정답 처리(${w}=${ans})`, true)
-      if (i < 3) await page.locator('.card p.font-title').first().filter({ hasNotText: new RegExp(`^${w}$`) }).waitFor()
+      if (i < 3) {
+        await page.locator('.card p.font-title').first().filter({ hasNotText: new RegExp(`^${w}$`) }).waitFor()
+        const nw = (await page.locator('.card p.font-title').first().textContent()).trim()
+        await page.waitForTimeout(800)
+        check(`자동으로 넘어간 문제도 발음 재생(${nw})`, audioReq.includes(nw + '.mp3'))
+      }
     }
   }
   check('퀴즈 결과 화면(4문제 중 3개)', await page.getByText(/4문제 중 3개 정답/).waitFor().then(() => true, () => false))
@@ -199,6 +210,29 @@ try {
   await page.reload()
   await page.locator('ul li').first().waitFor()
   check('지운 단어는 새로고침 후에도 없음', !(await page.getByText('umbrella', { exact: true }).isVisible()))
+
+  // 긴 단어가 잘리지 않음
+  await page.goto(BASE + '/#/add?tab=manual')
+  await page.getByLabel('영어나 한글로 찾기').fill('congrat')
+  await page.getByRole('button', { name: /congratulate/ }).first().click()
+  await page.getByRole('button', { name: /congratulate.*담음/ }).waitFor()
+  await page.goto(BASE + '/#/book')
+  const longEl = page.getByText('congratulate', { exact: true }).first()
+  await longEl.waitFor()
+  const clipped = await longEl.evaluate((el) => el.scrollWidth > el.clientWidth + 1 || getComputedStyle(el).textOverflow === 'ellipsis')
+  check('긴 단어(congratulate) 잘리지 않음', !clipped)
+
+  // 하루 목표 늘리기 → 추천 단어 수도 늘어남
+  await page.goto(BASE + '/#/')
+  await page.getByRole('button', { name: '✎ 목표 바꾸기' }).click()
+  await page.getByRole('button', { name: '목표 늘리기' }).click()
+  await page.getByRole('button', { name: '목표 늘리기' }).click()
+  check('목표 7개로 표시', await page.getByText('문제 7개 맞히기').isVisible())
+  await page.locator('section li').nth(6).waitFor({ timeout: 8000 }).catch(() => {})
+  check('추천 단어도 7개', (await page.locator('section li').count()) === 7, String(await page.locator('section li').count()))
+  await page.waitForTimeout(800)
+  await page.reload()
+  check('목표가 저장됨(새로고침 후 7개)', await page.getByText('문제 7개 맞히기').waitFor().then(() => true, () => false))
 
   // 390px 가로 넘침 없음
   await page.goto(BASE + '/#/book')

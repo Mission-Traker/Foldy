@@ -30,7 +30,7 @@ export default function PronSheet({ word, heard, score, onClose }) {
         <div className="mb-3 flex items-start justify-between">
           <div>
             <p className="font-jua text-sm text-soft">표준 발음 (미국식)</p>
-            <h3 className="font-title text-4xl font-bold text-ink">{word}</h3>
+            <h3 className={`break-words font-title font-bold leading-tight text-ink [overflow-wrap:anywhere] ${word.length > 12 ? "text-3xl" : "text-4xl"}`}>{word}</h3>
             {info?.ipa && <p className="font-title text-lg text-slate">{info.ipa}</p>}
           </div>
           <button onClick={onClose} aria-label="닫기" className="text-2xl text-soft">×</button>

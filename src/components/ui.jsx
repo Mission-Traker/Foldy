@@ -200,3 +200,23 @@ export function Reaction({ kind, k }) {
     </div>
   )
 }
+
+// 긴 영어 단어도 잘리지 않게: 글자 수에 따라 크기를 줄이고 줄바꿈 허용
+export function fitWord(word, sizes = ['text-[19px]', 'text-[16px]', 'text-[14px]', 'text-[12.5px]']) {
+  const n = String(word || '').length
+  return n <= 9 ? sizes[0] : n <= 12 ? sizes[1] : n <= 16 ? sizes[2] : sizes[sizes.length - 1]
+}
+
+// 하루 목표 개수 정하기(1~50)
+export function GoalStepper({ value, onChange, min = 1, max = 50 }) {
+  const set = (v) => onChange(Math.max(min, Math.min(max, v)))
+  return (
+    <div className="flex items-center gap-2">
+      <button type="button" aria-label="목표 줄이기" onClick={() => set(value - 1)} disabled={value <= min}
+        className="h-10 w-10 rounded-full border-2 border-line bg-paper font-jua text-xl text-slate-deep active:scale-95 disabled:opacity-40">−</button>
+      <span className="w-14 text-center font-jua text-2xl text-slate-deep" aria-live="polite">{value}개</span>
+      <button type="button" aria-label="목표 늘리기" onClick={() => set(value + 1)} disabled={value >= max}
+        className="h-10 w-10 rounded-full border-2 border-line bg-paper font-jua text-xl text-slate-deep active:scale-95 disabled:opacity-40">＋</button>
+    </div>
+  )
+}

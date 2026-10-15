@@ -5,7 +5,7 @@ import * as db from '../lib/db.js'
 import { gradeMeaning, gradeSpelling, speechScore, SPEECH_PASS } from '../lib/grading.js'
 import { applyAnswer, applyReview, isDue, MODE_FIELD, MODE_LABEL, pickQuiz, sendToWrongNote, shuffle, statusOf, ymd } from '../lib/study.js'
 import { canListen, listenOnce, speak } from '../lib/speech.js'
-import { Blob, Empty, Header, Reaction } from '../components/ui.jsx'
+import { Blob, Empty, Header, Reaction, fitWord } from '../components/ui.jsx'
 import * as sfx from '../lib/sfx.js'
 import MicPicker from '../components/MicPicker.jsx'
 import PronSheet from '../components/PronSheet.jsx'
@@ -56,10 +56,12 @@ export default function Quiz() {
 
   useEffect(() => {
     setInput(''); setRes(null); setSent(false)
-    if (qmode === 'ko' && w) setTimeout(() => speak(w.word), 250)
+    // 영어→뜻·발음 문제는 들어오자마자 발음 재생(뜻→영어는 정답이 드러나므로 재생 안 함)
+    // queue도 지켜봐야 첫 문제(단어 목록을 불러온 직후)에서도 재생됨
+    if ((qmode === 'ko' || qmode === 'sp') && w) setTimeout(() => speak(w.word), 250)
     if (qmode !== 'sp') setTimeout(() => inputRef.current?.focus(), 100)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx])
+  }, [idx, queue])
 
   if (!queue) return <p className="py-20 text-center text-soft">불러오는 중…</p>
   if (!['ko', 'en', 'sp', 'review', 'focus'].includes(mode)) return <Empty title="없는 퀴즈예요"><Link to="/study" className="btn-main mt-2">돌아가기</Link></Empty>
@@ -224,12 +226,12 @@ export default function Quiz() {
         <p className="font-jua text-sm text-soft">{qmode === 'ko' ? '뜻을 적어 보세요' : qmode === 'en' ? '영어로 적어 보세요' : '마이크를 누르고 읽어 보세요 (70% 비슷하면 통과)'}</p>
         {qmode === 'en' ? (
           <>
-            <p className="font-jua text-3xl text-slate-deep">{w.meaning}</p>
-            <p className="font-title tracking-[0.3em] text-soft">{w.word[0]}{w.word.slice(1).replace(/[A-Za-z]/g, '_')}</p>
+            <p className={`break-words font-jua text-slate-deep ${w.meaning.length > 14 ? 'text-2xl' : 'text-3xl'}`}>{w.meaning}</p>
+            <p className={`max-w-full break-all font-title text-soft ${w.word.length > 10 ? 'tracking-[0.15em]' : 'tracking-[0.3em]'}`}>{w.word[0]}{w.word.slice(1).replace(/[A-Za-z]/g, '_')}</p>
           </>
         ) : (
-          <div className="flex items-center gap-3">
-            <p className="font-title text-4xl font-bold text-ink">{w.word}</p>
+          <div className="flex max-w-full items-center justify-center gap-3">
+            <p className={`min-w-0 break-words text-center font-title font-bold leading-tight text-ink [overflow-wrap:anywhere] ${fitWord(w.word, ['text-4xl', 'text-3xl', 'text-2xl'])}`}>{w.word}</p>
             <button onClick={() => speak(w.word)} className="h-11 w-11 rounded-full bg-slate/10 text-xl" aria-label="듣기">🔊</button>
           </div>
         )}
