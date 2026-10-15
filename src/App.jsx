@@ -16,6 +16,8 @@ import WrongNote from './pages/WrongNote.jsx'
 import Expand from './pages/Expand.jsx'
 import Me from './pages/Me.jsx'
 import LevelTest from './pages/LevelTest.jsx'
+import Family from './pages/Family.jsx'
+import ProfileSheet from './components/ProfileSheet.jsx'
 
 const Ctx = createContext(null)
 export const useApp = () => useContext(Ctx)
@@ -30,6 +32,7 @@ export default function App() {
   const [loadedFor, setLoadedFor] = useState(null)
   const [toast, setToastMsg] = useState('')
   const [aiState, setAiState] = useState('idle') // idle | busy | nokey | error
+  const [profileOpen, setProfileOpen] = useState(false)
   const toastTimer = useRef()
   const loc = useLocation()
 
@@ -93,8 +96,10 @@ export default function App() {
       setWords((ws) => ws.map((w) => (w.id === id ? mergePatchResult(w, saved, patch) : w)))
     } catch (e) {
       showToast('저장 실패: ' + e.message)
+      // 잠금 해제가 만료된 경우: 다시 비밀번호를 받도록 프로필 선택으로
+      if (/잠겨/.test(e.message) && member) { db.forgetMemberToken(member.id); db.saveMemberId(null); setMember(null) }
     }
-  }, [showToast])
+  }, [showToast, member])
 
   const addWords = useCallback(async (entries, source) => {
     const { added, skipped } = await db.addWords(member.id, entries, source)
@@ -130,8 +135,8 @@ export default function App() {
   }, [member, daily, updateMember, showToast])
 
   const value = useMemo(() => ({
-    session, setSession, members, setMembers, member, setMember: (m) => { db.saveMemberId(m?.id || null); setMember(m); setWords([]); setDaily(null); enrichedOnce.current = null },
-    words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, showToast, aiState, runEnrich,
+    session, setSession, members, setMembers, member, patchMemberLocal: (patch) => { setMember((m) => (m ? { ...m, ...patch } : m)); setMembers((ms) => ms.map((x) => (member && x.id === member.id ? { ...x, ...patch } : x))) }, setMember: (m) => { db.saveMemberId(m?.id || null); setMember(m); setWords([]); setDaily(null); enrichedOnce.current = null },
+    openProfile: () => setProfileOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, showToast, aiState, runEnrich,
   }), [session, members, member, words, loading, loadedFor, daily, patchWord, addWords, removeWord, updateMember, bumpDaily, showToast, aiState, runEnrich])
 
   const wrongCount = words.filter((w) => (w.wrong_modes || []).length).length
@@ -156,11 +161,13 @@ export default function App() {
             <Route path="/expand" element={<Expand />} />
             <Route path="/me" element={<Me />} />
             <Route path="/level-test" element={<LevelTest />} />
+            <Route path="/family" element={<Family />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}
       </div>
       {session && member && !fullScreen && <BottomNav wrongCount={wrongCount} />}
+      {profileOpen && member && <ProfileSheet onClose={() => setProfileOpen(false)} />}
       <Toast msg={toast} />
     </Ctx.Provider>
   )

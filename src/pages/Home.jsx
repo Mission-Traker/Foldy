@@ -8,7 +8,7 @@ import { expandStage, isDue, statusOf, ymd } from '../lib/study.js'
 import { Blob, Ring, Speak } from '../components/ui.jsx'
 
 export default function Home() {
-  const { member, words, daily, setDaily, addWords, showToast, aiState, ready } = useApp()
+  const { member, words, daily, setDaily, addWords, showToast, aiState, ready, openProfile } = useApp()
   const [recs, setRecs] = useState(null)
   const [recBusy, setRecBusy] = useState(false)
   const today = ymd()
@@ -68,7 +68,10 @@ export default function Home() {
   return (
     <div className="pt-[max(env(safe-area-inset-top),16px)]">
       <div className="mb-4 flex items-center gap-3">
-        <Blob i={member.avatar} size={60} className="bob" />
+        <button onClick={openProfile} aria-label="내 프로필 수정" className="relative active:scale-95">
+          <Blob i={member.avatar} size={60} className="bob" />
+          <span className="absolute -bottom-1 -right-1 rounded-full bg-paper px-1 text-[11px] border border-line">✎</span>
+        </button>
         <div className="flex-1">
           <p className="text-sm text-soft">{levelLabel(member.level)}</p>
           <h1 className="h-title text-2xl">안녕, {member.name}!</h1>

@@ -98,7 +98,7 @@ export default function Expand() {
   const k = KIND[item.kind]
   return (
     <div>
-      <Header title="확장 학습" back right={<span className="font-jua text-soft">{idx + 1}/{queue.length}</span>} />
+      <Header noProfile title="확장 학습" back right={<span className="font-jua text-soft">{idx + 1}/{queue.length}</span>} />
       <div className={`card relative mb-4 flex flex-col items-center gap-2 p-6 text-center ${res && !res.ok ? 'wiggle border-no' : ''} ${res?.ok ? 'pop glow-ok border-ok' : ''}`}>
         <Reaction kind={res ? (res.ok ? 'ok' : 'no') : null} k={`${idx}-${res?.ok}`} />
         <p className="text-sm text-soft"><b className="font-title text-base text-ink">{w.word}</b> ({w.meaning}) 의 <b className={`font-jua ${k.color}`}>{k.label}</b> · {k.hint}</p>

@@ -148,7 +148,7 @@ export default function Quiz() {
 
   return (
     <div>
-      <Header title={title} back right={<span className="font-jua text-soft">{idx + 1}/{queue.length}</span>} />
+      <Header noProfile title={title} back right={<span className="font-jua text-soft">{idx + 1}/{queue.length}</span>} />
       <div className="mb-4 h-3 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full bg-sage transition-all" style={{ width: `${progress}%` }} /></div>
 
       <div className={`card relative mb-4 flex min-h-[220px] flex-col items-center justify-center gap-3 p-6 text-center ${res && !res.ok ? 'wiggle border-no' : ''} ${res?.ok ? 'pop glow-ok border-ok' : ''}`}>

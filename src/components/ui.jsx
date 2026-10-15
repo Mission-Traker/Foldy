@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { STATUS_MARK } from '../lib/study.js'
 import { speak } from '../lib/speech.js'
+import { useApp } from '../App.jsx'
 
 const COLORS = ['#E9954B', '#8DAE78', '#E08A7B', '#E3B23C', '#7E9AD0', '#C98BB9']
 // 동글동글한 덩어리 모양(원 여러 개를 겹침)
@@ -64,7 +65,18 @@ export function Speak({ text, className = '', label = '듣기', size = 'md' }) {
   )
 }
 
-export function Header({ title, back, right }) {
+export function ProfileButton({ size = 40 }) {
+  const app = useApp()
+  if (!app?.member) return null
+  return (
+    <button onClick={app.openProfile} aria-label="내 프로필" className="relative shrink-0 rounded-full bg-paper border-2 border-line p-0.5 active:scale-95">
+      <Blob i={app.member.avatar} size={size - 6} />
+      {app.member.has_pin && <span className="absolute -bottom-1 -right-1 text-[11px]">🔒</span>}
+    </button>
+  )
+}
+
+export function Header({ title, back, right, noProfile }) {
   const nav = useNavigate()
   return (
     <div className="sticky top-0 z-20 -mx-4 mb-3 flex items-center gap-2 bg-cream/95 px-4 pb-2 pt-[max(env(safe-area-inset-top),12px)] backdrop-blur">
@@ -74,6 +86,7 @@ export function Header({ title, back, right }) {
       )}
       <h1 className="h-title flex-1 truncate text-2xl">{title}</h1>
       {right}
+      {!noProfile && <ProfileButton />}
     </div>
   )
 }

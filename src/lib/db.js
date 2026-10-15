@@ -4,6 +4,8 @@ const URL = import.meta.env.VITE_SUPABASE_URL || 'https://gilpvbwpbioihvjbldpm.s
 const KEY = import.meta.env.VITE_SUPABASE_KEY || 'sb_publishable_kMgYoZQrs5LRk-zrUshxOA_wZz1keiW'
 const TOKEN_KEY = 'foldy.session'
 const MEMBER_KEY = 'foldy.member'
+const MTOK_KEY = 'foldy.memberTokens' // 구성원별 잠금 해제 토큰
+const MEMBER_COLS = 'id,family_id,name,avatar,level,daily_goal,streak,best_streak,last_study,created_at,has_pin'
 
 function store(k, v) {
   try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)) } catch { /* 저장 불가 환경 */ }
@@ -13,24 +15,36 @@ function load(k) {
 }
 
 let session = load(TOKEN_KEY) // { token, family_id, name, login_id }
+let activeMember = load(MEMBER_KEY)
 let client = make()
 
+function memberTokens() { return load(MTOK_KEY) || {} }
 function make() {
-  return createClient(URL, KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: session?.token ? { 'x-foldy-token': session.token } : {} },
-  })
+  const headers = {}
+  if (session?.token) headers['x-foldy-token'] = session.token
+  const mt = activeMember && memberTokens()[activeMember]
+  if (mt) headers['x-foldy-member'] = mt
+  return createClient(URL, KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { headers } })
+}
+export const hasMemberToken = (id) => !!memberTokens()[id]
+function saveMemberToken(id, token) {
+  const all = memberTokens()
+  if (token) all[id] = token; else delete all[id]
+  store(MTOK_KEY, all)
 }
 
 export const getSession = () => session
 export const sb = () => client
 export const savedMemberId = () => load(MEMBER_KEY)
-export const saveMemberId = (id) => store(MEMBER_KEY, id)
+export const saveMemberId = (id) => { store(MEMBER_KEY, id); activeMember = id; client = make() }
 
 const ERR = {
   LOGIN_TAKEN: '이미 쓰고 있는 아이디예요',
   LOGIN_FAILED: '아이디 또는 비밀번호가 맞지 않아요',
   PASSWORD_SHORT: '비밀번호는 4자 이상이에요',
+  PIN_WRONG: '비밀번호가 맞지 않아요',
+  PIN_FORMAT: '비밀번호는 숫자 4~6자리예요',
+  FORBIDDEN: '이 프로필은 비밀번호로 잠겨 있어요',
   LOGIN_LOCKED: '여러 번 틀려서 15분 동안 잠겼어요. 잠시 뒤 다시 해 주세요',
 }
 function friendly(error) {
@@ -64,6 +78,8 @@ export async function logout() {
   try { await client.rpc('foldy_logout') } catch { /* 무시 */ }
   setSession(null)
   store(MEMBER_KEY, null)
+  store(MTOK_KEY, null)
+  activeMember = null
 }
 
 async function q(promise) {
@@ -73,10 +89,44 @@ async function q(promise) {
 }
 
 // 구성원
-export const listMembers = () => q(client.from('foldy_members').select('*').order('created_at'))
-export const addMember = (m) => q(client.from('foldy_members').insert({ ...m, family_id: session.family_id }).select().single())
-export const updateMember = (id, patch) => q(client.from('foldy_members').update(patch).eq('id', id).select().single())
-export const deleteMember = (id) => q(client.from('foldy_members').delete().eq('id', id))
+export const listMembers = () => q(client.from('foldy_members').select(MEMBER_COLS).order('created_at'))
+export const addMember = (m) => q(client.from('foldy_members').insert({ ...m, family_id: session.family_id }).select(MEMBER_COLS).single())
+export async function updateMember(id, patch) {
+  const rows = await q(client.from('foldy_members').update(patch).eq('id', id).select(MEMBER_COLS))
+  if (!rows.length) throw new Error(friendly({ message: 'FORBIDDEN' }))
+  return rows[0]
+}
+
+// 구성원 비밀번호
+export async function unlockMember(id, pin) {
+  const data = await q(client.rpc('foldy_member_unlock', { p_member: id, p_pin: pin }))
+  if (data?.error) throw new Error(friendly({ message: data.error }))
+  saveMemberToken(id, data.token)
+  if (activeMember === id) client = make()
+  return true
+}
+export async function setPin(id, pin) {
+  const data = await q(client.rpc('foldy_set_pin', { p_member: id, p_pin: pin || '' }))
+  if (data?.error) throw new Error(friendly({ message: data.error }))
+  saveMemberToken(id, data.token || null)
+  client = make()
+  return true
+}
+export const forgetMemberToken = (id) => { saveMemberToken(id, null); client = make() }
+
+// 가족 학습현황(보기 전용)
+export async function familyProgress() {
+  const words = await q(client.from('foldy_words').select('member_id,en_ok,ko_ok,sp_ok,attempted,created_at').limit(20000))
+  const today = new Date()
+  const z = (n) => String(n).padStart(2, '0')
+  const day = `${today.getFullYear()}-${z(today.getMonth() + 1)}-${z(today.getDate())}`
+  const daily = await q(client.from('foldy_daily').select('member_id,done').eq('day', day))
+  return { words, daily }
+}
+export async function deleteMember(id) {
+  const rows = await q(client.from('foldy_members').delete().eq('id', id).select('id'))
+  if (!rows.length) throw new Error('비밀번호로 잠긴 프로필은 본인만 지울 수 있어요')
+}
 
 // 단어
 export const listWords = (memberId) =>
@@ -97,7 +147,11 @@ export async function addWords(memberId, entries, source = 'manual') {
   for (const row of fresh) added.push(await q(client.from('foldy_words').insert(row).select().single()))
   return { added, skipped: entries.length - fresh.length }
 }
-export const updateWord = (id, patch) => q(client.from('foldy_words').update(patch).eq('id', id).select().single())
+export async function updateWord(id, patch) {
+  const rows = await q(client.from('foldy_words').update(patch).eq('id', id).select())
+  if (!rows.length) throw new Error(friendly({ message: 'FORBIDDEN' }))
+  return rows[0]
+}
 export const deleteWord = (id) => q(client.from('foldy_words').delete().eq('id', id))
 
 // 하루 기록

@@ -45,7 +45,7 @@ export default function LevelTest() {
 
   return (
     <div>
-      <Header title="레벨 진단" back="/me" right={<span className="font-jua text-soft">{step + 1}/{set.length}</span>} />
+      <Header noProfile title="레벨 진단" back="/me" right={<span className="font-jua text-soft">{step + 1}/{set.length}</span>} />
       <p className="mb-1 font-jua text-lg text-slate-deep">뜻을 아는 단어를 모두 눌러 주세요</p>
       <p className="mb-4 text-sm text-soft">{LEVELS.find((l) => l.id === group.level)?.label} 단어예요 · 5개 중 4개 이상 알면 다음 단계로</p>
       <div className="grid grid-cols-1 gap-2">

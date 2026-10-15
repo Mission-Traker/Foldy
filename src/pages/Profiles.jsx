@@ -3,6 +3,8 @@ import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
 import { LEVELS } from '../lib/levels.js'
 import { Blob } from '../components/ui.jsx'
+import PinPad from '../components/PinPad.jsx'
+import { Link } from 'react-router-dom'
 
 export function MemberForm({ onDone, onCancel }) {
   const { setMembers, showToast } = useApp()
@@ -56,6 +58,11 @@ export function MemberForm({ onDone, onCancel }) {
 export default function Profiles() {
   const { members, setMember, session, setSession } = useApp()
   const [adding, setAdding] = useState(false)
+  const [locked, setLocked] = useState(null)
+  function choose(m) {
+    if (m.has_pin && !db.hasMemberToken(m.id)) return setLocked(m)
+    setMember(m)
+  }
   return (
     <div className="py-10">
       <p className="text-center font-title text-sm font-semibold tracking-[0.25em] text-coral">{session?.name}</p>
@@ -66,7 +73,8 @@ export default function Profiles() {
         <>
           <div className="grid grid-cols-2 gap-3">
             {members.map((m) => (
-              <button key={m.id} onClick={() => setMember(m)} className="card flex flex-col items-center gap-1 py-5 active:translate-y-[2px]">
+              <button key={m.id} onClick={() => choose(m)} className="card relative flex flex-col items-center gap-1 py-5 active:translate-y-[2px]">
+                {m.has_pin && <span className="absolute right-3 top-3 text-sm" aria-label="비밀번호 잠김">🔒</span>}
                 <Blob i={m.avatar} size={72} />
                 <span className="font-jua text-lg text-slate-deep">{m.name}</span>
                 <span className="text-xs text-soft">{LEVELS.find((l) => l.id === m.level)?.label}</span>
@@ -78,6 +86,11 @@ export default function Profiles() {
           </div>
           <button className="mx-auto mt-8 block text-sm text-soft underline" onClick={async () => { await db.logout(); setSession(null) }}>로그아웃</button>
         </>
+      )}
+      {locked && (
+        <PinPad title={`${locked.name}의 비밀번호`} sub="숫자 4~6자리" avatar={locked.avatar}
+          onCancel={() => setLocked(null)}
+          onSubmit={async (pin) => { await db.unlockMember(locked.id, pin); const m = locked; setLocked(null); setMember(m) }} />
       )}
     </div>
   )
