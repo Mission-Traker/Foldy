@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { min-height: 100%; }
+body {
+  @apply bg-cream text-ink font-body antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+input, button, textarea, select { font: inherit; }
+
+@layer components {
+  .h-title { @apply font-jua text-slate tracking-tight; }
+  .card { @apply bg-paper rounded-3xl border-2 border-line shadow-card; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 font-jua text-[17px] transition active:translate-y-[2px] disabled:opacity-40 disabled:active:translate-y-0; }
+  .btn-main { @apply btn bg-slate-deep text-white shadow-pop active:shadow-none; }
+  .btn-tang { @apply btn bg-tang text-white shadow-[0_4px_0_#C27532] active:shadow-none; }
+  .btn-sage { @apply btn bg-sage text-white shadow-[0_4px_0_#6E8E5B] active:shadow-none; }
+  .btn-coral { @apply btn bg-coral text-white shadow-[0_4px_0_#BF6D5F] active:shadow-none; }
+  .btn-ghost { @apply btn bg-paper text-slate-deep border-2 border-line; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-jua border-2 border-line bg-paper text-soft; }
+  .chip-on { @apply bg-slate-deep text-white border-slate-deep; }
+  .field { @apply w-full rounded-2xl border-2 border-line bg-white px-4 py-3 text-[17px] outline-none focus:border-slate; }
+  .label { @apply block text-sm text-soft mb-1 font-jua; }
+}
+
+/* 접이식 가림판 */
+.flap { transition: transform .28s cubic-bezier(.3,.9,.4,1), opacity .2s; transform-origin: left center; }
+.flap.open { transform: perspective(500px) rotateY(-80deg); opacity: 0; pointer-events: none; }
+.wiggle { animation: wiggle .5s ease; }
+@keyframes wiggle { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+.pop { animation: pop .35s ease; }
+@keyframes pop { 0%{transform:scale(.85)} 60%{transform:scale(1.06)} 100%{transform:scale(1)} }
+.bob { animation: bob 3.2s ease-in-out infinite; }
+@keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+.safe-b { padding-bottom: max(env(safe-area-inset-bottom), 8px); }

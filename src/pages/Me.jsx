@@ -1,0 +1,88 @@
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useApp } from '../App.jsx'
+import * as db from '../lib/db.js'
+import { LEVELS } from '../lib/levels.js'
+import { statusOf } from '../lib/study.js'
+import { Blob, Header } from '../components/ui.jsx'
+import { MemberForm } from './Profiles.jsx'
+
+export default function Me() {
+  const { member, members, setMember, updateMember, words, session, setSession, showToast, setMembers, aiState } = useApp()
+  const [adding, setAdding] = useState(false)
+  const done = words.filter((w) => statusOf(w) === 'o').length
+
+  async function setLevel(id) {
+    try { await updateMember({ level: id }); showToast('레벨을 바꿨어요. 내일 추천부터 반영돼요') } catch (e) { showToast(e.message) }
+  }
+  async function setGoal(n) {
+    try { await updateMember({ daily_goal: n }) } catch (e) { showToast(e.message) }
+  }
+  async function removeMember(m) {
+    if (!confirm(`${m.name}의 프로필과 단어장을 모두 지울까요? 되돌릴 수 없어요.`)) return
+    try {
+      await db.deleteMember(m.id)
+      setMembers((ms) => ms.filter((x) => x.id !== m.id))
+      if (m.id === member.id) setMember(null)
+    } catch (e) { showToast(e.message) }
+  }
+
+  return (
+    <div>
+      <Header title="내 정보" />
+      <div className="card mb-4 flex items-center gap-4 p-4">
+        <Blob i={member.avatar} size={64} />
+        <div className="flex-1">
+          <p className="font-jua text-xl text-slate-deep">{member.name}</p>
+          <p className="text-sm text-soft">단어 {words.length}개 · ○ {done}개 · 최고 연속 {member.best_streak}일</p>
+        </div>
+        <button className="chip" onClick={() => setMember(null)}>바꾸기</button>
+      </div>
+
+      <section className="card mb-4 p-4">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="font-jua text-lg text-slate-deep">레벨</h2>
+          <Link to="/level-test" className="chip border-tang text-tang">레벨 진단하기</Link>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {LEVELS.map((l) => (
+            <button key={l.id} onClick={() => setLevel(l.id)}
+              className={`rounded-2xl border-2 p-3 text-left ${member.level === l.id ? 'border-slate-deep bg-slate/10' : 'border-line'}`}>
+              <b className="font-jua text-slate-deep">{l.label}</b>
+              <span className="block text-[11px] text-soft">{l.desc}</span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] text-soft">기준: 2022 개정 영어과 교육과정 기본 어휘 3,000개(초등 권장 800·중고 공통 1,200 표시)</p>
+      </section>
+
+      <section className="card mb-4 p-4">
+        <h2 className="mb-2 font-jua text-lg text-slate-deep">하루 목표 (맞힌 문제 수)</h2>
+        <div className="flex gap-2">
+          {[5, 10, 20, 30].map((n) => (
+            <button key={n} onClick={() => setGoal(n)} className={`chip flex-1 justify-center ${member.daily_goal === n ? 'chip-on' : ''}`}>{n}개</button>
+          ))}
+        </div>
+      </section>
+
+      <section className="card mb-4 p-4">
+        <h2 className="mb-2 font-jua text-lg text-slate-deep">우리 가족 ({session?.name})</h2>
+        <ul className="mb-3 space-y-2">
+          {members.map((m) => (
+            <li key={m.id} className="flex items-center gap-3">
+              <Blob i={m.avatar} size={36} />
+              <span className="flex-1 font-jua">{m.name}</span>
+              <button className="text-xs text-soft underline" onClick={() => removeMember(m)}>지우기</button>
+            </li>
+          ))}
+        </ul>
+        {adding ? <MemberForm onDone={() => setAdding(false)} onCancel={() => setAdding(false)} /> : <button className="btn-ghost w-full" onClick={() => setAdding(true)}>＋ 가족 추가</button>}
+        <p className="mt-2 text-[11px] text-soft">가족 아이디: <b>{session?.login_id}</b> — 다른 기기에서도 이 아이디로 들어오면 같은 단어장이 보여요.</p>
+      </section>
+
+      {aiState === 'nokey' && <p className="mb-3 text-center text-xs text-coral">AI 키(ANTHROPIC_API_KEY)가 아직 연결되지 않았어요.</p>}
+      <button className="btn-ghost w-full" onClick={async () => { await db.logout(); setSession(null); setMember(null) }}>로그아웃</button>
+      <p className="mt-4 text-center text-[11px] text-soft">폴디 v1.0 · 홈 화면에 추가하면 앱처럼 쓸 수 있어요</p>
+    </div>
+  )
+}

@@ -1,0 +1,14 @@
+{
+  "name": "폴디 Foldy — 접어서 외우는 단어장",
+  "short_name": "폴디",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F4ECDF",
+  "theme_color": "#F4ECDF",
+  "lang": "ko",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
