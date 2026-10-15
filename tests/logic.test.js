@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { gradeMeaning, gradeSpelling, gradeSpeech, normalizeKo } from '../src/lib/grading.js'
+import { gradeMeaning, gradeSpelling, gradeSpeech, normalizeKo, speechScore, soundKey } from '../src/lib/grading.js'
 import {
   statusOf, applyAnswer, applyReview, sortWords, pickQuiz, nextStreak, cleanEntry,
   expandStage, isDue, sendToWrongNote, addDays,
@@ -28,15 +28,18 @@ describe('철자 채점', () => {
   it('빈 입력', () => expect(gradeSpelling('', 'apple').ok).toBe(false))
 })
 
-describe('발음 채점(엄격)', () => {
-  it('1순위가 그 단어면 통과', () => expect(gradeSpeech([{ t: 'Apple', c: 0.9 }], 'apple')).toBe(true))
-  it('관사 붙여 읽어도 통과', () => expect(gradeSpeech([{ t: 'an apple', c: 0.9 }], 'apple')).toBe(true))
-  it('1순위가 다른 단어고 확신도 높으면 실패(2순위에 있어도)', () => expect(gradeSpeech([{ t: 'apples', c: 0.92 }, { t: 'apple', c: 0.5 }], 'apple')).toBe(false))
-  it('1순위 확신도가 낮으면 2순위까지 인정', () => expect(gradeSpeech([{ t: 'apples', c: 0.4 }, { t: 'apple', c: 0.3 }], 'apple')).toBe(true))
-  it('3순위 밖은 인정 안 함', () => expect(gradeSpeech([{ t: 'a', c: 0.2 }, { t: 'b' }, { t: 'c' }, { t: 'apple' }], 'apple')).toBe(false))
-  it('비슷한 단어(rad)는 실패', () => expect(gradeSpeech([{ t: 'rad', c: 0.8 }], 'red')).toBe(false))
-  it('긴 문장 속 단어는 실패(그 단어만 읽기)', () => expect(gradeSpeech([{ t: 'i like to eat an apple every day', c: 0.9 }], 'apple')).toBe(false))
-  it('아무것도 못 들으면 실패', () => expect(gradeSpeech([], 'apple')).toBe(false))
+describe('발음 채점(유연, 70% 이상 통과)', () => {
+  it('정확히 맞으면 100%', () => expect(speechScore([{ t: 'Apple' }], 'apple')).toBe(1))
+  it('비슷한 발음도 통과: apples → apple', () => expect(gradeSpeech([{ t: 'apples' }], 'apple')).toBe(true))
+  it('r/l 헷갈림 허용: rice ↔ lice', () => expect(gradeSpeech([{ t: 'lice' }], 'rice')).toBe(true))
+  it('v/f 헷갈림 허용: very ↔ fairy', () => expect(gradeSpeech([{ t: 'fairy' }], 'very')).toBe(true))
+  it('끝소리만 다른 경우 통과: libraries → library', () => expect(gradeSpeech([{ t: 'libraries' }], 'library')).toBe(true))
+  it('문장으로 들려도 그 속 낱말로 판정', () => expect(gradeSpeech([{ t: 'i said umbrella' }], 'umbrella')).toBe(true))
+  it('전혀 다른 단어는 실패', () => expect(gradeSpeech([{ t: 'banana' }], 'library')).toBe(false))
+  it('짧은 단어 다른 소리는 실패: dog ↔ cat', () => expect(gradeSpeech([{ t: 'cat' }], 'dog')).toBe(false))
+  it('여러 후보 중 가장 좋은 점수 사용', () => expect(speechScore([{ t: 'banana' }, { t: 'library' }], 'library')).toBe(1))
+  it('아무것도 못 들으면 0', () => expect(speechScore([], 'apple')).toBe(0))
+  it('소리 키: phone ↔ fone 같음', () => expect(soundKey('phone')).toBe(soundKey('fone')))
 })
 
 describe('○△× 상태', () => {

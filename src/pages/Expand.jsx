@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../App.jsx'
-import { gradeMeaning, gradeSpeech } from '../lib/grading.js'
+import { gradeMeaning, speechScore, SPEECH_PASS } from '../lib/grading.js'
 import { expandStage, shuffle } from '../lib/study.js'
 import { canListen, listenOnce, speak } from '../lib/speech.js'
 import { Blob, Empty, Header, Reaction } from '../components/ui.jsx'
@@ -91,7 +91,7 @@ export default function Expand() {
     if (!canListen()) return showToast('이 브라우저는 음성 인식을 지원하지 않아요')
     try {
       const alts = await listenOnce({ deviceId: savedMic() })
-      setHeard(gradeSpeech(alts, d.word) ? `👍 좋아요! “${alts[0]?.t}”` : `“${alts[0]?.t || '잘 안 들렸어요'}” — 한 번 더!`)
+      { const sc = speechScore(alts, d.word); setHeard(sc >= SPEECH_PASS ? `👍 ${Math.round(sc * 100)}%! “${alts[0]?.t}”` : `“${alts[0]?.t || '잘 안 들렸어요'}” ${Math.round(sc * 100)}% — 한 번 더!`) }
     } catch (err) { showToast(err.message) }
   }
 

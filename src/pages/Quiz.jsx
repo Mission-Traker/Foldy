@@ -2,15 +2,26 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
-import { gradeMeaning, gradeSpeech, gradeSpelling } from '../lib/grading.js'
-import { applyAnswer, applyReview, isDue, MODE_LABEL, pickQuiz, sendToWrongNote, shuffle, ymd } from '../lib/study.js'
+import { gradeMeaning, gradeSpelling, speechScore, SPEECH_PASS } from '../lib/grading.js'
+import { applyAnswer, applyReview, isDue, MODE_FIELD, MODE_LABEL, pickQuiz, sendToWrongNote, shuffle, statusOf, ymd } from '../lib/study.js'
 import { canListen, listenOnce, speak } from '../lib/speech.js'
 import { Blob, Empty, Header, Reaction } from '../components/ui.jsx'
 import * as sfx from '../lib/sfx.js'
 import MicPicker from '../components/MicPicker.jsx'
+import PronSheet from '../components/PronSheet.jsx'
 import { savedMic } from '../lib/mic.js'
 
-function buildQueue(words, mode, src) {
+// 완료 도전: ✕·△ 단어의 아직 못 맞힌 퀴즈만 모아서(단어 하나만 고를 수도 있음)
+function focusQueue(words, ids) {
+  const pick = ids ? words.filter((w) => ids.includes(w.id)) : shuffle(words.filter((w) => statusOf(w) !== 'o')).slice(0, 6)
+  const items = []
+  for (const w of pick) for (const m of ['ko', 'en', 'sp']) if (!w[MODE_FIELD[m]]) items.push({ id: w.id, mode: m })
+  // 같은 단어가 연달아 나오지 않게 퀴즈 종류별로 묶어서 섞기
+  return ['ko', 'en', 'sp'].flatMap((m) => items.filter((x) => x.mode === m)).slice(0, 18)
+}
+
+function buildQueue(words, mode, src, ids) {
+  if (mode === 'focus') return focusQueue(words, ids)
   if (mode === 'review') {
     const today = ymd()
     return shuffle(words.filter((w) => isDue(w, today))).slice(0, 20).map((w) => ({ id: w.id, mode: Math.random() < 0.5 ? 'ko' : 'en', review: true }))
@@ -28,7 +39,7 @@ export default function Quiz() {
   const nav = useNavigate()
   const { words, ready, patchWord, bumpDaily, showToast } = useApp()
   const [queue, setQueue] = useState(null)
-  useEffect(() => { if (ready && !queue) setQueue(buildQueue(words, mode, src)) }, [ready]) // eslint-disable-line
+  useEffect(() => { if (ready && !queue) setQueue(buildQueue(words, mode, src, params.get('ids')?.split(',').filter(Boolean))) }, [ready]) // eslint-disable-line
   const [idx, setIdx] = useState(0)
   const [input, setInput] = useState('')
   const [res, setRes] = useState(null) // { ok, close, heard }
@@ -36,6 +47,7 @@ export default function Quiz() {
   const [listening, setListening] = useState(false)
   const [judging, setJudging] = useState(false)
   const [sent, setSent] = useState(false)
+  const [pron, setPron] = useState(false)
   const inputRef = useRef()
   const endSound = useRef(false)
   const item = queue?.[idx]
@@ -50,15 +62,15 @@ export default function Quiz() {
   }, [idx])
 
   if (!queue) return <p className="py-20 text-center text-soft">불러오는 중…</p>
-  if (!['ko', 'en', 'sp', 'review'].includes(mode)) return <Empty title="없는 퀴즈예요"><Link to="/study" className="btn-main mt-2">돌아가기</Link></Empty>
+  if (!['ko', 'en', 'sp', 'review', 'focus'].includes(mode)) return <Empty title="없는 퀴즈예요"><Link to="/study" className="btn-main mt-2">돌아가기</Link></Empty>
 
-  const title = mode === 'review' ? '복습' : `${src === 'wrong' ? '오답노트 · ' : ''}${MODE_LABEL[mode]}`
+  const title = mode === 'review' ? '복습' : mode === 'focus' ? `○ 만들기 · ${MODE_LABEL[qmode] || ''}` : `${src === 'wrong' ? '오답노트 · ' : ''}${MODE_LABEL[mode]}`
 
   if (!queue.length) {
     return (
       <div>
         <Header title={title} back />
-        <Empty title={mode === 'review' ? '오늘 복습할 단어가 없어요' : src === 'wrong' ? '오답노트가 비어 있어요' : '단어장에 단어를 먼저 넣어 주세요'}>
+        <Empty title={mode === 'focus' ? '모든 단어가 ○ 완료예요! 🎉' : mode === 'review' ? '오늘 복습할 단어가 없어요' : src === 'wrong' ? '오답노트가 비어 있어요' : '단어장에 단어를 먼저 넣어 주세요'}>
           <Link to={src === 'wrong' || mode === 'review' ? '/study' : '/add'} className="btn-main mt-2">{src === 'wrong' || mode === 'review' ? '학습으로' : '단어 추가'}</Link>
         </Empty>
       </div>
@@ -73,6 +85,22 @@ export default function Quiz() {
         <Blob i={perfect ? 1 : 3} size={110} className="pop" />
         <h2 className="h-title text-3xl">{perfect ? '모두 맞혔어요!' : '수고했어요!'}</h2>
         <p className="font-jua text-xl text-slate-deep">{score.total}문제 중 {score.ok}개 정답</p>
+        {mode === 'focus' && (
+          <ul className="card w-full max-w-xs divide-y-2 divide-dashed divide-line px-3 text-left">
+            {[...new Set(queue.map((x) => x.id))].map((id) => {
+              const ww = words.find((x) => x.id === id)
+              if (!ww) return null
+              const o = statusOf(ww) === 'o'
+              return (
+                <li key={id} className="flex items-center gap-2 py-2">
+                  <span className={`flex h-7 w-7 items-center justify-center rounded-full font-jua ${o ? 'pop bg-sage text-white' : 'border-2 border-mustard text-mustard'}`}>{o ? '✓' : '△'}</span>
+                  <b className="flex-1 font-title">{ww.word}</b>
+                  <span className={`text-xs ${o ? 'text-sage' : 'text-soft'}`}>{o ? '○ 완료!' : '조금 더'}</span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
         <div className="mt-2 flex gap-2">
           <button className="btn-ghost" onClick={() => nav(src === 'wrong' ? '/wrong' : '/study')}>그만하기</button>
           <button className="btn-main" onClick={() => nav(0)}>한 번 더</button>
@@ -108,9 +136,10 @@ export default function Quiz() {
     setListening(true)
     try {
       const alts = await listenOnce({ deviceId: savedMic() })
-      const ok = gradeSpeech(alts, w.word)
-      if (ok) record(true, { heard: alts[0]?.t })
-      else { sfx.wrong(); setRes({ ok: false, retry: true, heard: alts[0]?.t || '(잘 안 들렸어요)' }) }
+      const score = speechScore(alts, w.word)
+      const heard = alts[0]?.t
+      if (score >= SPEECH_PASS) record(true, { heard, score })
+      else { sfx.wrong(); setRes({ ok: false, retry: true, heard: heard || '(잘 안 들렸어요)', score }) }
     } catch (err) {
       showToast(err.message === 'not-allowed' ? '마이크 권한을 허용해 주세요' : '음성 인식 오류: ' + err.message)
     } finally { setListening(false) }
@@ -153,7 +182,7 @@ export default function Quiz() {
 
       <div className={`card relative mb-4 flex min-h-[220px] flex-col items-center justify-center gap-3 p-6 text-center ${res && !res.ok ? 'wiggle border-no' : ''} ${res?.ok ? 'pop glow-ok border-ok' : ''}`}>
         <Reaction kind={res ? (res.ok ? 'ok' : 'no') : null} k={`${idx}-${res?.ok}-${res?.heard || ''}`} />
-        <p className="font-jua text-sm text-soft">{qmode === 'ko' ? '뜻을 적어 보세요' : qmode === 'en' ? '영어로 적어 보세요' : '마이크를 누르고 또박또박 읽어 보세요'}</p>
+        <p className="font-jua text-sm text-soft">{qmode === 'ko' ? '뜻을 적어 보세요' : qmode === 'en' ? '영어로 적어 보세요' : '마이크를 누르고 읽어 보세요 (70% 비슷하면 통과)'}</p>
         {qmode === 'en' ? (
           <>
             <p className="font-jua text-3xl text-slate-deep">{w.meaning}</p>
@@ -176,6 +205,17 @@ export default function Quiz() {
           </div>
         )}
         {res?.heard && <p className="text-sm text-soft">들은 말: “{res.heard}”</p>}
+        {res?.score != null && (
+          <div className="w-full max-w-[220px]">
+            <div className="h-2.5 overflow-hidden rounded-full bg-line">
+              <div className={`h-full rounded-full transition-all duration-700 ${res.score >= SPEECH_PASS ? 'bg-sage' : 'bg-coral'}`} style={{ width: `${Math.round(res.score * 100)}%` }} />
+            </div>
+            <p className="mt-0.5 text-xs text-soft">발음 정확도 <b className={res.score >= SPEECH_PASS ? 'text-sage' : 'text-coral'}>{Math.round(res.score * 100)}%</b> · 70% 이상 통과</p>
+          </div>
+        )}
+        {qmode === 'sp' && (
+          <button type="button" onClick={() => setPron(true)} className="chip border-slate text-slate-deep">🎧 더 정확한 발음 들어보기</button>
+        )}
       </div>
 
       {qmode === 'sp' ? (
@@ -220,6 +260,7 @@ export default function Quiz() {
           </div>
         </div>
       )}
+      {pron && <PronSheet word={w.word} heard={res?.heard} score={res?.score} onClose={() => setPron(false)} />}
     </div>
   )
 }

@@ -20,6 +20,9 @@
     },
     "api/judge.js": {
       "maxDuration": 30
+    },
+    "api/pron.js": {
+      "maxDuration": 30
     }
   }
 }

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import * as db from './lib/db.js'
 import { enrichPending } from './lib/enrich.js'
 import { enqueue, mergePatchResult, nextStreak, ymd } from './lib/study.js'
@@ -35,6 +35,7 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false)
   const toastTimer = useRef()
   const loc = useLocation()
+  const navTo = useNavigate()
 
   const showToast = useCallback((msg) => {
     setToastMsg(msg)
@@ -135,7 +136,7 @@ export default function App() {
   }, [member, daily, updateMember, showToast])
 
   const value = useMemo(() => ({
-    session, setSession, members, setMembers, member, patchMemberLocal: (patch) => { setMember((m) => (m ? { ...m, ...patch } : m)); setMembers((ms) => ms.map((x) => (member && x.id === member.id ? { ...x, ...patch } : x))) }, setMember: (m) => { db.saveMemberId(m?.id || null); setMember(m); setWords([]); setDaily(null); enrichedOnce.current = null },
+    session, setSession, members, setMembers, member, patchMemberLocal: (patch) => { setMember((m) => (m ? { ...m, ...patch } : m)); setMembers((ms) => ms.map((x) => (member && x.id === member.id ? { ...x, ...patch } : x))) }, setMember: (m) => { if (member && member.has_pin && member.id !== m?.id) db.forgetMemberToken(member.id); db.saveMemberId(m?.id || null); setMember(m); setWords([]); setDaily(null); enrichedOnce.current = null; if (m) navTo('/') },
     openProfile: () => setProfileOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, showToast, aiState, runEnrich,
   }), [session, members, member, words, loading, loadedFor, daily, patchWord, addWords, removeWord, updateMember, bumpDaily, showToast, aiState, runEnrich])
 

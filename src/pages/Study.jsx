@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useApp } from '../App.jsx'
-import { expandStage, isDue, MODE_FIELD, ymd } from '../lib/study.js'
+import { expandStage, isDue, MODE_FIELD, statusOf, ymd } from '../lib/study.js'
 import { Empty, Header } from '../components/ui.jsx'
 
 const CARDS = [
   { mode: 'ko', icon: '🔤', title: '영어 보고 뜻 쓰기', desc: '비슷한 뜻이면 정답이에요', cls: 'bg-tang/15 border-tang/40' },
   { mode: 'en', icon: '✏️', title: '뜻 보고 영어 쓰기', desc: '철자까지 정확하게', cls: 'bg-sage/15 border-sage/40' },
-  { mode: 'sp', icon: '🎤', title: '발음하기', desc: '또박또박 읽으면 통과', cls: 'bg-coral/15 border-coral/40' },
+  { mode: 'sp', icon: '🎤', title: '발음하기', desc: '정석 발음과 70% 비슷하면 통과', cls: 'bg-coral/15 border-coral/40' },
 ]
 
 export default function Study() {
@@ -31,18 +31,35 @@ export default function Study() {
       <div className="space-y-3">
         {CARDS.map((c) => {
           const left = words.filter((w) => !w[MODE_FIELD[c.mode]]).length
+          const done = words.length - left
+          const clear = left === 0
           return (
-            <Link key={c.mode} to={`/quiz/${c.mode}`} className={`flex items-center gap-4 rounded-3xl border-2 p-4 shadow-card ${c.cls}`}>
+            <Link key={c.mode} to={`/quiz/${c.mode}`}
+              className={`relative flex items-center gap-4 rounded-3xl border-2 p-4 shadow-card ${clear ? 'border-sage bg-sage/20' : c.cls}`}>
               <span className="text-4xl">{c.icon}</span>
-              <span className="flex-1">
+              <span className="min-w-0 flex-1">
                 <b className="font-jua text-xl text-slate-deep">{c.title}</b>
-                <span className="block text-sm text-soft">{c.desc}</span>
+                <span className="block text-sm text-soft">{clear ? '모두 맞혔어요! 복습하려면 눌러요' : c.desc}</span>
+                <span className="mt-1.5 block h-2 overflow-hidden rounded-full bg-white/70">
+                  <span className="block h-full rounded-full bg-sage transition-all" style={{ width: `${words.length ? (done / words.length) * 100 : 0}%` }} />
+                </span>
               </span>
-              <span className="text-right"><b className="font-jua text-2xl text-ink">{left}</b><span className="block text-[11px] text-soft">남음</span></span>
+              {clear ? (
+                <span className="pop flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-sage text-2xl font-bold text-white shadow-[0_3px_0_#6E8E5B]" aria-label="클리어">✓</span>
+              ) : (
+                <span className="text-right"><b className="font-jua text-2xl text-ink">{left}</b><span className="block text-[11px] text-soft">남음</span></span>
+              )}
             </Link>
           )
         })}
       </div>
+      {words.some((w) => statusOf(w) !== 'o') && (
+        <Link to="/quiz/focus" className="nudge mt-4 flex items-center gap-3 rounded-3xl border-2 border-dashed border-slate bg-paper p-4">
+          <span className="text-3xl">🎯</span>
+          <span className="flex-1"><b className="font-jua text-lg text-slate-deep">○ 만들기 도전</b><span className="block text-xs text-soft">✕·△ 단어의 못 맞힌 퀴즈만 골라서 한 번에!</span></span>
+          <span className="font-jua text-slate">시작 →</span>
+        </Link>
+      )}
 
       <h2 className="mb-2 mt-6 font-jua text-lg text-slate-deep">더 깊이</h2>
       <div className="grid grid-cols-2 gap-3">

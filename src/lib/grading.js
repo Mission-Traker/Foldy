@@ -70,24 +70,47 @@ export function gradeSpelling(input, word) {
   return { ok: false, close: levenshtein(a, w) <= 1 }
 }
 
-// 발음 채점(엄격) — 음성 인식이 "가장 확신하는 결과"가 그 단어일 때만 통과
-// 예외: 1순위 확신도가 낮을 때(0.6 미만)만 2·3순위까지 인정 — 인식기 자체가 헷갈린 경우
-// alternatives: [{ t: '인식 문장', c: 확신도(0~1) | null }] 또는 문자열 배열
-function matchesWord(alt, w) {
-  const a = normalizeEn(alt)
-  if (!a) return false
-  if (a === w) return true
-  const toks = a.split(' ')
-  if (toks.length <= 3 && toks.includes(w)) return true // "an apple", "the apple"
-  if (w.includes(' ') && a === w) return true
-  return false
+// 발음 채점(유연) — 정석 발음 대비 70% 이상이면 통과
+// 음성 인식이 알아들은 말을 철자 유사도와 "소리 유사도"로 비교해 가장 높은 점수를 씀
+export function soundKey(s) {
+  let t = normalizeEn(s).replace(/[^a-z]/g, '')
+  if (!t) return ''
+  t = t
+    .replace(/^kn|^gn|^pn/, 'n').replace(/^wr/, 'r').replace(/^wh/, 'w').replace(/^x/, 's')
+    .replace(/mb$/, 'm').replace(/tch/g, 'ch').replace(/dge|dg/g, 'j').replace(/ph/g, 'f').replace(/gh(?=[^aeiou]|$)/g, '')
+    .replace(/ck/g, 'k').replace(/c(?=[eiy])/g, 's').replace(/c/g, 'k').replace(/q/g, 'k').replace(/x/g, 'ks')
+    .replace(/z/g, 's').replace(/th/g, 't').replace(/sh/g, 'S').replace(/ch/g, 'C')
+    .replace(/v/g, 'f').replace(/l/g, 'r') // 한국어 화자가 헷갈리는 v/f, l/r 은 같은 소리로
+    .replace(/(.)\1+/g, '$1') // 겹자음
+    .replace(/e$/, '') // 끝 e 묵음
+    .replace(/[aeiouy]+/g, 'a') // 모음은 하나로
+  return t
 }
-export function gradeSpeech(alternatives, word) {
+function sim(a, b) {
+  if (!a || !b) return 0
+  const m = Math.max(a.length, b.length)
+  return 1 - levenshtein(a, b) / m
+}
+// 0~1 점수
+export function speechScore(alternatives, word) {
   const w = normalizeEn(word)
-  const alts = (alternatives || []).map((x) => (typeof x === 'string' ? { t: x, c: null } : x)).filter((x) => x && x.t)
-  if (!alts.length) return false
-  if (matchesWord(alts[0].t, w)) return true
-  const unsure = alts[0].c != null && alts[0].c < 0.6
-  if (unsure) return alts.slice(1, 3).some((x) => matchesWord(x.t, w))
-  return false
+  const wk = soundKey(word)
+  let best = 0
+  for (const x of alternatives || []) {
+    const t = typeof x === 'string' ? x : x?.t
+    if (!t) continue
+    const a = normalizeEn(t)
+    // 문장으로 들렸으면 그 안에서 가장 비슷한 낱말(또는 두 낱말)과 비교
+    const toks = a.split(' ').filter(Boolean)
+    const cands = new Set([a, ...toks, ...toks.slice(1).map((tk, i) => toks[i] + ' ' + tk)])
+    for (const c of cands) {
+      const sc = Math.max(sim(c, w), sim(soundKey(c), wk))
+      if (sc > best) best = sc
+    }
+  }
+  return Math.round(best * 100) / 100
+}
+export const SPEECH_PASS = 0.7
+export function gradeSpeech(alternatives, word) {
+  return speechScore(alternatives, word) >= SPEECH_PASS
 }

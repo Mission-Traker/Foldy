@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../App.jsx'
-import { expandStage, sortWords, statusOf, STATUS_LABEL, cleanEntry } from '../lib/study.js'
+import { expandStage, sortWords, statusOf, STATUS_LABEL, cleanEntry, MODE_FIELD } from '../lib/study.js'
 import { Empty, Header, Mark, Speak, fmtDate } from '../components/ui.jsx'
 import { speak } from '../lib/speech.js'
 
@@ -53,6 +53,30 @@ function Extras({ w }) {
   )
 }
 
+// ✕·△ 단어: 남은 퀴즈를 보여주고 바로 끝내게 유도
+const STEPS = [['ko', '뜻'], ['en', '철자'], ['sp', '발음']]
+function Todo({ w }) {
+  const nav = useNavigate()
+  const left = STEPS.filter(([m]) => !w[MODE_FIELD[m]]).length
+  return (
+    <div className="mb-2 ml-[4.25rem] mr-1 flex items-center gap-1.5">
+      {STEPS.map(([m, label]) => {
+        const ok = w[MODE_FIELD[m]]
+        return (
+          <span key={m} className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-jua ${ok ? 'bg-sage text-white' : 'border-2 border-dashed border-line text-soft'}`}>
+            {ok ? '✓' : '·'} {label}
+          </span>
+        )
+      })}
+      <span className="flex-1" />
+      <button onClick={() => nav(`/quiz/focus?ids=${w.id}`)}
+        className={`rounded-full bg-tang px-2.5 py-1 text-[12px] font-jua text-white shadow-[0_2px_0_#C27532] active:translate-y-[1px] ${left === 1 ? 'nudge-ring' : ''}`}>
+        {left === 1 ? '하나 남았어요! ▶' : `○까지 ${left}개 ▶`}
+      </button>
+    </div>
+  )
+}
+
 function Row({ w, hide, peek, onPeek, onEdit }) {
   const s = statusOf(w)
   const coverWord = hide === 'word' && !peek
@@ -77,6 +101,7 @@ function Row({ w, hide, peek, onPeek, onEdit }) {
         </button>
         <button onClick={onEdit} aria-label="단어 고치기" className="w-6 shrink-0 text-soft">⋯</button>
       </div>
+      {s !== 'o' && <Todo w={w} />}
       <Extras w={w} />
     </li>
   )
@@ -173,6 +198,16 @@ export default function Wordbook() {
         ))}
       </div>
 
+      {ready && (counts.t + counts.x) > 0 && filter !== 'o' && (
+        <Link to="/quiz/focus" className="nudge mb-3 flex items-center gap-3 rounded-3xl border-2 border-tang/50 bg-tang/10 p-3">
+          <span className="text-2xl">🎯</span>
+          <span className="flex-1 text-sm">
+            <b className="font-jua text-slate-deep">✕ {counts.x} · △ {counts.t} 단어가 ○를 기다려요</b>
+            <span className="block text-xs text-soft">뜻·철자·발음 세 가지를 모두 맞히면 ○ 완료!</span>
+          </span>
+          <span className="rounded-full bg-tang px-3 py-1.5 font-jua text-sm text-white">지금 끝내기</span>
+        </Link>
+      )}
       {!ready ? (
         <p className="py-10 text-center text-soft">불러오는 중…</p>
       ) : !words.length ? (
