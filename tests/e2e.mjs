@@ -115,6 +115,7 @@ try {
 
   // 상태 확인: △
   await page.goto(BASE + '/#/book')
+  await page.locator('ul li').filter({ hasText: '학습 중' }).nth(3).waitFor({ timeout: 8000 }).catch(() => {})
   check('푼 단어는 △ 학습 중', (await page.locator('ul li').filter({ hasText: '학습 중' }).count()) === 4)
 
   // 오답노트
