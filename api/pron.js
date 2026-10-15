@@ -4,9 +4,17 @@ import { guard, send, readBody, textLLM } from './_lib.js'
 // 줄 단위 형식(JSON보다 깨질 일이 적음)
 export function parsePron(text) {
   const out = { ipa: '', syllables: [], stress: 0, ko: '', tips: [], mistake: '' }
+  let last = null
   for (const raw of String(text).split(/\n/)) {
     const m = raw.match(/^\s*[-*]?\s*(IPA|SYLLABLES|STRESS|KO|TIP|MISTAKE)\s*[:：]\s*(.*)$/i)
-    if (!m) continue
+    if (!m) {
+      // 줄바꿈으로 이어진 내용은 앞 항목에 붙임
+      const t = raw.trim()
+      if (t && last === 'MISTAKE') out.mistake += ' ' + t
+      else if (t && last === 'TIP' && out.tips.length) out.tips[out.tips.length - 1] += ' ' + t
+      continue
+    }
+    last = m[1].toUpperCase()
     const k = m[1].toUpperCase(); const v = m[2].trim()
     if (k === 'IPA') out.ipa = v
     else if (k === 'SYLLABLES') out.syllables = v.split(/[|·\-\s]+/).filter(Boolean).slice(0, 8)
