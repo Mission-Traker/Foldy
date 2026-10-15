@@ -74,7 +74,11 @@ export async function textLLM({ system, text, maxTokens = 2000, check = () => tr
       if (!hasKey()) throw e
     }
   }
-  const out = await claude({ model: MODEL_TEXT, system, content: [{ type: 'text', text }], maxTokens })
+  let out = await claude({ model: MODEL_TEXT, system, content: [{ type: 'text', text }], maxTokens })
+  if (!check(out)) {
+    // 형식이 깨졌으면 한 번 더(형식을 강조해서)
+    out = await claude({ model: MODEL_TEXT, system: system + '\n\n반드시 요청한 형식만 정확히 출력하라. 문자열 안의 큰따옴표는 쓰지 말고 작은따옴표를 써라.', content: [{ type: 'text', text }], maxTokens })
+  }
   return { text: out, via: 'claude' }
 }
 

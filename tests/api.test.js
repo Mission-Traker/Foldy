@@ -92,6 +92,22 @@ describe('AI 서버 경로 보호', () => {
     const res = mockRes(); await h(req({ image: 'AAAA' }), res)
     expect(res.statusCode).toBe(503)
   })
+  it('발음 안내 줄 형식 해석', async () => {
+    const { parsePron } = await import('../api/pron.js')
+    const r = parsePron('IPA: /ˈhæp.i/\nSYLLABLES: HAP|py\nSTRESS: 0\nKO: 해-피\nTIP: 입을 옆으로\nMISTAKE: ')
+    expect(r).toMatchObject({ ipa: '/ˈhæp.i/', syllables: ['HAP', 'py'], stress: 0, tips: ['입을 옆으로'] })
+  })
+  it('형식이 깨진 Claude 응답은 한 번 다시 요청', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test'
+    let n = 0
+    vi.stubGlobal('fetch', vi.fn(async (url) => url.includes('anthropic')
+      ? { ok: true, json: async () => ({ content: [{ type: 'text', text: ++n === 1 ? '{"ok":tru' : '{"ok":true,"reason":"맞음"}' }] }) }
+      : { ok: true, json: async () => 'family-uuid' }))
+    const { default: h } = await import('../api/judge.js')
+    const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '기쁜' }), res)
+    expect(JSON.parse(res.body).ok).toBe(true)
+    expect(n).toBe(2)
+  })
   it('JSON 꺼내기', () => {
     expect(parseJson('설명입니다 {"ok":true} 끝')).toEqual({ ok: true })
   })
