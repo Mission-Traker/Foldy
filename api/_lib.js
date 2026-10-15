@@ -95,6 +95,9 @@ export async function claude({ model, system, content, maxTokens = 2000 }) {
   const data = await r.json().catch(() => ({}))
   if (!r.ok) {
     const msg = data?.error?.message || `Claude API ${r.status}`
+    if (/credit balance/i.test(msg)) throw new Error('Claude API 크레딧이 부족해요 (Claude Console → Billing에서 충전)')
+    if (r.status === 401) throw new Error('Claude API 키가 맞지 않아요 (Vercel 환경변수 확인)')
+    if (r.status === 429 || r.status === 529) throw new Error('AI가 잠시 바빠요. 조금 뒤 다시 해 주세요')
     throw new Error(msg)
   }
   return (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('')
