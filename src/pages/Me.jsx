@@ -7,6 +7,7 @@ import { statusOf } from '../lib/study.js'
 import { Blob, Header } from '../components/ui.jsx'
 import { MemberForm } from './Profiles.jsx'
 import { soundOn, setSoundOn, correct } from '../lib/sfx.js'
+import MicPicker from '../components/MicPicker.jsx'
 
 export default function Me() {
   const { member, members, setMember, updateMember, words, session, setSession, showToast, setMembers, aiState } = useApp()
@@ -77,6 +78,11 @@ export default function Me() {
           className={`relative h-8 w-14 rounded-full transition ${sound ? 'bg-sage' : 'bg-line'}`}>
           <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${sound ? 'left-7' : 'left-1'}`} />
         </button>
+      </section>
+
+      <section className="card mb-4 p-4">
+        <h2 className="mb-2 font-jua text-lg text-slate-deep">발음 퀴즈 마이크</h2>
+        <MicPicker />
       </section>
 
       <section className="card mb-4 p-4">

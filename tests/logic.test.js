@@ -142,3 +142,46 @@ describe('직접 적기 줄 나누기', () => {
   it('뜻 없는 줄', () => expect(parseLines('banana')).toEqual([{ word: 'banana', meaning: '' }]))
   it('빈 줄 무시', () => expect(parseLines('\n\n')).toEqual([]))
 })
+
+import { mergePatchResult, enqueue } from '../src/lib/study.js'
+describe('오답노트 보내기 저장 경쟁(버그 재현)', () => {
+  it('먼저 보낸 정답/오답 저장의 응답이 오답노트 표시를 지우면 안 됨', () => {
+    // 1) 오답 기록 저장 요청(응답에는 wrong_modes가 아직 비어 있음)
+    const answerPatch = { attempted: true, ko_ok: false }
+    const answerSaved = { id: 'w', attempted: true, ko_ok: false, wrong_modes: [] }
+    // 2) 그 사이 사용자가 '오답노트로'를 눌러 화면에는 이미 반영됨
+    const current = { id: 'w', attempted: true, ko_ok: false, wrong_modes: ['ko'] }
+    // 3) 1)의 응답이 늦게 도착
+    expect(mergePatchResult(current, answerSaved, answerPatch).wrong_modes).toEqual(['ko'])
+  })
+  it('같은 단어 저장은 순서대로 실행', async () => {
+    const log = []
+    const slow = () => new Promise((r) => setTimeout(() => { log.push('answer'); r() }, 30))
+    const fast = () => { log.push('wrongnote'); return Promise.resolve() }
+    await Promise.all([enqueue('w', slow), enqueue('w', fast)])
+    expect(log).toEqual(['answer', 'wrongnote'])
+  })
+})
+
+import { pairFromText } from '../src/lib/ocr.js'
+import { searchEntries } from '../src/lib/dict.js'
+import DICT from '../src/data/dict.json'
+const ENTRIES = Object.entries(DICT).map(([word, meaning]) => ({ word, meaning, lw: word.toLowerCase(), km: meaning.replace(/\s/g, '') }))
+
+describe('기기 글자 인식 결과 → 단어·뜻', () => {
+  it('같은 줄 영어+한글', () => expect(pairFromText('1. apple 사과\n2) happy 행복한, 기쁜')).toEqual([
+    { word: 'apple', meaning: '사과' }, { word: 'happy', meaning: '행복한, 기쁜' }]))
+  it('영어 줄 다음 한글 줄', () => expect(pairFromText('library\n도서관')).toEqual([{ word: 'library', meaning: '도서관' }]))
+  it('발음기호·잡음 제거', () => expect(pairFromText('umbrella [ʌmbrélə] 우산')[0]).toEqual({ word: 'umbrella', meaning: '우산' }))
+  it('한 글자·숫자만 있는 줄은 버림', () => expect(pairFromText('a 하나\n123 숫자')).toEqual([]))
+})
+
+describe('직접 적기 자동완성', () => {
+  it('사전 2,898단어 모두 뜻이 있음', () => expect(ENTRIES.length).toBeGreaterThan(2800))
+  it('영어 앞글자만 쳐도 찾음(app → apple 포함)', () => expect(searchEntries(ENTRIES, 'app').map((e) => e.word)).toContain('apple'))
+  it('정확히 일치하는 단어가 맨 앞', () => expect(searchEntries(ENTRIES, 'apple')[0].word).toBe('apple'))
+  it('한글로 찾기(사과 → apple)', () => expect(searchEntries(ENTRIES, '사과').map((e) => e.word)).toContain('apple'))
+  it('한글 일부만 쳐도 찾음(행복 → happy)', () => expect(searchEntries(ENTRIES, '행복').map((e) => e.word)).toContain('happy'))
+  it('최대 8개', () => expect(searchEntries(ENTRIES, 'a').length).toBeLessThanOrEqual(8))
+  it('빈 입력·이상한 입력은 빈 결과', () => { expect(searchEntries(ENTRIES, ' ')).toEqual([]); expect(searchEntries(ENTRIES, '<b>')).toEqual([]) })
+})

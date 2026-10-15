@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     const type = ['image/jpeg', 'image/png', 'image/webp'].includes(mediaType) ? mediaType : 'image/jpeg'
     const text = await claude({
       model: MODEL_VISION,
-      maxTokens: 4000,
+      maxTokens: 8000,
       system:
         '너는 영어 단어장 사진을 읽어 단어 목록으로 옮기는 도우미다. 사진에는 영어 단어와 한글 뜻이 함께 있다. ' +
         '보이는 영어 단어와 그 옆/아래의 한글 뜻을 짝지어 순서대로 적는다. 뜻이 여러 개면 쉼표로 이어 쓴다. ' +
@@ -23,11 +23,15 @@ export default async function handler(req, res) {
         { type: 'text', text: '이 사진의 영어 단어와 한글 뜻을 JSON 배열로만 출력해.' },
       ],
     })
-    const arr = parseJson(text)
+    let arr
+    try { arr = parseJson(text) } catch {
+      // 단어가 아주 많아 응답이 중간에 끊긴 경우: 완성된 항목만 건짐
+      arr = [...String(text).matchAll(/\{\s*"word"\s*:\s*"([^"]*)"\s*,\s*"meaning"\s*:\s*"([^"]*)"\s*\}/g)].map((m) => ({ word: m[1], meaning: m[2] }))
+    }
     const words = (Array.isArray(arr) ? arr : [])
       .map((x) => ({ word: String(x.word || '').trim().slice(0, 60), meaning: String(x.meaning || '').trim().slice(0, 120) }))
       .filter((x) => /^[A-Za-z]/.test(x.word))
-      .slice(0, 150)
+      .slice(0, 200)
     send(res, 200, { words })
   } catch (e) {
     send(res, 500, { error: '사진을 읽지 못했어요: ' + e.message })

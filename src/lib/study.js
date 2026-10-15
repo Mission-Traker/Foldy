@@ -150,3 +150,21 @@ export function parseLines(text) {
     })
 }
 
+
+// 서버 응답을 화면 상태에 반영할 때, 이번 요청에서 바꾼 칸만 덮어씀
+// (먼저 보낸 요청의 응답이 나중에 바꾼 칸을 되돌리지 않도록)
+export function mergePatchResult(current, saved, patch) {
+  const out = { ...current }
+  for (const k of Object.keys(patch)) if (k in saved) out[k] = saved[k]
+  return out
+}
+
+// 같은 단어에 대한 저장 요청을 순서대로 실행
+const queues = new Map()
+export function enqueue(id, job) {
+  const prev = queues.get(id) || Promise.resolve()
+  const next = prev.catch(() => {}).then(job)
+  queues.set(id, next)
+  next.finally(() => { if (queues.get(id) === next) queues.delete(id) })
+  return next
+}

@@ -48,6 +48,15 @@ try {
 
   // 직접 추가
   await page.getByText('✍️ 직접 추가').click()
+  // 자동완성 검색 → 탭해서 담기
+  await page.getByLabel('영어나 한글로 찾기').fill('ora')
+  await page.getByRole('button', { name: /orange/ }).first().waitFor()
+  check('자동완성: ora → orange', true)
+  await page.getByLabel('영어나 한글로 찾기').fill('우산')
+  await page.getByRole('button', { name: /umbrella/ }).first().click()
+  await page.getByRole('button', { name: /umbrella.*담음/ }).waitFor()
+  check('한글 검색 → 탭해서 담기(umbrella)', true)
+  await page.getByText('✍️ 여러 개 한 번에 적기').click()
   await page.getByLabel('한 줄에 하나씩 (영어 뜻)').fill('apple 사과\nhappy - 행복한, 기쁜\nlibrary: 도서관\n사과 사과')
   await page.getByRole('button', { name: '아래 목록에 넣기' }).click()
   check('직접 추가: 한글 단어 오류 표시', await page.getByText('영어 단어에는 알파벳만').isVisible())
@@ -56,6 +65,7 @@ try {
   check('직접 추가 3개 저장', true)
   // 중복 추가
   await page.getByRole('button', { name: '더 추가' }).click()
+  await page.getByText('✍️ 여러 개 한 번에 적기').click()
   await page.getByLabel('한 줄에 하나씩 (영어 뜻)').fill('Apple 사과')
   await page.getByRole('button', { name: '아래 목록에 넣기' }).click()
   await page.getByRole('button', { name: /1개 단어장에 넣기/ }).click()
@@ -65,8 +75,8 @@ try {
   // 단어장
   await page.getByRole('heading', { name: '단어장' }).waitFor()
   const rows = page.locator('ul li').filter({ hasText: '미학습' })
-  check('단어장 3개 모두 ✕ 미학습', (await rows.count()) === 3)
-  check('뜻 가림판 닫혀 있음', (await page.locator('.flap:not(.open)').count()) === 3)
+  check('단어장 4개 모두 ✕ 미학습', (await rows.count()) === 4)
+  check('뜻 가림판 닫혀 있음', (await page.locator('.flap:not(.open)').count()) === 4)
   await page.getByRole('button', { name: '뜻 보기' }).first().click()
   check('가림판 탭 → 열림', (await page.locator('.flap.open').count()) === 1)
   await page.getByRole('button', { name: /^ABC/ }).click()
@@ -74,13 +84,13 @@ try {
   check('알파벳 정렬', firstWord === 'apple', firstWord)
   await page.getByRole('button', { name: /^ABC/ }).click()
   const firstDesc = await page.locator('ul li .font-title.text-\\[19px\\]').first().textContent()
-  check('알파벳 역순', firstDesc === 'library', firstDesc)
+  check('알파벳 역순', firstDesc === 'umbrella', firstDesc)
 
   // 퀴즈: 영어 → 뜻 (맥락 채점)
   await page.goto(BASE + '/#/quiz/ko')
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const w = (await page.locator('.card p.font-title').first().textContent()).trim()
-    const ans = { apple: '사과', happy: '즐겁고 행복하다', library: '자동차' }[w]
+    const ans = { apple: '사과', happy: '즐겁고 행복하다', library: '자동차', umbrella: '우산' }[w]
     await page.getByPlaceholder('한글 뜻').fill(ans)
     await page.getByRole('button', { name: '확인' }).click()
     if (w === 'library') {
@@ -90,19 +100,22 @@ try {
       await page.getByText('📌 오답노트에 있어요').waitFor()
       check('오답노트로 보내기', true)
       await page.getByRole('button', { name: '다음 →' }).click()
-      if (i < 2) await page.locator('.card p.font-title').first().filter({ hasNotText: /^library$/ }).waitFor()
+      if (i < 3) await page.locator('.card p.font-title').first().filter({ hasNotText: /^library$/ }).waitFor()
     } else {
       await page.getByText('정답!').waitFor()
       check(`정답 처리(${w}=${ans})`, true)
-      if (i < 2) await page.locator('.card p.font-title').first().filter({ hasNotText: new RegExp(`^${w}$`) }).waitFor()
+      if (i < 3) await page.locator('.card p.font-title').first().filter({ hasNotText: new RegExp(`^${w}$`) }).waitFor()
     }
   }
-  await page.getByText(/3문제 중 2개 정답/).waitFor()
-  check('퀴즈 결과 화면', true)
+  check('퀴즈 결과 화면(4문제 중 3개)', await page.getByText(/4문제 중 3개 정답/).waitFor().then(() => true, () => false))
+  // 새로고침 없이 앱 안에서 오답노트로 이동(버그 재현 확인)
+  await page.getByRole('button', { name: '그만하기' }).click()
+  await page.getByRole('link', { name: /오답노트/ }).click()
+  check('새로고침 없이 오답노트에 보임(버그 수정)', await page.locator('li').filter({ hasText: 'library' }).waitFor({ timeout: 5000 }).then(() => true, () => false))
 
   // 상태 확인: △
   await page.goto(BASE + '/#/book')
-  check('푼 단어는 △ 학습 중', (await page.locator('ul li').filter({ hasText: '학습 중' }).count()) === 3)
+  check('푼 단어는 △ 학습 중', (await page.locator('ul li').filter({ hasText: '학습 중' }).count()) === 4)
 
   // 오답노트
   await page.goto(BASE + '/#/wrong')
@@ -117,7 +130,7 @@ try {
   await page.goto(BASE + '/#/quiz/en')
   await page.reload()
   const meaning = (await page.locator('.card p.font-jua.text-3xl').textContent()).trim()
-  const map = { '사과': 'Apple', '행복한, 기쁜': 'happy', '도서관': 'library' }
+  const map = { '사과': 'Apple', '행복한, 기쁜': 'happy', '도서관': 'library', '우산': 'umbrella' }
   await page.getByPlaceholder('English').fill(map[meaning] || 'x')
   await page.getByRole('button', { name: '확인' }).click()
   check('철자 정답(대소문자 무시)', await page.getByText('정답!').isVisible({ timeout: 3000 }).catch(() => false), meaning)

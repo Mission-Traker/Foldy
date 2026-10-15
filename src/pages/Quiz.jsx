@@ -7,6 +7,8 @@ import { applyAnswer, applyReview, isDue, MODE_LABEL, pickQuiz, sendToWrongNote,
 import { canListen, listenOnce, speak } from '../lib/speech.js'
 import { Blob, Empty, Header, Reaction } from '../components/ui.jsx'
 import * as sfx from '../lib/sfx.js'
+import MicPicker from '../components/MicPicker.jsx'
+import { savedMic } from '../lib/mic.js'
 
 function buildQueue(words, mode, src) {
   if (mode === 'review') {
@@ -105,7 +107,7 @@ export default function Quiz() {
     if (!canListen()) return showToast('이 브라우저는 음성 인식을 지원하지 않아요(크롬·사파리 권장)')
     setListening(true)
     try {
-      const alts = await listenOnce()
+      const alts = await listenOnce({ deviceId: savedMic() })
       const ok = gradeSpeech(alts, w.word)
       if (ok) record(true, { heard: alts[0] })
       else { sfx.wrong(); setRes({ ok: false, retry: true, heard: alts[0] || '(잘 안 들렸어요)' }) }
@@ -184,6 +186,10 @@ export default function Quiz() {
             </button>
             {!canListen() && <p className="text-center text-xs text-coral">이 브라우저는 음성 인식이 안 돼요. 크롬(안드로이드)이나 사파리(아이폰)에서 열어 주세요.</p>}
             <button onClick={() => record(false)} className="btn-ghost w-full">잘 모르겠어요</button>
+            <details className="text-sm">
+              <summary className="cursor-pointer py-1 text-center text-soft">🎙 마이크 바꾸기</summary>
+              <div className="mt-2"><MicPicker compact /></div>
+            </details>
           </div>
         ) : null
       ) : (

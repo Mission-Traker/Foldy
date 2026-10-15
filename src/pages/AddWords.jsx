@@ -1,10 +1,68 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
-import { resizeImage } from '../lib/enrich.js'
+import { toJpegBase64, looksLikeImage } from '../lib/image.js'
+import { ocrCanvas } from '../lib/ocr.js'
+import { loadDict, searchEntries } from '../lib/dict.js'
 import { cleanEntry, parseLines } from '../lib/study.js'
-import { Blob, Header } from '../components/ui.jsx'
+import { Blob, Header, Speak } from '../components/ui.jsx'
+import PhotoWait from '../components/PhotoWait.jsx'
+import * as sfx from '../lib/sfx.js'
+
+// 직접 적기: 영어나 한글을 치는 동안 바로 찾아 주고, 탭하면 단어장에 담김
+function SearchAdd() {
+  const { words, addWords, showToast } = useApp()
+  const [dict, setDict] = useState(null)
+  const [q, setQ] = useState('')
+  const [adding, setAdding] = useState('')
+  useEffect(() => { loadDict().then(setDict) }, [])
+  const owned = useMemo(() => new Set(words.map((w) => w.word.toLowerCase())), [words])
+  const results = useMemo(() => (dict ? searchEntries(dict, q, 8) : []), [dict, q])
+
+  async function add(e) {
+    if (owned.has(e.lw)) return
+    setAdding(e.word)
+    try {
+      const r = await addWords([{ word: e.word, meaning: e.meaning }], 'manual')
+      if (r.added.length) { sfx.correct(); showToast(`‘${e.word}’ 담았어요`) }
+    } catch (err) { showToast(err.message) } finally { setAdding('') }
+  }
+
+  return (
+    <div className="card mb-4 p-4">
+      <label className="label" htmlFor="search">영어나 한글로 찾기</label>
+      <div className="relative">
+        <input id="search" className="field pl-10 font-title" placeholder="예: app, 사과, 행복" value={q}
+          onChange={(e) => { setQ(e.target.value); sfx.tap() }} autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false} />
+        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-lg">🔎</span>
+        {q && <button type="button" onClick={() => setQ('')} aria-label="지우기" className="absolute right-3 top-1/2 -translate-y-1/2 text-soft">✕</button>}
+      </div>
+      {q.trim() && (
+        <ul className="mt-2 divide-y-2 divide-dashed divide-line" aria-label="검색 결과">
+          {results.map((e) => {
+            const has = owned.has(e.lw)
+            return (
+              <li key={e.word}>
+                <button type="button" disabled={has || adding === e.word} onClick={() => add(e)}
+                  className="flex w-full items-center gap-2 py-2.5 text-left active:bg-cream disabled:opacity-60">
+                  <Speak text={e.word} size="sm" />
+                  <span className="min-w-0 flex-1">
+                    <b className="font-title text-lg">{e.word}</b>
+                    <span className="ml-2 text-sm text-soft">{e.meaning}</span>
+                  </span>
+                  <span className={`chip ${has ? '' : 'border-sage text-sage'}`}>{has ? '담음' : adding === e.word ? '…' : '＋ 담기'}</span>
+                </button>
+              </li>
+            )
+          })}
+          {dict && !results.length && <li className="py-3 text-sm text-soft">기본 어휘 3,000개에 없는 단어예요. 아래 ‘여러 개 한 번에 적기’로 직접 넣어 주세요.</li>}
+        </ul>
+      )}
+      {!q.trim() && <p className="mt-2 text-xs text-soft">교육부 기본 어휘 3,000개에서 바로 찾아요. 몇 글자만 쳐도 나와요.</p>}
+    </div>
+  )
+}
 
 function Preview({ rows, setRows }) {
   const upd = (i, k, v) => setRows(rows.map((r, j) => (j === i ? { ...r, [k]: v } : r)))
@@ -42,27 +100,66 @@ export default function AddWords() {
   const valid = useMemo(() => rows.filter((r) => r.on).map(cleanEntry).filter((c) => !c.errors.length), [rows])
   const invalid = rows.filter((r) => r.on).length - valid.length
 
-  async function onFile(e) {
-    const file = e.target.files?.[0]
+  const [wait, setWait] = useState(null) // { index, total, found, stage, ocrProgress }
+  const [fails, setFails] = useState([])
+
+  async function onFiles(e) {
+    const files = [...(e.target.files || [])]
     e.target.value = ''
-    if (!file) return
-    if (!file.type.startsWith('image/')) return showToast('사진 파일만 올릴 수 있어요')
-    setImg(URL.createObjectURL(file))
-    setBusy('사진에서 단어를 읽는 중… (10~20초)')
-    try {
-      const b64 = await resizeImage(file)
-      const { words } = await db.ai('extract', { image: b64, mediaType: 'image/jpeg' })
-      if (!words.length) showToast('단어를 찾지 못했어요. 더 밝고 반듯하게 찍어 주세요')
-      setRows((rs) => [...rs, ...words.map((w) => ({ ...w, on: true }))])
-    } catch (err) {
-      showToast(err.code === 'NO_KEY' ? 'AI 키가 연결되면 사진 읽기를 쓸 수 있어요' : err.message)
-    } finally { setBusy('') }
+    if (!files.length) return
+    const bad = files.filter((f) => !looksLikeImage(f))
+    const list = files.filter((f) => looksLikeImage(f))
+    const failed = bad.map((f) => ({ name: f.name, reason: '사진 파일이 아니에요' }))
+    if (!list.length) { setFails(failed); return }
+    setImg(URL.createObjectURL(list[0]))
+    let found = 0
+    let aiDown = false
+    for (let i = 0; i < list.length; i++) {
+      const f = list[i]
+      setWait({ index: i, total: list.length, found, stage: 'convert' })
+      let pic
+      try { pic = await toJpegBase64(f) } catch (err) { failed.push({ name: f.name, reason: err.message }); continue }
+      let got = []
+      if (!aiDown) {
+        setWait({ index: i, total: list.length, found, stage: 'ai' })
+        try {
+          got = (await db.ai('extract', { image: pic.base64, mediaType: 'image/jpeg' })).words
+        } catch (err) {
+          // AI를 못 쓰면(키·크레딧·서버 오류) 기기 안 무료 글자 인식으로 대신
+          aiDown = true
+          showToast('AI 대신 기기에서 글자를 읽어요(조금 덜 정확해요): ' + err.message)
+        }
+      }
+      if (aiDown) {
+        setWait({ index: i, total: list.length, found, stage: 'ocr', ocrProgress: 0 })
+        try {
+          got = await ocrCanvas(pic.canvas, (p) => setWait((w) => (w ? { ...w, ocrProgress: p } : w)))
+        } catch (err) { failed.push({ name: f.name, reason: '글자 인식 실패: ' + err.message }); continue }
+      }
+      if (!got.length) { failed.push({ name: f.name, reason: '단어를 찾지 못했어요(더 밝고 반듯하게 찍어 주세요)' }); continue }
+      // 뜻이 빠진 단어는 내장 사전으로 채움
+      const dict = await loadDict()
+      const dm = Object.fromEntries(dict.map((d) => [d.lw, d.meaning]))
+      got = got.map((w) => ({ ...w, meaning: w.meaning || dm[w.word.toLowerCase()] || '' }))
+      found += got.length
+      setRows((rs) => {
+        const have = new Set(rs.map((r) => r.word.toLowerCase()))
+        return [...rs, ...got.filter((w) => !have.has(w.word.toLowerCase())).map((w) => ({ ...w, on: true }))]
+      })
+    }
+    setWait(null)
+    setFails(failed)
+    if (found) sfx.correct()
+    else if (failed.length) sfx.wrong()
   }
 
   function parseText() {
     const parsed = parseLines(text)
     if (!parsed.length) return showToast('한 줄에 하나씩 "apple 사과" 처럼 적어 주세요')
-    setRows((rs) => [...rs, ...parsed.map((p) => ({ ...p, on: true }))])
+    loadDict().then((dict) => {
+      const dm = Object.fromEntries(dict.map((d) => [d.lw, d.meaning]))
+      setRows((rs) => [...rs, ...parsed.map((p) => ({ ...p, meaning: p.meaning || dm[p.word.toLowerCase()] || '', on: true }))])
+    })
     setText('')
   }
 
@@ -103,23 +200,34 @@ export default function AddWords() {
 
       {tab === 'photo' ? (
         <div className="card mb-4 p-4">
-          <p className="mb-3 text-sm text-soft">영어 단어와 한글 뜻이 함께 보이는 교재·단어장을 찍어 주세요. 여러 장을 차례로 올려도 돼요.</p>
+          <p className="mb-3 text-sm text-soft">영어 단어와 한글 뜻이 함께 보이는 교재·단어장을 찍어 주세요. <b>여러 장을 한 번에</b> 골라도 돼요. (JPG·PNG·아이폰 HEIC 등 모든 사진)</p>
           {img && <img src={img} alt="올린 사진" className="mb-3 max-h-56 w-full rounded-2xl object-contain bg-cream" />}
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+          <input ref={fileRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={onFiles} />
           <button className="btn-tang w-full" disabled={!!busy} onClick={() => fileRef.current?.click()}>
-            {rows.length ? '📷 사진 한 장 더' : '📷 사진 찍기 / 고르기'}
+            {rows.length ? '📷 사진 더 올리기' : '📷 사진 찍기 / 고르기'}
           </button>
-          {aiState === 'nokey' && <p className="mt-2 text-xs text-coral">AI 키가 아직 연결되지 않아 사진 읽기가 꺼져 있어요. ‘직접 적기’는 바로 쓸 수 있어요.</p>}
+          {aiState === 'nokey' && <p className="mt-2 text-xs text-soft">AI 키가 없으면 기기 안에서 글자를 읽어요(조금 덜 정확해요).</p>}
+          {fails.length > 0 && (
+            <div className="mt-3 rounded-2xl border-2 border-coral/40 bg-coral/10 p-3 text-sm">
+              <p className="mb-1 font-jua text-coral">못 읽은 사진 {fails.length}장</p>
+              <ul className="space-y-0.5 text-xs text-ink">{fails.map((f, i) => <li key={i}><b>{f.name}</b> — {f.reason}</li>)}</ul>
+            </div>
+          )}
         </div>
       ) : (
-        <div className="card mb-4 p-4">
-          <label className="label" htmlFor="bulk">한 줄에 하나씩 (영어 뜻)</label>
-          <textarea id="bulk" rows={5} className="field mb-2 font-title" placeholder={'apple 사과\nhappy - 행복한, 기쁜\nlibrary: 도서관'} value={text} onChange={(e) => setText(e.target.value)} />
-          <button className="btn-ghost w-full" onClick={parseText}>아래 목록에 넣기</button>
-        </div>
+        <>
+          <SearchAdd />
+          <details className="card mb-4 p-4" open={rows.length > 0}>
+            <summary className="cursor-pointer font-jua text-slate-deep">✍️ 여러 개 한 번에 적기</summary>
+            <label className="label mt-3" htmlFor="bulk">한 줄에 하나씩 (영어 뜻)</label>
+            <textarea id="bulk" rows={5} className="field mb-2 font-title" placeholder={'apple 사과\nhappy - 행복한, 기쁜\nlibrary: 도서관'} value={text} onChange={(e) => setText(e.target.value)} />
+            <button className="btn-ghost w-full" onClick={parseText}>아래 목록에 넣기</button>
+          </details>
+        </>
       )}
 
       {busy && <p className="mb-3 text-center font-jua text-slate">{busy}</p>}
+      {wait && <PhotoWait {...wait} />}
 
       {rows.length > 0 && (
         <>

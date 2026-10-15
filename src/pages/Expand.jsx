@@ -6,6 +6,7 @@ import { expandStage, shuffle } from '../lib/study.js'
 import { canListen, listenOnce, speak } from '../lib/speech.js'
 import { Blob, Empty, Header, Reaction } from '../components/ui.jsx'
 import * as sfx from '../lib/sfx.js'
+import { savedMic } from '../lib/mic.js'
 
 const KIND = { syn: { label: '유의어', hint: '비슷한 뜻', color: 'text-sage' }, ant: { label: '반의어', hint: '반대 뜻', color: 'text-coral' } }
 
@@ -89,7 +90,7 @@ export default function Expand() {
   async function practice() {
     if (!canListen()) return showToast('이 브라우저는 음성 인식을 지원하지 않아요')
     try {
-      const alts = await listenOnce()
+      const alts = await listenOnce({ deviceId: savedMic() })
       setHeard(gradeSpeech(alts, d.word) ? `👍 좋아요! “${alts[0]}”` : `“${alts[0] || '잘 안 들렸어요'}” — 한 번 더!`)
     } catch (err) { showToast(err.message) }
   }

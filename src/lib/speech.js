@@ -24,7 +24,9 @@ export function canListen() {
 }
 
 // 한 번 듣고 후보 문장들을 돌려줌
-export function listenOnce({ timeoutMs = 6000 } = {}) {
+// deviceId를 고른 경우: 크롬 최신판은 그 마이크로 인식(start(track)), 지원 안 하면 기본 마이크로
+export let micPickWorks = null // null: 아직 모름, true/false
+export function listenOnce({ timeoutMs = 6000, deviceId = 'default' } = {}) {
   return new Promise((resolve, reject) => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) return reject(new Error('NO_SR'))
@@ -33,7 +35,9 @@ export function listenOnce({ timeoutMs = 6000 } = {}) {
     rec.interimResults = false
     rec.maxAlternatives = 5
     let done = false
-    const finish = (fn, v) => { if (done) return; done = true; clearTimeout(t); try { rec.stop() } catch { /* */ } fn(v) }
+    let stream = null
+    const cleanup = () => { if (stream) stream.getTracks().forEach((t) => t.stop()) }
+    const finish = (fn, v) => { if (done) return; done = true; clearTimeout(t); try { rec.stop() } catch { /* */ } cleanup(); fn(v) }
     const t = setTimeout(() => finish(resolve, []), timeoutMs)
     rec.onresult = (e) => {
       const alts = []
@@ -42,6 +46,14 @@ export function listenOnce({ timeoutMs = 6000 } = {}) {
     }
     rec.onerror = (e) => finish(e.error === 'no-speech' ? resolve : reject, e.error === 'no-speech' ? [] : new Error(e.error))
     rec.onend = () => finish(resolve, [])
-    try { rec.start() } catch (e) { finish(reject, e) }
+    const startDefault = () => { try { rec.start() } catch (e) { finish(reject, e) } }
+    if (deviceId && deviceId !== 'default' && navigator.mediaDevices?.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: deviceId } } })
+        .then((st) => {
+          stream = st
+          try { rec.start(st.getAudioTracks()[0]); micPickWorks = true } catch { micPickWorks = false; startDefault() }
+        })
+        .catch(() => { micPickWorks = false; startDefault() })
+    } else startDefault()
   })
 }

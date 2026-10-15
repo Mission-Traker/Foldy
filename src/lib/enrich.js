@@ -36,7 +36,12 @@ export async function enrichPending(words, level) {
 
 // 뜻만 필요할 때(추천 단어 표시용)
 export async function meaningsFor(wordList, level) {
+  const { loadDict } = await import('./dict.js')
+  const dict = await loadDict()
+  const known = Object.fromEntries(dict.map((e) => [e.lw, e.meaning]))
+  if (wordList.every((w) => known[w.toLowerCase()])) return wordList.map((w) => ({ word: w, meaning: known[w.toLowerCase()] }))
   const cache = await getCache(wordList)
+  for (const w of wordList) if (known[w.toLowerCase()] && !cache[w.toLowerCase()]) cache[w.toLowerCase()] = { meaning: known[w.toLowerCase()] }
   const misses = wordList.filter((w) => !cache[w.toLowerCase()])
   if (misses.length) {
     try {
@@ -46,23 +51,4 @@ export async function meaningsFor(wordList, level) {
     } catch { /* AI가 없으면 뜻 없이 표시 */ }
   }
   return wordList.map((w) => ({ word: w, meaning: cache[w.toLowerCase()]?.meaning || '' }))
-}
-
-// 사진을 1600px 이하 JPEG로 줄여 base64로
-export function resizeImage(file, max = 1600) {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      const s = Math.min(1, max / Math.max(img.width, img.height))
-      const c = document.createElement('canvas')
-      c.width = Math.round(img.width * s)
-      c.height = Math.round(img.height * s)
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height)
-      URL.revokeObjectURL(url)
-      resolve(c.toDataURL('image/jpeg', 0.85).split(',')[1])
-    }
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('사진을 열 수 없어요')) }
-    img.src = url
-  })
 }

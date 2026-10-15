@@ -52,3 +52,6 @@ input, button, textarea, select { font: inherit; }
 .border-ok { border-color: #8DAE78 !important; background: #F3F8EE !important; }
 .border-no { border-color: #E08A7B !important; background: #FCF1EE !important; }
 @media (prefers-reduced-motion: reduce) { .burst, .hop, .shake, .glow-ok, .wiggle, .pop, .bob { animation: none !important; } .burst { display: none } }
+.wait-bob { animation: waitbob 1.1s ease-in-out infinite; }
+@keyframes waitbob { 0%,100% { transform: translateY(0) } 40% { transform: translateY(-16px) scale(1.04,.96) } 60% { transform: translateY(0) scale(.96,1.04) } }
+@media (prefers-reduced-motion: reduce) { .wait-bob { animation: none } }

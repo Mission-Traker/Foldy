@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import * as db from './lib/db.js'
 import { enrichPending } from './lib/enrich.js'
-import { nextStreak, ymd } from './lib/study.js'
+import { enqueue, mergePatchResult, nextStreak, ymd } from './lib/study.js'
 import { BottomNav, Confetti, Toast } from './components/ui.jsx'
 import { fanfare } from './lib/sfx.js'
 import Auth from './pages/Auth.jsx'
@@ -88,8 +88,9 @@ export default function App() {
   const patchWord = useCallback(async (id, patch) => {
     setWords((ws) => ws.map((w) => (w.id === id ? { ...w, ...patch } : w)))
     try {
-      const saved = await db.updateWord(id, patch)
-      setWords((ws) => ws.map((w) => (w.id === id ? saved : w)))
+      // 같은 단어 저장은 순서대로, 응답은 바꾼 칸만 반영
+      const saved = await enqueue(id, () => db.updateWord(id, patch))
+      setWords((ws) => ws.map((w) => (w.id === id ? mergePatchResult(w, saved, patch) : w)))
     } catch (e) {
       showToast('저장 실패: ' + e.message)
     }
