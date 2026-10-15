@@ -27,7 +27,7 @@ export default function Study() {
   return (
     <div>
       <Header title="학습" />
-      <p className="mb-3 text-sm text-soft">세 가지를 모두 맞히면 단어에 <b className="text-sage">○</b>가 붙어요. 한 번에 10문제씩, 아직 못 맞힌 단어부터 나와요.</p>
+      <p className="mb-3 text-sm text-soft">세 가지를 모두 맞히면 단어에 <b className="text-sage">○</b>가 붙어요. 퀴즈마다 <b>이미 통과한 단어는 건너뛰고</b> 남은 단어만 10문제씩 나와요.</p>
       <div className="space-y-3">
         {CARDS.map((c) => {
           const left = words.filter((w) => !w[MODE_FIELD[c.mode]]).length
@@ -39,7 +39,7 @@ export default function Study() {
               <span className="text-4xl">{c.icon}</span>
               <span className="min-w-0 flex-1">
                 <b className="font-jua text-xl text-slate-deep">{c.title}</b>
-                <span className="block text-sm text-soft">{clear ? '모두 맞혔어요! 복습하려면 눌러요' : c.desc}</span>
+                <span className="block text-sm text-soft">{clear ? '모두 통과! 통과한 단어는 다시 안 나와요' : c.desc}</span>
                 <span className="mt-1.5 block h-2 overflow-hidden rounded-full bg-white/70">
                   <span className="block h-full rounded-full bg-sage transition-all" style={{ width: `${words.length ? (done / words.length) * 100 : 0}%` }} />
                 </span>

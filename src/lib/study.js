@@ -87,12 +87,10 @@ export function sortWords(words, by = 'seq', dir = 'asc') {
   return arr
 }
 
-// 퀴즈 출제 순서: 해당 모드를 아직 못 맞힌 단어(×, △) 먼저, 그다음 나머지
+// 퀴즈 출제: 그 퀴즈를 이미 통과한 단어는 빼고, 남은 단어만 10개씩
 export function pickQuiz(words, mode, limit = 10) {
   const field = MODE_FIELD[mode]
-  const todo = words.filter((w) => !w[field])
-  const rest = words.filter((w) => w[field])
-  return [...shuffle(todo), ...shuffle(rest)].slice(0, limit)
+  return shuffle(words.filter((w) => !w[field])).slice(0, limit)
 }
 
 export function shuffle(arr, rand = Math.random) {

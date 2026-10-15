@@ -136,6 +136,12 @@ try {
   await page.getByRole('button', { name: '확인' }).click()
   check('철자 정답(대소문자 무시)', await page.getByText('정답!').isVisible({ timeout: 3000 }).catch(() => false), meaning)
 
+  // 이미 통과한 단어는 건너뜀: 뜻 퀴즈 다시 열면 틀렸던 library 하나만
+  await page.goto(BASE + '/#/quiz/ko')
+  await page.getByPlaceholder('한글 뜻').waitFor()
+  const only = (await page.locator('.card p.font-title').first().textContent()).trim()
+  check('통과한 단어는 건너뛰고 남은 것만(1/1 library)', only === 'library' && (await page.getByText('1/1').isVisible()), only)
+
   // 레벨 진단
   await page.goto(BASE + '/#/level-test')
   await page.getByText('뜻을 아는 단어를 모두 눌러 주세요').waitFor()

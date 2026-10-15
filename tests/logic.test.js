@@ -99,11 +99,23 @@ describe('정렬', () => {
 })
 
 describe('퀴즈 출제', () => {
-  it('못 맞힌 단어 먼저, 개수 제한', () => {
+  it('이미 통과한 단어는 빼고 남은 단어만(뜻)', () => {
     const ws = Array.from({ length: 15 }, (_, i) => ({ ...base, id: i, ko_ok: i < 10 }))
-    const q = pickQuiz(ws, 'ko', 8)
-    expect(q.length).toBe(8)
-    expect(q.slice(0, 5).every((w) => !w.ko_ok)).toBe(true)
+    const q = pickQuiz(ws, 'ko', 10)
+    expect(q.length).toBe(5)
+    expect(q.every((w) => !w.ko_ok)).toBe(true)
+  })
+  it('철자·발음도 각각 통과한 것만 뺌', () => {
+    const ws = [{ ...base, id: 1, en_ok: true, sp_ok: false }, { ...base, id: 2, en_ok: false, sp_ok: true }]
+    expect(pickQuiz(ws, 'en').map((w) => w.id)).toEqual([2])
+    expect(pickQuiz(ws, 'sp').map((w) => w.id)).toEqual([1])
+  })
+  it('남은 게 많으면 10개씩', () => {
+    const ws = Array.from({ length: 25 }, (_, i) => ({ ...base, id: i }))
+    expect(pickQuiz(ws, 'ko').length).toBe(10)
+  })
+  it('모두 통과했으면 빈 목록', () => {
+    expect(pickQuiz([{ ...base, ko_ok: true }], 'ko')).toEqual([])
   })
 })
 

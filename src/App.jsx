@@ -157,7 +157,7 @@ export default function App() {
             <Route path="/book" element={<Wordbook />} />
             <Route path="/add" element={<AddWords />} />
             <Route path="/study" element={<Study />} />
-            <Route path="/quiz/:mode" element={<Quiz />} />
+            <Route path="/quiz/:mode" element={<Quiz key={loc.pathname + loc.search} />} />
             <Route path="/wrong" element={<WrongNote />} />
             <Route path="/expand" element={<Expand />} />
             <Route path="/me" element={<Me />} />

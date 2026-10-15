@@ -66,6 +66,24 @@ export default function Quiz() {
 
   const title = mode === 'review' ? '복습' : mode === 'focus' ? `○ 만들기 · ${MODE_LABEL[qmode] || ''}` : `${src === 'wrong' ? '오답노트 · ' : ''}${MODE_LABEL[mode]}`
 
+  if (!queue.length && ['ko', 'en', 'sp'].includes(mode) && src !== 'wrong' && words.length) {
+    // 이 퀴즈는 모든 단어를 이미 통과함
+    return (
+      <div>
+        <Header noProfile title={title} back />
+        <div className="card flex flex-col items-center gap-2 px-6 py-8 text-center">
+          <span className="pop flex h-16 w-16 items-center justify-center rounded-full bg-sage text-4xl font-bold text-white shadow-[0_4px_0_#6E8E5B]">✓</span>
+          <p className="font-jua text-xl text-slate-deep">{MODE_LABEL[mode]} — 모두 통과했어요! 🎉</p>
+          <p className="text-sm text-soft">통과한 단어는 다시 나오지 않아요. 새 단어를 넣거나 다른 퀴즈를 풀어 보세요.</p>
+          <div className="mt-2 flex gap-2">
+            <Link to="/study" className="btn-ghost">다른 퀴즈</Link>
+            <Link to="/add" className="btn-main">단어 추가</Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!queue.length) {
     return (
       <div>
