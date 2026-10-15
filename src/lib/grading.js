@@ -70,16 +70,24 @@ export function gradeSpelling(input, word) {
   return { ok: false, close: levenshtein(a, w) <= 1 }
 }
 
-// 발음 인식 결과(후보 여러 개) 채점
+// 발음 채점(엄격) — 음성 인식이 "가장 확신하는 결과"가 그 단어일 때만 통과
+// 예외: 1순위 확신도가 낮을 때(0.6 미만)만 2·3순위까지 인정 — 인식기 자체가 헷갈린 경우
+// alternatives: [{ t: '인식 문장', c: 확신도(0~1) | null }] 또는 문자열 배열
+function matchesWord(alt, w) {
+  const a = normalizeEn(alt)
+  if (!a) return false
+  if (a === w) return true
+  const toks = a.split(' ')
+  if (toks.length <= 3 && toks.includes(w)) return true // "an apple", "the apple"
+  if (w.includes(' ') && a === w) return true
+  return false
+}
 export function gradeSpeech(alternatives, word) {
   const w = normalizeEn(word)
-  for (const alt of alternatives || []) {
-    const a = normalizeEn(alt)
-    if (!a) continue
-    if (a === w) return true
-    if (a.split(' ').includes(w)) return true
-    if (w.includes(' ') && a.includes(w)) return true
-    if (w.length >= 5 && levenshtein(a, w) <= 1) return true
-  }
+  const alts = (alternatives || []).map((x) => (typeof x === 'string' ? { t: x, c: null } : x)).filter((x) => x && x.t)
+  if (!alts.length) return false
+  if (matchesWord(alts[0].t, w)) return true
+  const unsure = alts[0].c != null && alts[0].c < 0.6
+  if (unsure) return alts.slice(1, 3).some((x) => matchesWord(x.t, w))
   return false
 }

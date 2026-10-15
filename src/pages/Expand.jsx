@@ -91,7 +91,7 @@ export default function Expand() {
     if (!canListen()) return showToast('이 브라우저는 음성 인식을 지원하지 않아요')
     try {
       const alts = await listenOnce({ deviceId: savedMic() })
-      setHeard(gradeSpeech(alts, d.word) ? `👍 좋아요! “${alts[0]}”` : `“${alts[0] || '잘 안 들렸어요'}” — 한 번 더!`)
+      setHeard(gradeSpeech(alts, d.word) ? `👍 좋아요! “${alts[0]?.t}”` : `“${alts[0]?.t || '잘 안 들렸어요'}” — 한 번 더!`)
     } catch (err) { showToast(err.message) }
   }
 

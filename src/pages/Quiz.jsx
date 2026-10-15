@@ -109,8 +109,8 @@ export default function Quiz() {
     try {
       const alts = await listenOnce({ deviceId: savedMic() })
       const ok = gradeSpeech(alts, w.word)
-      if (ok) record(true, { heard: alts[0] })
-      else { sfx.wrong(); setRes({ ok: false, retry: true, heard: alts[0] || '(잘 안 들렸어요)' }) }
+      if (ok) record(true, { heard: alts[0]?.t })
+      else { sfx.wrong(); setRes({ ok: false, retry: true, heard: alts[0]?.t || '(잘 안 들렸어요)' }) }
     } catch (err) {
       showToast(err.message === 'not-allowed' ? '마이크 권한을 허용해 주세요' : '음성 인식 오류: ' + err.message)
     } finally { setListening(false) }

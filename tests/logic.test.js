@@ -28,11 +28,15 @@ describe('철자 채점', () => {
   it('빈 입력', () => expect(gradeSpelling('', 'apple').ok).toBe(false))
 })
 
-describe('발음 채점', () => {
-  it('후보 중 하나라도 일치', () => expect(gradeSpeech(['apples', 'Apple'], 'apple')).toBe(true))
-  it('문장 속 단어 인식', () => expect(gradeSpeech(['an apple'], 'apple')).toBe(true))
-  it('다른 단어는 실패', () => expect(gradeSpeech(['banana'], 'apple')).toBe(false))
-  it('짧은 단어는 오인식 허용 안 함', () => expect(gradeSpeech(['rad'], 'red')).toBe(false))
+describe('발음 채점(엄격)', () => {
+  it('1순위가 그 단어면 통과', () => expect(gradeSpeech([{ t: 'Apple', c: 0.9 }], 'apple')).toBe(true))
+  it('관사 붙여 읽어도 통과', () => expect(gradeSpeech([{ t: 'an apple', c: 0.9 }], 'apple')).toBe(true))
+  it('1순위가 다른 단어고 확신도 높으면 실패(2순위에 있어도)', () => expect(gradeSpeech([{ t: 'apples', c: 0.92 }, { t: 'apple', c: 0.5 }], 'apple')).toBe(false))
+  it('1순위 확신도가 낮으면 2순위까지 인정', () => expect(gradeSpeech([{ t: 'apples', c: 0.4 }, { t: 'apple', c: 0.3 }], 'apple')).toBe(true))
+  it('3순위 밖은 인정 안 함', () => expect(gradeSpeech([{ t: 'a', c: 0.2 }, { t: 'b' }, { t: 'c' }, { t: 'apple' }], 'apple')).toBe(false))
+  it('비슷한 단어(rad)는 실패', () => expect(gradeSpeech([{ t: 'rad', c: 0.8 }], 'red')).toBe(false))
+  it('긴 문장 속 단어는 실패(그 단어만 읽기)', () => expect(gradeSpeech([{ t: 'i like to eat an apple every day', c: 0.9 }], 'apple')).toBe(false))
+  it('아무것도 못 들으면 실패', () => expect(gradeSpeech([], 'apple')).toBe(false))
 })
 
 describe('○△× 상태', () => {
