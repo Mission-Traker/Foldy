@@ -15,11 +15,12 @@
 - 단어 추가
   - 📷 사진: 여러 장 한 번에, JPG·PNG·WEBP·아이폰 HEIC(확장자가 틀린 HEIC 포함) 모두 → 긴 변 2000px로 줄여 AI가 읽음 → 미리보기에서 고친 뒤 저장. 기다리는 동안 캐릭터 대기화면(진행률·팁·톡 누르면 점프)
   - AI를 못 쓰면(키·크레딧·서버 오류) 기기 안 무료 글자인식(Tesseract, 영어+한국어)으로 자동 대체. 빈 파일·iCloud 미다운로드 등 못 읽은 사진은 이유와 함께 표시
-  - ✍️ 직접 적기: 영어나 한글 몇 글자만 쳐도 기본 어휘 3,000개 사전에서 바로 찾아 탭하면 담김 + 여러 개 한 번에 적기(`apple 사과`, 뜻이 비면 사전으로 채움)
+  - ✍️ 직접 적기: 영어나 한글 몇 글자만 쳐도 사전 9,121단어에서 바로 찾아 탭하면 담김(사전에 없으면 AI가 자동으로 찾아 'AI' 표시로 보여주고 결과는 공유 캐시에 저장) + 여러 개 한 번에 적기(`apple 사과`, 뜻이 비면 사전으로 채움)
 - 접이식 단어장: 뜻 가리기·영어 가리기·모두 보기, 가림판 탭하면 열림, 영어 탭하면 발음 재생
-- 번호·추가 날짜 표시, 번호/날짜/ABC 정렬(↑↓), ✕ 미학습 / △ 학습 중 / ○ 완료 필터
+- 단어장 한 칸: 번호·영어 철자·🔊·'탭해서 보기' 가림판, 아래에 3단계 학습 아이콘(뜻·철자·발음 — 통과한 것은 주황·초록·코랄 색 + ✓)과 추가 날짜
+- 번호/날짜/ABC 정렬(↑↓), 미학습 / △ 학습 중 / ○ 완료 필터, 상단 '○를 기다리는 단어 N개 → 지금 끝내기'
 - 단어 바로 뒤 🔊 발음 듣기, ⋯ 메뉴 → ✏️ 고치기 / 🗑 삭제(확인 후 삭제)
-- 긴 단어는 글자 크기를 줄이고 줄바꿈해서 모바일에서도 잘리지 않음. 상태는 단어 아래에 ○ 완료 / △ 학습 중 / 미학습 글자로 표시
+- 긴 단어는 글자 크기를 줄이고 줄바꿈해서 모바일에서도 잘리지 않음
 - 퀴즈 첫 문제부터 발음 자동 재생(영어→뜻·발음 퀴즈), 아이폰 소리 제한은 첫 터치 때 잠금 해제
 - 퀴즈 3종(10문제씩, 못 맞힌 단어 먼저)
   - 퀴즈마다 이미 통과한 단어는 건너뛰고 남은 단어만 출제. 끝나면 '모르는 단어 N개 한 번 더'(새로고침 없이 남은 것만), 모두 맞히면 ✓ 통과 안내
@@ -30,7 +31,6 @@
 - 틀리면 "📌 오답노트로 보내기" → 오답노트에서 틀린 방식별로 다시 연습, 맞히면 자동으로 빠짐
 - **○ 판정: 세 가지 퀴즈를 모두 맞혀야 ○**
 - 학습 화면: 모두 맞힌 퀴즈는 초록 ✓, 진행 막대 / 🎯 ○ 만들기 도전(✕·△ 단어의 못 맞힌 퀴즈만 모아서)
-- 단어장 ✕·△ 단어 아래에 뜻·철자·발음 중 남은 것 표시 + '○까지 N개 ▶' 버튼(하나 남으면 반짝임)
 - 효과음(타자·정답 차임·오답·팡파르, 끄기 가능)과 정답·오답 캐릭터 애니메이션·색종이
 
 **2차**
@@ -51,8 +51,8 @@
 | 로그인 | `foldy_signup`/`foldy_login` 함수 → 세션 토큰을 `x-foldy-token` 헤더로 보내고, 모든 표는 RLS로 가족 단위 격리 |
 | AI | Vercel 서버 함수 `api/*.js`에서만 Claude API 호출(키는 브라우저에 노출 안 됨). 같은 단어의 AI 결과는 `foldy_cache`에 저장해 재사용 |
 | 발음 | 기본 어휘 3,000개는 오픈소스 Kokoro 음성(af_heart)으로 미리 만든 아나운서 음성 파일(`public/audio/*.mp3`), 그 밖은 기기에서 가장 좋은 영어 음성 자동 선택. 인식은 브라우저 음성 인식 — 모두 무료 |
-| 사전 | `src/data/dict.json` 기본 어휘 2,898개 영-한 뜻(자동완성·추천 단어 뜻) |
-| 배포 | GitHub `Mission-Traker/foldy` → Vercel 자동 배포 |
+| 사전 | `src/data/dict.json` 9,121단어 영-한 뜻(기본 어휘 + 생활·교과 어휘, 자동완성·추천 단어 뜻). 없으면 `api/lookup` AI 검색 |
+| 배포 | GitHub `Mission-Traker/Foldy` → Vercel 자동 배포 |
 
 ### 데이터 저장 위치 (`supabase/001_init.sql`, 적용 완료)
 - `foldy_families` 가족(아이디, 비밀번호 해시, 이름) · `foldy_sessions` 로그인 토큰(180일)
@@ -87,9 +87,9 @@ npx vercel dev       # AI 경로까지 (Vercel CLI 로그인 + ANTHROPIC_API_KEY
 ## 테스트
 
 ```bash
-npm test                                   # 단위 테스트 96개(채점·상태·복습·정렬·레벨·입력검증·AI 경로 보호)
+npm test                                   # 단위 테스트 97개(채점·상태·복습·정렬·레벨·입력검증·AI 경로 보호)
 npm run build && npx vite preview --port 4173 &
-BASE=http://localhost:4173 node tests/e2e.mjs   # 브라우저 자동 점검 50개(390px)
+BASE=http://localhost:4173 node tests/e2e.mjs   # 브라우저 자동 점검 51개(390px)
 BASE=http://localhost:4173 node tests/e2e-retry.mjs  # '한 번 더' 검수 7개(느린 인터넷 흉내)
 ```
 e2e는 실제 DB에 `e2e_`로 시작하는 테스트 가족을 만듭니다.
@@ -97,12 +97,12 @@ e2e는 실제 DB에 `e2e_`로 시작하는 테스트 가족을 만듭니다.
 ## 파일 구조
 
 ```
-api/            Vercel 서버 함수 (_lib 공통, extract 사진읽기, enrich 유의어·예문, judge 재채점, recommend 연관추천)
+api/            Vercel 서버 함수 (_lib 공통, extract 사진읽기, enrich 유의어·예문, judge 재채점, recommend 연관추천, pron 발음요령, lookup 단어검색)
 src/lib/        grading 채점 · study 상태·복습·정렬·입력검증 · levels 레벨 · db Supabase · enrich AI정보 · speech 발음
 src/pages/      Auth Profiles Home Wordbook AddWords Study Quiz WrongNote Expand Me LevelTest
 src/components/ ui.jsx (캐릭터 블롭, ○△✕ 표시, 하단 메뉴 등)
 src/data/       levels.json (기본 어휘 3,000개 레벨 분류)
-supabase/       001_init.sql, 002_login_lock.sql (둘 다 적용 완료)
+supabase/       001_init.sql, 002_login_lock.sql, 003_member_pin.sql (모두 적용 완료)
 tests/          logic·api 단위 테스트, e2e.mjs 브라우저 점검
 ```
 

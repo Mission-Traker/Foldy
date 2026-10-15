@@ -108,6 +108,11 @@ describe('AI 서버 경로 보호', () => {
     expect(JSON.parse(res.body).ok).toBe(true)
     expect(n).toBe(2)
   })
+  it('AI 단어 찾기 결과 해석', async () => {
+    const { parseLookup } = await import('../api/lookup.js')
+    expect(parseLookup('1. snowman | 눈사람\n- igloo: 이글루\nfoo bar\nsnowman | 눈사람')).toEqual([
+      { word: 'snowman', meaning: '눈사람' }, { word: 'igloo', meaning: '이글루' }])
+  })
   it('JSON 꺼내기', () => {
     expect(parseJson('설명입니다 {"ok":true} 끝')).toEqual({ ok: true })
   })

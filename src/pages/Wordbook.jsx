@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useApp } from '../App.jsx'
-import { expandStage, sortWords, statusOf, STATUS_LABEL, cleanEntry, MODE_FIELD } from '../lib/study.js'
+import { expandStage, sortWords, statusOf, cleanEntry, MODE_FIELD } from '../lib/study.js'
 import { Empty, Header, Speak, fmtDate, fitWord } from '../components/ui.jsx'
 import { speak } from '../lib/speech.js'
 
@@ -53,26 +53,22 @@ function Extras({ w }) {
   )
 }
 
-// ✕·△ 단어: 남은 퀴즈를 보여주고 바로 끝내게 유도
-const STEPS = [['ko', '뜻'], ['en', '철자'], ['sp', '발음']]
-function Todo({ w }) {
-  const nav = useNavigate()
-  const left = STEPS.filter(([m]) => !w[MODE_FIELD[m]]).length
+// 3단계 학습 아이콘(뜻·철자·발음): 통과한 단계는 색으로 켜짐 + 추가한 날짜
+const STEPS = [['ko', '뜻', 'bg-tang border-tang'], ['en', '철자', 'bg-sage border-sage'], ['sp', '발음', 'bg-coral border-coral']]
+function Steps({ w }) {
   return (
     <div className="mb-2 ml-8 mr-1 flex items-center gap-1.5">
-      {STEPS.map(([m, label]) => {
+      {STEPS.map(([m, label, on]) => {
         const ok = w[MODE_FIELD[m]]
         return (
-          <span key={m} className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-jua ${ok ? 'bg-sage text-white' : 'border-2 border-dashed border-line text-soft'}`}>
-            {ok ? '✓' : '·'} {label}
+          <span key={m} aria-label={`${label} ${ok ? '통과' : '아직'}`}
+            className={`inline-flex items-center gap-0.5 rounded-full border-2 px-2 py-0.5 text-[11px] font-jua ${ok ? `${on} text-white` : 'border-line bg-white text-soft/70'}`}>
+            {ok ? '✓' : ''}{label}
           </span>
         )
       })}
       <span className="flex-1" />
-      <button onClick={() => nav(`/quiz/focus?ids=${w.id}`)}
-        className={`rounded-full bg-tang px-2.5 py-1 text-[12px] font-jua text-white shadow-[0_2px_0_#C27532] active:translate-y-[1px] ${left === 1 ? 'nudge-ring' : ''}`}>
-        {left === 1 ? '하나 남았어요! ▶' : `○까지 ${left}개 ▶`}
-      </button>
+      <span className="text-[11px] text-soft">{fmtDate(w.created_at)}</span>
     </div>
   )
 }
@@ -107,7 +103,6 @@ function Row({ w, hide, peek, onPeek, onEdit }) {
         <div className="relative flex min-w-0 flex-[1.5] items-center gap-1">
           <button onClick={() => (coverWord ? onPeek() : speak(w.word))} className="relative min-w-0 text-left">
             <span className={`block break-words font-title font-semibold leading-tight text-ink [overflow-wrap:anywhere] ${fitWord(w.word)}`}>{w.word}</span>
-            <span className="block text-[11px] text-soft">{fmtDate(w.created_at)} · {s === 'o' ? <b className="text-sage">○ 완료</b> : s === 't' ? <b className="text-mustard">△ 학습 중</b> : '미학습'}</span>
             {coverWord && <span className="absolute inset-0 rounded-xl bg-[repeating-linear-gradient(0deg,#FFFBF4,#FFFBF4_9px,#EFE5D3_10px)] border-2 border-line" />}
           </button>
           <Speak text={w.word} size="sm" className="!h-7 !w-7 !text-xs" label="발음 듣기" />
@@ -121,7 +116,7 @@ function Row({ w, hide, peek, onPeek, onEdit }) {
         <button onClick={() => setMenu(true)} aria-label={`${w.word} 메뉴`} aria-haspopup="menu" className="w-7 shrink-0 rounded-lg text-xl leading-none text-soft active:bg-cream">⋯</button>
       </div>
       {menu && <RowMenu w={w} onEdit={onEdit} onClose={() => setMenu(false)} />}
-      {s !== 'o' && <Todo w={w} />}
+      <Steps w={w} />
       <Extras w={w} />
     </li>
   )

@@ -52,6 +52,8 @@ try {
   await page.getByLabel('영어나 한글로 찾기').fill('ora')
   await page.getByRole('button', { name: /orange/ }).first().waitFor()
   check('자동완성: ora → orange', true)
+  await page.getByLabel('영어나 한글로 찾기').fill('보험')
+  check('늘어난 사전: 보험 → insurance', await page.getByRole('button', { name: /insurance/ }).first().waitFor({ timeout: 5000 }).then(() => true, () => false))
   await page.getByLabel('영어나 한글로 찾기').fill('우산')
   await page.getByRole('button', { name: /umbrella/ }).first().click()
   await page.getByRole('button', { name: /umbrella.*담음/ }).waitFor()
@@ -74,8 +76,9 @@ try {
 
   // 단어장
   await page.getByRole('heading', { name: '단어장' }).waitFor()
-  const rows = page.locator('ul li').filter({ hasText: '미학습' })
-  check('단어장 4개 모두 미학습', (await rows.count()) === 4)
+  await page.getByLabel('뜻 아직').first().waitFor()
+  check('단어장 4개 모두 3단계 아이콘 꺼짐(미학습)', (await page.getByLabel('뜻 아직').count()) === 4 && (await page.getByLabel('뜻 통과').count()) === 0)
+  check('단어장에 "○까지" 버튼 없음', (await page.getByRole('button', { name: /○까지|하나 남았어요/ }).count()) === 0)
   check('뜻 가림판 닫혀 있음', (await page.locator('.flap:not(.open)').count()) === 4)
   await page.getByRole('button', { name: '뜻 보기' }).first().click()
   check('가림판 탭 → 열림', (await page.locator('.flap.open').count()) === 1)
@@ -127,8 +130,8 @@ try {
   // 상태 확인: △
   await page.goto(BASE + '/#/book')
   await page.reload()
-  await page.locator('ul li').filter({ hasText: '학습 중' }).nth(3).waitFor({ timeout: 10000 }).catch(() => {})
-  check('푼 단어는 △ 학습 중', (await page.locator('ul li').filter({ hasText: '학습 중' }).count()) === 4)
+  await page.getByLabel('뜻 통과').nth(2).waitFor({ timeout: 10000 }).catch(() => {})
+  check('맞힌 단어는 뜻 아이콘이 색으로 켜짐(3개)', (await page.getByLabel('뜻 통과').count()) === 3)
 
   // 오답노트
   await page.goto(BASE + '/#/wrong')
@@ -162,10 +165,9 @@ try {
 
   // △·✕ 단어 넛지
   await page.goto(BASE + '/#/book')
-  check('단어별 남은 퀴즈 표시와 끝내기 버튼', await page.getByRole('button', { name: /○까지|하나 남았어요/ }).first().waitFor().then(() => true, () => false))
-  check('○ 만들기 배너', await page.getByText('지금 끝내기').isVisible())
-  await page.getByRole('button', { name: /○까지|하나 남았어요/ }).first().click()
-  check('끝내기 → 그 단어 집중 퀴즈', await page.getByRole('heading', { name: /○ 만들기/ }).waitFor().then(() => true, () => false))
+  check('○ 만들기 배너', await page.getByText('지금 끝내기').waitFor().then(() => true, () => false))
+  await page.getByText('지금 끝내기').click()
+  check('지금 끝내기 → 남은 퀴즈만 모아 풀기', await page.getByRole('heading', { name: /○ 만들기/ }).waitFor().then(() => true, () => false))
 
   // 프로필 편집·비밀번호
   await page.goto(BASE + '/#/study')

@@ -23,6 +23,9 @@
     },
     "api/pron.js": {
       "maxDuration": 30
+    },
+    "api/lookup.js": {
+      "maxDuration": 20
     }
   }
 }

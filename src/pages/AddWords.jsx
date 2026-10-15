@@ -16,9 +16,35 @@ function SearchAdd() {
   const [dict, setDict] = useState(null)
   const [q, setQ] = useState('')
   const [adding, setAdding] = useState('')
+  const [aiItems, setAiItems] = useState({ q: '', items: [], busy: false, err: '' })
   useEffect(() => { loadDict().then(setDict) }, [])
   const owned = useMemo(() => new Set(words.map((w) => w.word.toLowerCase())), [words])
   const results = useMemo(() => (dict ? searchEntries(dict, q, 8) : []), [dict, q])
+
+  // 사전에 없으면 잠시 뒤 AI가 자동으로 찾아 줌(같은 검색어는 다시 묻지 않음)
+  useEffect(() => {
+    const query = q.trim()
+    if (!dict || !query || results.length >= 3 || query.length < (/[가-힣]/.test(query) ? 1 : 3)) return
+    if (aiItems.q === query) return
+    const t = setTimeout(async () => {
+      setAiItems({ q: query, items: [], busy: true, err: '' })
+      try {
+        const key = 'lookup:' + query.toLowerCase()
+        const cached = await db.getCache([key])
+        const items = cached[key]?.items || (await db.ai('lookup', { q: query })).items
+        if (!cached[key] && items.length) db.putCache([{ word: key, items }]).catch(() => {})
+        setAiItems({ q: query, items, busy: false, err: '' })
+      } catch (e) {
+        setAiItems({ q: query, items: [], busy: false, err: e.code === 'NO_KEY' ? '' : e.message })
+      }
+    }, 650)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, dict, results.length])
+  const extra = aiItems.q === q.trim()
+    ? aiItems.items.filter((a) => !results.some((r) => r.lw === a.word.toLowerCase())).map((a) => ({ word: a.word, meaning: a.meaning, lw: a.word.toLowerCase(), ai: true }))
+    : []
+  const shown = [...results, ...extra]
 
   async function add(e) {
     if (owned.has(e.lw)) return
@@ -40,7 +66,7 @@ function SearchAdd() {
       </div>
       {q.trim() && (
         <ul className="mt-2 divide-y-2 divide-dashed divide-line" aria-label="검색 결과">
-          {results.map((e) => {
+          {shown.map((e) => {
             const has = owned.has(e.lw)
             return (
               <li key={e.word}>
@@ -50,16 +76,18 @@ function SearchAdd() {
                   <span className="min-w-0 flex-1">
                     <b className="font-title text-lg">{e.word}</b>
                     <span className="ml-2 text-sm text-soft">{e.meaning}</span>
+                    {e.ai && <span className="ml-1 rounded-full bg-slate/10 px-1.5 text-[10px] text-slate-deep">AI</span>}
                   </span>
                   <span className={`chip ${has ? '' : 'border-sage text-sage'}`}>{has ? '담음' : adding === e.word ? '…' : '＋ 담기'}</span>
                 </button>
               </li>
             )
           })}
-          {dict && !results.length && <li className="py-3 text-sm text-soft">기본 어휘 3,000개에 없는 단어예요. 아래 ‘여러 개 한 번에 적기’로 직접 넣어 주세요.</li>}
+          {aiItems.busy && aiItems.q === q.trim() && <li className="py-3 text-sm text-slate">🤖 사전에 없어서 AI가 찾는 중…</li>}
+          {dict && !shown.length && !aiItems.busy && <li className="py-3 text-sm text-soft">찾는 단어가 없어요{aiItems.err ? ` (${aiItems.err})` : ''}. 아래 ‘여러 개 한 번에 적기’로 직접 넣어 주세요.</li>}
         </ul>
       )}
-      {!q.trim() && <p className="mt-2 text-xs text-soft">교육부 기본 어휘 3,000개에서 바로 찾아요. 몇 글자만 쳐도 나와요.</p>}
+      {!q.trim() && <p className="mt-2 text-xs text-soft">자주 쓰는 영어 단어 9,000여 개에서 바로 찾아요. 몇 글자만 쳐도 나오고, 사전에 없으면 AI가 찾아 줘요.</p>}
     </div>
   )
 }
