@@ -164,7 +164,7 @@ describe('직접 적기 줄 나누기', () => {
   it('빈 줄 무시', () => expect(parseLines('\n\n')).toEqual([]))
 })
 
-import { mergePatchResult, enqueue } from '../src/lib/study.js'
+import { mergePatchResult, enqueue, PatchTracker } from '../src/lib/study.js'
 describe('오답노트 보내기 저장 경쟁(버그 재현)', () => {
   it('먼저 보낸 정답/오답 저장의 응답이 오답노트 표시를 지우면 안 됨', () => {
     // 1) 오답 기록 저장 요청(응답에는 wrong_modes가 아직 비어 있음)
@@ -205,4 +205,32 @@ describe('직접 적기 자동완성', () => {
   it('한글 일부만 쳐도 찾음(행복 → happy)', () => expect(searchEntries(ENTRIES, '행복').map((e) => e.word)).toContain('happy'))
   it('최대 8개', () => expect(searchEntries(ENTRIES, 'a').length).toBeLessThanOrEqual(8))
   it('빈 입력·이상한 입력은 빈 결과', () => { expect(searchEntries(ENTRIES, ' ')).toEqual([]); expect(searchEntries(ENTRIES, '<b>')).toEqual([]) })
+})
+
+describe('늦게 온 저장 응답이 최신 값을 되돌리지 않음(한 번 더 버그)', () => {
+  it('1회차 오답 응답이 2회차 정답을 덮어쓰지 않음', () => {
+    const t = new PatchTracker()
+    const first = t.begin('w', { ko_ok: false })   // 1회차 오답 저장 시작
+    const second = t.begin('w', { ko_ok: true })   // 2회차 정답 저장 시작
+    let cur = { id: 'w', ko_ok: true }              // 화면엔 최신(정답) 반영
+    cur = mergePatchResult(cur, { id: 'w', ko_ok: false }, t.fresh('w', first))  // 1회차 응답 늦게 도착
+    expect(cur.ko_ok).toBe(true)
+    cur = mergePatchResult(cur, { id: 'w', ko_ok: true }, t.fresh('w', second))
+    expect(cur.ko_ok).toBe(true)
+  })
+  it('다른 칸은 정상 반영', () => {
+    const t = new PatchTracker()
+    const a = t.begin('w', { ko_ok: false, attempted: true })
+    t.begin('w', { ko_ok: true })
+    expect(Object.keys(t.fresh('w', a))).toEqual(['attempted'])
+  })
+})
+
+describe('AI 정보 붙이기가 퀴즈 결과를 덮어쓰지 않음', () => {
+  it('AI 칸만 반영', () => {
+    const cur = { id: 'w', ko_ok: true, attempted: true, enriched: false, syn: null }
+    const fromServer = { id: 'w', ko_ok: false, attempted: false, enriched: true, syn: { word: 'glad' } }
+    const out = mergePatchResult(cur, fromServer, { accepted: 1, syn: 1, ant: 1, example: 1, enriched: 1 })
+    expect(out).toMatchObject({ ko_ok: true, attempted: true, enriched: true, syn: { word: 'glad' } })
+  })
 })

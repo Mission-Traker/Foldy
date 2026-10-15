@@ -168,3 +168,22 @@ export function enqueue(id, job) {
   next.finally(() => { if (queues.get(id) === next) queues.delete(id) })
   return next
 }
+
+// 단어별·칸별 저장 순번 — 응답이 왔을 때 그 뒤로 더 바뀐 칸은 건너뜀
+export class PatchTracker {
+  constructor() { this.v = new Map(); this.n = 0 }
+  begin(id, patch) {
+    const ticket = {}
+    let m = this.v.get(id)
+    if (!m) { m = {}; this.v.set(id, m) }
+    for (const k of Object.keys(patch)) { m[k] = ++this.n; ticket[k] = m[k] }
+    return { patch, ticket }
+  }
+  // 아직 최신인 칸만 남긴 patch
+  fresh(id, { patch, ticket }) {
+    const m = this.v.get(id) || {}
+    const out = {}
+    for (const k of Object.keys(patch)) if (m[k] === ticket[k]) out[k] = patch[k]
+    return out
+  }
+}

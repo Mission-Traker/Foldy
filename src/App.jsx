@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import * as db from './lib/db.js'
 import { enrichPending } from './lib/enrich.js'
-import { enqueue, mergePatchResult, nextStreak, ymd } from './lib/study.js'
+import { enqueue, mergePatchResult, nextStreak, PatchTracker, ymd } from './lib/study.js'
 import { BottomNav, Confetti, Toast } from './components/ui.jsx'
 import { fanfare } from './lib/sfx.js'
 import Auth from './pages/Auth.jsx'
@@ -34,6 +34,7 @@ export default function App() {
   const [aiState, setAiState] = useState('idle') // idle | busy | nokey | error
   const [profileOpen, setProfileOpen] = useState(false)
   const toastTimer = useRef()
+  const tracker = useRef(new PatchTracker())
   const loc = useLocation()
   const navTo = useNavigate()
 
@@ -74,7 +75,9 @@ export default function App() {
     setAiState('busy')
     try {
       const { updated, error } = await enrichPending(pending, member.level)
-      if (updated.length) setWords((ws) => ws.map((w) => updated.find((u) => u.id === w.id) || w))
+      // AI 정보 칸만 반영(그사이 푼 퀴즈 결과를 덮어쓰지 않게)
+      const ENRICH = { accepted: 1, syn: 1, ant: 1, example: 1, enriched: 1 }
+      if (updated.length) setWords((ws) => ws.map((w) => { const u = updated.find((x) => x.id === w.id); return u ? mergePatchResult(w, u, ENRICH) : w }))
       setAiState(error ? (error.code === 'NO_KEY' ? 'nokey' : 'error') : 'idle')
     } catch {
       setAiState('error')
@@ -93,8 +96,10 @@ export default function App() {
     setWords((ws) => ws.map((w) => (w.id === id ? { ...w, ...patch } : w)))
     try {
       // 같은 단어 저장은 순서대로, 응답은 바꾼 칸만 반영
+      const ticket = tracker.current.begin(id, patch)
       const saved = await enqueue(id, () => db.updateWord(id, patch))
-      setWords((ws) => ws.map((w) => (w.id === id ? mergePatchResult(w, saved, patch) : w)))
+      // 그사이 더 새로 바뀐 칸은 덮어쓰지 않음
+      setWords((ws) => ws.map((w) => (w.id === id ? mergePatchResult(w, saved, tracker.current.fresh(id, ticket)) : w)))
     } catch (e) {
       showToast('저장 실패: ' + e.message)
       // 잠금 해제가 만료된 경우: 다시 비밀번호를 받도록 프로필 선택으로

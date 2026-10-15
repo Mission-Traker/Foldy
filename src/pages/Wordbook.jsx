@@ -77,34 +77,53 @@ function Todo({ w }) {
   )
 }
 
-function Row({ w, hide, peek, onPeek, onEdit, selecting, selected, onSelect }) {
+function RowMenu({ w, onEdit, onClose }) {
+  const { removeWord, showToast } = useApp()
+  async function del() {
+    onClose()
+    if (!confirm(`'${w.word}'를 단어장에서 삭제할까요?\n학습 기록도 함께 지워지고 되돌릴 수 없어요.`)) return
+    try { await removeWord(w.id); showToast(`‘${w.word}’ 삭제했어요`) } catch (e) { showToast(e.message) }
+  }
+  return (
+    <>
+      <div className="fixed inset-0 z-30" onClick={onClose} />
+      <div className="pop absolute right-1 top-10 z-40 w-36 overflow-hidden rounded-2xl border-2 border-line bg-paper shadow-lg" role="menu">
+        <button role="menuitem" onClick={() => { onClose(); onEdit() }} className="block w-full px-4 py-3 text-left font-jua text-slate-deep active:bg-cream">✏️ 고치기</button>
+        <button role="menuitem" onClick={del} className="block w-full border-t-2 border-dashed border-line px-4 py-3 text-left font-jua text-coral active:bg-coral/10">🗑 삭제</button>
+      </div>
+    </>
+  )
+}
+
+function Row({ w, hide, peek, onPeek, onEdit }) {
   const s = statusOf(w)
+  const [menu, setMenu] = useState(false)
   const coverWord = hide === 'word' && !peek
   const coverMeaning = hide === 'meaning' && !peek
   return (
-    <li className="border-b-2 border-dashed border-line last:border-0">
+    <li className="relative border-b-2 border-dashed border-line last:border-0">
       <div className="flex items-stretch gap-2 py-2.5 pr-1">
-        {selecting && (
-          <button onClick={onSelect} aria-label={`${w.word} 선택`} aria-pressed={selected}
-            className={`ml-1 flex h-7 w-7 shrink-0 items-center justify-center self-center rounded-lg border-2 font-bold ${selected ? 'border-coral bg-coral text-white' : 'border-line bg-white text-transparent'}`}>✓</button>
-        )}
         <div className="flex w-[3.75rem] shrink-0 items-center gap-1.5 pl-1">
           <span className="w-6 text-right font-title text-xs text-soft">{w.seq}</span>
           <Mark s={s} />
         </div>
-        <button onClick={() => (coverWord ? onPeek() : speak(w.word))} className="relative min-w-0 flex-[1.1] text-left">
-          <span className="block truncate font-title text-[19px] font-semibold text-ink">{w.word}</span>
-          <span className="block text-[11px] text-soft">{fmtDate(w.created_at)} · {STATUS_LABEL[s]}</span>
-          {coverWord && <span className="absolute inset-0 rounded-xl bg-[repeating-linear-gradient(0deg,#FFFBF4,#FFFBF4_9px,#EFE5D3_10px)] border-2 border-line" />}
-        </button>
+        <div className="relative flex min-w-0 flex-[1.1] items-center gap-1">
+          <button onClick={() => (coverWord ? onPeek() : speak(w.word))} className="relative min-w-0 text-left">
+            <span className="block truncate font-title text-[19px] font-semibold text-ink">{w.word}</span>
+            <span className="block text-[11px] text-soft">{fmtDate(w.created_at)} · {STATUS_LABEL[s]}</span>
+            {coverWord && <span className="absolute inset-0 rounded-xl bg-[repeating-linear-gradient(0deg,#FFFBF4,#FFFBF4_9px,#EFE5D3_10px)] border-2 border-line" />}
+          </button>
+          <Speak text={w.word} size="sm" className="!h-7 !w-7 !text-xs" label="발음 듣기" />
+        </div>
         <button onClick={onPeek} className="relative min-w-0 flex-1 overflow-hidden rounded-xl text-left" aria-label="뜻 보기">
           <span className="flex h-full items-center px-2 text-[15px] leading-tight text-slate-deep">{w.meaning}</span>
           <span className={`flap absolute inset-0 flex items-center justify-center rounded-xl border-2 border-line bg-[repeating-linear-gradient(0deg,#FFFBF4,#FFFBF4_9px,#EFE5D3_10px)] text-xs text-soft ${coverMeaning ? '' : 'open'}`}>
             탭해서 보기
           </span>
         </button>
-        {!selecting && <button onClick={onEdit} aria-label="단어 고치기" className="w-6 shrink-0 text-soft">⋯</button>}
+        <button onClick={() => setMenu(true)} aria-label={`${w.word} 메뉴`} aria-haspopup="menu" className="w-7 shrink-0 rounded-lg text-xl leading-none text-soft active:bg-cream">⋯</button>
       </div>
+      {menu && <RowMenu w={w} onEdit={onEdit} onClose={() => setMenu(false)} />}
       {s !== 'o' && <Todo w={w} />}
       <Extras w={w} />
     </li>
@@ -154,21 +173,6 @@ export default function Wordbook() {
   const [peek, setPeek] = useState(() => new Set())
   const [q, setQ] = useState('')
   const [edit, setEdit] = useState(null)
-  const [selecting, setSelecting] = useState(false)
-  const [sel, setSel] = useState(() => new Set())
-  const [deleting, setDeleting] = useState(false)
-  const { removeWord, showToast } = useApp()
-  const toggleSel = (id) => setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
-  async function deleteSelected() {
-    if (!sel.size) return
-    if (!confirm(`단어 ${sel.size}개를 단어장에서 지울까요? 학습 기록도 함께 지워져요.`)) return
-    setDeleting(true)
-    let ok = 0
-    for (const id of sel) { try { await removeWord(id); ok++ } catch (e) { showToast(e.message); break } }
-    setDeleting(false)
-    setSel(new Set()); setSelecting(false)
-    if (ok) showToast(`${ok}개를 지웠어요`)
-  }
   const filter = params.get('f') || 'all'
 
   const list = useMemo(() => {
@@ -215,8 +219,6 @@ export default function Wordbook() {
         {HIDES.map(([k, l]) => (
           <button key={k} onClick={() => { setHide(k); setPeek(new Set()) }} className={`chip ${hide === k ? 'border-tang bg-tang text-white' : ''}`}>{l}</button>
         ))}
-        <button onClick={() => { setSelecting(!selecting); setSel(new Set()) }}
-          className={`chip ml-auto shrink-0 ${selecting ? 'border-coral bg-coral text-white' : ''}`}>{selecting ? '취소' : '🗑 지우기'}</button>
       </div>
 
       {ready && (counts.t + counts.x) > 0 && filter !== 'o' && (
@@ -245,23 +247,12 @@ export default function Wordbook() {
           </div>
           <ul>
             {list.map((w) => (
-              <Row key={w.id} w={w} hide={hide} peek={peek.has(w.id)} onPeek={() => togglePeek(w.id)} onEdit={() => setEdit(w)}
-                selecting={selecting} selected={sel.has(w.id)} onSelect={() => toggleSel(w.id)} />
+              <Row key={w.id} w={w} hide={hide} peek={peek.has(w.id)} onPeek={() => togglePeek(w.id)} onEdit={() => setEdit(w)} />
             ))}
           </ul>
         </div>
       )}
-      {list.length > 0 && <p className="mt-3 text-center text-xs text-soft">가림판을 탭하면 정답이 열려요 · 영어를 탭하면 발음을 들려줘요</p>}
-      {selecting && (
-        <div className="safe-b fixed inset-x-0 bottom-[64px] z-30 mx-auto flex max-w-md gap-2 bg-cream/95 px-4 pt-2">
-          <button className="btn-ghost flex-1 py-2.5 text-base" onClick={() => setSel(sel.size === list.length ? new Set() : new Set(list.map((w) => w.id)))}>
-            {sel.size === list.length ? '선택 풀기' : `보이는 ${list.length}개 모두`}
-          </button>
-          <button className="btn-coral flex-1 py-2.5 text-base" disabled={!sel.size || deleting} onClick={deleteSelected}>
-            {deleting ? '지우는 중…' : `🗑 ${sel.size}개 지우기`}
-          </button>
-        </div>
-      )}
+      {list.length > 0 && <p className="mt-3 text-center text-xs text-soft">가림판을 탭하면 정답이 열려요 · 🔊 발음 듣기 · ⋯ 고치기·삭제</p>}
       {edit && <EditSheet w={edit} onClose={() => setEdit(null)} />}
     </div>
   )

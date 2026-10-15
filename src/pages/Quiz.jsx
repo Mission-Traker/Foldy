@@ -98,6 +98,17 @@ export default function Quiz() {
   if (idx >= queue.length || !w) {
     const perfect = score.ok === score.total
     if (!endSound.current) { endSound.current = true; setTimeout(() => (perfect ? sfx.fanfare() : sfx.correct()), 50) }
+    // 남은(모르는) 문제 수: 방금 푼 결과가 화면 상태에 이미 반영돼 있으므로 그대로 계산
+    const ids = params.get('ids')?.split(',').filter(Boolean)
+    const remaining = ['ko', 'en', 'sp'].includes(mode) && src !== 'wrong'
+      ? words.filter((x) => !x[MODE_FIELD[mode]]).length
+      : buildQueue(words, mode, src, ids).length
+    // '한 번 더': 새로고침하지 않고 남은 문제로 다시 시작(저장 중인 답이 끊기지 않게)
+    const restart = () => {
+      setQueue(buildQueue(words, mode, src, ids))
+      setIdx(0); setScore({ ok: 0, total: 0 }); setRes(null); setInput(''); setSent(false)
+      endSound.current = false
+    }
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-center">
         <Blob i={perfect ? 1 : 3} size={110} className="pop" />
@@ -119,10 +130,20 @@ export default function Quiz() {
             })}
           </ul>
         )}
-        <div className="mt-2 flex gap-2">
-          <button className="btn-ghost" onClick={() => nav(src === 'wrong' ? '/wrong' : '/study')}>그만하기</button>
-          <button className="btn-main" onClick={() => nav(0)}>한 번 더</button>
-        </div>
+        {remaining > 0 ? (
+          <div className="mt-2 flex gap-2">
+            <button className="btn-ghost" onClick={() => nav(src === 'wrong' ? '/wrong' : '/study')}>그만하기</button>
+            <button className="btn-main" onClick={restart}>모르는 단어 {remaining}개 한 번 더</button>
+          </div>
+        ) : (
+          <>
+            <p className="pop flex items-center gap-2 rounded-full bg-sage px-4 py-1.5 font-jua text-white">✓ {mode === 'review' ? '오늘 복습 끝!' : src === 'wrong' ? '오답노트 모두 통과!' : '이 퀴즈는 모두 통과!'}</p>
+            <div className="mt-1 flex gap-2">
+              <button className="btn-ghost" onClick={() => nav('/study')}>다른 퀴즈</button>
+              <button className="btn-main" onClick={() => nav('/book')}>단어장 보기</button>
+            </div>
+          </>
+        )}
       </div>
     )
   }
