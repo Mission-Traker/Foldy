@@ -20,7 +20,7 @@ export default function Home() {
     return c
   }, [words])
   const due = words.filter((w) => isDue(w, today)).length
-  const expandTodo = words.filter((w) => expandStage(w) === 'synant' && w.syn).length
+  const expandTodo = words.filter((w) => expandStage(w) === 'synant' && w.enriched).length
   const done = daily?.day === today ? daily.done : 0
 
   // 오늘의 추천 5개: 처음엔 레벨 목록에서, 단어가 20개 이상 쌓이면 내 단어와 연관된 단어로

@@ -79,9 +79,11 @@ describe('답 반영·복습 일정', () => {
 describe('확장 단계', () => {
   const o = { ...base, en_ok: true, ko_ok: true, sp_ok: true }
   it('○ 전에는 없음', () => expect(expandStage(base)).toBe('none'))
-  it('○이면 유의어·반의어 단계', () => expect(expandStage({ ...o, syn: {}, ant: {} })).toBe('synant'))
-  it('둘 다 맞히면 예문', () => expect(expandStage({ ...o, syn: {}, ant: {}, syn_ok: true, ant_ok: true })).toBe('example'))
-  it('반의어가 없는 단어는 유의어만 맞혀도 예문', () => expect(expandStage({ ...o, syn: {}, ant: null, syn_ok: true })).toBe('example'))
+  it('○이면 유의어·반의어 단계', () => expect(expandStage({ ...o, enriched: true, syn: {}, ant: {} })).toBe('synant'))
+  it('둘 다 맞히면 예문', () => expect(expandStage({ ...o, enriched: true, syn: {}, ant: {}, syn_ok: true, ant_ok: true })).toBe('example'))
+  it('반의어가 없는 단어는 유의어만 맞혀도 예문', () => expect(expandStage({ ...o, enriched: true, syn: {}, ant: null, syn_ok: true })).toBe('example'))
+  it('유의어·반의어가 둘 다 없는 단어(apple)는 바로 예문', () => expect(expandStage({ ...o, enriched: true, syn: null, ant: null })).toBe('example'))
+  it('AI 정보가 아직 없으면 기다림 단계', () => expect(expandStage({ ...o, enriched: false, syn: null, ant: null })).toBe('synant'))
 })
 
 describe('정렬', () => {

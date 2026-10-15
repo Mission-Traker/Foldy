@@ -13,7 +13,7 @@ export default function Study() {
   const { words } = useApp()
   const today = ymd()
   const due = words.filter((w) => isDue(w, today)).length
-  const expandTodo = words.filter((w) => expandStage(w) === 'synant' && w.syn).length
+  const expandTodo = words.filter((w) => expandStage(w) === 'synant' && w.enriched).length
 
   if (!words.length) {
     return (

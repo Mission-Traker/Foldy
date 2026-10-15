@@ -16,8 +16,10 @@ export const STATUS_LABEL = { o: '완료', t: '학습 중', x: '미학습' }
 // 확장 단계: none → synant(유의어·반의어 퀴즈) → example(예문 열림)
 export function expandStage(w) {
   if (statusOf(w) !== 'o') return 'none'
+  if (!w.enriched) return 'synant' // 유의어·반의어를 준비하는 중
+  const synDone = w.syn_ok || !w.syn // 자연스러운 유의어·반의어가 없는 단어는 건너뜀
   const antDone = w.ant_ok || !w.ant
-  if (w.syn_ok && antDone) return 'example'
+  if (synDone && antDone) return 'example'
   return 'synant'
 }
 
