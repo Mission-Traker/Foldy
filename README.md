@@ -9,6 +9,7 @@
 ## 기능
 
 **1차**
+- 처음 접속하면 소개 슬라이드 8장(아이콘 3개가 하나씩 튀어나오며 주요 기능 소개, 다음·이전·밀기) → 마지막 장 '폴디 시작하기'로 앱 진입. 기기마다 한 번만(localStorage `foldy.introSeen`), 내 정보 '폴디 소개 다시 보기'로 다시 열기
 - 가족 아이디+비밀번호 로그인 → 구성원(프로필) 선택. 이메일·전화번호는 받지 않음
 - 구성원별 숫자 비밀번호(4~6자리, 선택): 걸면 다른 가족은 내 단어장을 못 고치고 **학습현황만** 볼 수 있음(DB 보안정책으로 강제). 프로필을 바꾸면 다시 잠김
 - 상단 프로필 아이콘 → 이름·캐릭터·레벨·비밀번호 수정, 가족 학습현황(○△✕ 막대·연속일·오늘 정답)
@@ -94,6 +95,7 @@ npm test                                   # 단위 테스트 97개(채점·상�
 npm run build && npx vite preview --port 4173 &
 BASE=http://localhost:4173 node tests/e2e.mjs   # 브라우저 자동 점검 52개(390px)
 BASE=http://localhost:4173 node tests/e2e-retry.mjs  # '한 번 더' 검수 7개(느린 인터넷 흉내)
+BASE=http://localhost:4173 node tests/e2e-intro.mjs   # 소개 슬라이드 14개
 PHASE=a FID=e2e_fbxx node tests/e2e-feedback.mjs   # 수정요청 접수 10개 → SQL로 그 가족을 foldy_admins에 넣고
 PHASE=b FID=e2e_fbxx node tests/e2e-feedback.mjs   # 관리자 처리·답장 11개 (끝나면 foldy_admins에서 다시 빼기)
 ```

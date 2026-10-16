@@ -11,7 +11,7 @@ import MicPicker from '../components/MicPicker.jsx'
 import MyFeedback from '../components/MyFeedback.jsx'
 
 export default function Me() {
-  const { member, members, setMember, updateMember, patchMemberLocal, words, session, setSession, showToast, setMembers, aiState } = useApp()
+  const { member, members, setMember, updateMember, patchMemberLocal, words, session, setSession, showToast, setMembers, aiState, openIntro } = useApp()
   const [adding, setAdding] = useState(false)
   const [sound, setSound] = useState(soundOn())
   const done = words.filter((w) => statusOf(w) === 'o').length
@@ -112,6 +112,7 @@ export default function Me() {
 
       {aiState === 'nokey' && <p className="mb-3 text-center text-xs text-coral">AI 키(ANTHROPIC_API_KEY)가 아직 연결되지 않았어요.</p>}
       <button className="btn-ghost w-full" onClick={async () => { await db.logout(); setSession(null); setMember(null) }}>로그아웃</button>
+      <button className="mt-3 w-full text-center font-jua text-sm text-slate underline" onClick={openIntro}>폴디 소개 다시 보기</button>
       <p className="mt-4 text-center text-[11px] text-soft">폴디 v1.0 · 홈 화면에 추가하면 앱처럼 쓸 수 있어요</p>
     </div>
   )

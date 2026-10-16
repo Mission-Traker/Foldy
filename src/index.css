@@ -61,3 +61,10 @@ input, button, textarea, select { font: inherit; }
 .nudge-ring::after { content: ''; position: absolute; inset: -4px; border-radius: 999px; border: 2px solid #E9954B; animation: ring 1.8s ease-out infinite; }
 @keyframes ring { 0% { opacity: .9; transform: scale(.9) } 100% { opacity: 0; transform: scale(1.25) } }
 @media (prefers-reduced-motion: reduce) { .nudge, .nudge-ring::after { animation: none } }
+
+/* 처음 소개(인트로) — 아이콘이 하나씩 튀어나오고 글이 올라옴 */
+.intro-ic { animation: hop .7s cubic-bezier(.3,1.6,.5,1) both; }
+.intro-rise { animation: introrise .5s ease both; }
+@keyframes introrise { from { transform: translateY(14px); opacity: 0 } to { transform: none; opacity: 1 } }
+.intro-arrow { animation: introrise .4s ease both; }
+@media (prefers-reduced-motion: reduce) { .intro-ic, .intro-rise, .intro-arrow { animation: none !important; } }

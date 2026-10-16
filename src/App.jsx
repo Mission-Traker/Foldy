@@ -18,6 +18,7 @@ import Me from './pages/Me.jsx'
 import LevelTest from './pages/LevelTest.jsx'
 import Family from './pages/Family.jsx'
 import Admin from './pages/Admin.jsx'
+import Intro, { introSeen } from './components/Intro.jsx'
 import ProfileSheet from './components/ProfileSheet.jsx'
 
 const Ctx = createContext(null)
@@ -34,6 +35,7 @@ export default function App() {
   const [toast, setToastMsg] = useState('')
   const [aiState, setAiState] = useState('idle') // idle | busy | nokey | error
   const [profileOpen, setProfileOpen] = useState(false)
+  const [introOpen, setIntroOpen] = useState(() => !introSeen())
   const toastTimer = useRef()
   const tracker = useRef(new PatchTracker())
   const loc = useLocation()
@@ -143,7 +145,7 @@ export default function App() {
 
   const value = useMemo(() => ({
     session, setSession, members, setMembers, member, patchMemberLocal: (patch) => { setMember((m) => (m ? { ...m, ...patch } : m)); setMembers((ms) => ms.map((x) => (member && x.id === member.id ? { ...x, ...patch } : x))) }, setMember: (m) => { if (member && member.has_pin && member.id !== m?.id) db.forgetMemberToken(member.id); db.saveMemberId(m?.id || null); setMember(m); setWords([]); setDaily(null); enrichedOnce.current = null; if (m) navTo('/') },
-    openProfile: () => setProfileOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, showToast, aiState, runEnrich,
+    openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, showToast, aiState, runEnrich,
   }), [session, members, member, words, loading, loadedFor, daily, patchWord, addWords, removeWord, updateMember, bumpDaily, showToast, aiState, runEnrich])
 
   const wrongCount = words.filter((w) => (w.wrong_modes || []).length).length
@@ -152,6 +154,7 @@ export default function App() {
   return (
     <Ctx.Provider value={value}>
       <Confetti />
+      {introOpen && <Intro onDone={() => setIntroOpen(false)} />}
       <div className="mx-auto min-h-screen max-w-md px-4 pb-28">
         {!session ? (
           <Auth />
