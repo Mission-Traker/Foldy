@@ -145,7 +145,7 @@ export default function Home() {
           {recs?.length > 0 && <button className="chip" onClick={() => add(recs)}>모두 담기</button>}
         </div>
         <p className="mb-3 text-xs text-soft">
-          {recs?.some((r) => r.related) ? '내가 외운 단어와 이어지는 단어예요' : `${levelLabel(member.level)} 교육부 기본 어휘에서 골랐어요`}
+          {recs?.some((r) => r.related) ? '내가 외운 단어와 이어지는 단어예요' : `교육부 기본 어휘 ${levelLabel(member.level)}에서 골랐어요`}
         </p>
         {recBusy && !recs && <p className="py-4 text-center text-sm text-soft">단어를 고르는 중…</p>}
         <ul className="divide-y-2 divide-dashed divide-line">

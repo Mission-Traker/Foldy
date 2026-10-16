@@ -91,7 +91,7 @@ function RowMenu({ w, onEdit, onClose }) {
   )
 }
 
-function Row({ w, hide, peek, onPeek, onEdit }) {
+function Row({ w, hide, peek, onPeek, onEdit, inToday, onSend }) {
   const s = statusOf(w)
   const [menu, setMenu] = useState(false)
   const coverWord = hide === 'word' && !peek
@@ -112,6 +112,10 @@ function Row({ w, hide, peek, onPeek, onEdit }) {
           <span className={`flap absolute inset-0 flex items-center justify-center rounded-xl border-2 border-line bg-[repeating-linear-gradient(0deg,#FFFBF4,#FFFBF4_9px,#EFE5D3_10px)] text-xs text-soft ${coverMeaning ? '' : 'open'}`}>
             탭해서 보기
           </span>
+        </button>
+        <button onClick={onSend} aria-label={inToday ? `${w.word}: 오늘 학습할 단어에 있어요` : `${w.word} 오늘 학습할 단어로 보내기`} title="오늘 학습할 단어로 보내기"
+          className={`flex w-8 shrink-0 items-center justify-center self-center rounded-full border-2 text-sm font-bold leading-none h-8 ${inToday ? 'border-sage bg-sage/15 text-sage' : 'border-tang text-tang active:bg-tang/10'}`}>
+          {inToday ? '✓' : '➜'}
         </button>
         <button onClick={() => setMenu(true)} aria-label={`${w.word} 메뉴`} aria-haspopup="menu" className="w-7 shrink-0 rounded-lg text-xl leading-none text-soft active:bg-cream">⋯</button>
       </div>
@@ -157,7 +161,13 @@ function EditSheet({ w, onClose }) {
 }
 
 export default function Wordbook() {
-  const { words, ready } = useApp()
+  const { words, ready, daily, todayIds, sendToToday, showToast } = useApp()
+  const todaySet = useMemo(() => new Set(ready ? todayIds() : []), [ready, todayIds, daily])
+  function send(w) {
+    if (todaySet.has(w.id)) { showToast('이미 오늘 학습할 단어예요'); return }
+    sendToToday(w.id)
+    showToast(`‘${w.word}’ → 오늘의 단어에 넣었어요`)
+  }
   const [params, setParams] = useSearchParams()
   const [sort, setSort] = useState('seq')
   const [dir, setDir] = useState('asc')
@@ -239,12 +249,12 @@ export default function Wordbook() {
           </div>
           <ul>
             {list.map((w) => (
-              <Row key={w.id} w={w} hide={hide} peek={peek.has(w.id)} onPeek={() => togglePeek(w.id)} onEdit={() => setEdit(w)} />
+              <Row key={w.id} w={w} hide={hide} peek={peek.has(w.id)} onPeek={() => togglePeek(w.id)} onEdit={() => setEdit(w)} inToday={todaySet.has(w.id)} onSend={() => send(w)} />
             ))}
           </ul>
         </div>
       )}
-      {list.length > 0 && <p className="mt-3 text-center text-xs text-soft">가림판을 탭하면 정답이 열려요 · 🔊 발음 듣기 · ⋯ 고치기·삭제</p>}
+      {list.length > 0 && <p className="mt-3 text-center text-xs text-soft">가림판을 탭하면 정답이 열려요 · ➜ 오늘 학습할 단어로 보내기 · ⋯ 고치기·삭제</p>}
       {edit && <EditSheet w={edit} onClose={() => setEdit(null)} />}
     </div>
   )

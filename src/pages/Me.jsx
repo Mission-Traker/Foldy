@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
-import { LEVELS } from '../lib/levels.js'
+import { LEVELS, normLevel } from '../lib/levels.js'
 import { statusOf } from '../lib/study.js'
 import { Blob, Header, GoalStepper } from '../components/ui.jsx'
 import { MemberForm } from './Profiles.jsx'
@@ -18,7 +18,7 @@ export default function Me() {
   const [sound, setSound] = useState(soundOn())
   const [privacy, setPrivacy] = useState(false)
   const [admin, setAdmin] = useState(false)
-  useEffect(() => { db.isAdmin().then(setAdmin) }, [])
+  useEffect(() => { db.isAdminMember(member?.id).then(setAdmin) }, [member?.id])
   const done = words.filter((w) => statusOf(w) === 'o').length
 
   async function setLevel(id) {
@@ -59,13 +59,13 @@ export default function Me() {
         <div className="grid grid-cols-2 gap-2">
           {LEVELS.map((l) => (
             <button key={l.id} onClick={() => setLevel(l.id)}
-              className={`rounded-2xl border-2 p-3 text-left ${member.level === l.id ? 'border-slate-deep bg-slate/10' : 'border-line'}`}>
+              className={`rounded-2xl border-2 p-3 text-left ${normLevel(member.level) === l.id ? 'border-slate-deep bg-slate/10' : 'border-line'}`}>
               <b className="font-jua text-slate-deep">{l.label}</b>
               <span className="block text-[11px] text-soft">{l.desc}</span>
             </button>
           ))}
         </div>
-        <p className="mt-2 text-[11px] text-soft">기준: 2022 개정 영어과 교육과정 기본 어휘 3,000개(초등 권장 800·중고 공통 1,200 표시)</p>
+        <p className="mt-2 text-[11px] text-soft">기준: 2022 개정 영어과 교육과정 기본 어휘 3,000개를 자주 쓰는 순서로 9단계, Lv.10은 그 밖의 실전 단어예요.</p>
       </section>
 
       <section className="card mb-4 p-4">
@@ -117,7 +117,7 @@ export default function Me() {
 
       <InviteSection session={session} showToast={showToast} />
 
-      <MyFeedback memberName={member.name} />
+      <MyFeedback memberName={member.name} memberId={member.id} />
 
       <AccountSection session={session} showToast={showToast} openPrivacy={() => setPrivacy(true)}
         onLeft={() => { setSession(null); setMember(null); showToast('탈퇴했어요. 그동안 고마웠어요') }} />

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../App.jsx'
-import { LEVELS, levelLabel, levelTestSet, recommendLevel } from '../lib/levels.js'
+import { LEVELS, levelLabel, levelDesc, levelTestSet, recommendLevel } from '../lib/levels.js'
 import { Blob, Header } from '../components/ui.jsx'
 import { speak } from '../lib/speech.js'
 
@@ -34,7 +34,7 @@ export default function LevelTest() {
         <Blob i={member.avatar} size={100} className="pop" />
         <p className="text-soft">{member.name}에게 맞는 레벨은</p>
         <h2 className="h-title text-4xl">{levelLabel(result)}</h2>
-        <p className="text-sm text-soft">{LEVELS.find((l) => l.id === result)?.desc}</p>
+        <p className="text-sm text-soft">{levelDesc(result)}</p>
         <div className="mt-3 flex gap-2">
           <button className="btn-ghost" onClick={() => nav('/me')}>그대로 둘게요</button>
           <button className="btn-main" onClick={apply}>이 레벨로 바꾸기</button>
@@ -47,7 +47,7 @@ export default function LevelTest() {
     <div>
       <Header noProfile title="레벨 진단" back="/me" right={<span className="font-jua text-soft">{step + 1}/{set.length}</span>} />
       <p className="mb-1 font-jua text-lg text-slate-deep">뜻을 아는 단어를 모두 눌러 주세요</p>
-      <p className="mb-4 text-sm text-soft">{LEVELS.find((l) => l.id === group.level)?.label} 단어예요 · 5개 중 4개 이상 알면 다음 단계로</p>
+      <p className="mb-4 text-sm text-soft">{levelLabel(group.level)} 단어예요 · 5개 중 4개 이상 알면 다음 단계로</p>
       <div className="grid grid-cols-1 gap-2">
         {group.words.map((w) => (
           <button key={w} onClick={() => toggle(w)}

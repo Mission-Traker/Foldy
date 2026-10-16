@@ -209,6 +209,12 @@ export async function isAdmin() {
   const { data, error } = await client.rpc('foldy_is_admin')
   return !error && !!data
 }
+// 관리자 본인(가족 중 관리자로 정한 한 사람)인지 — 수정요청 알림·수정요청함 링크는 이 사람에게만
+export async function isAdminMember(memberId) {
+  if (!memberId) return false
+  const { data, error } = await client.rpc('foldy_admin_member')
+  return !error && data === memberId
+}
 export const addFeedback = (row) => q(client.from('foldy_feedback').insert(row).select().single())
 export const listFeedback = () => q(client.from('foldy_feedback').select('*').order('created_at', { ascending: false }))
 export async function myFeedback() {

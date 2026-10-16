@@ -1,7 +1,7 @@
 // 내 단어와 연관된 오늘의 추천 단어(기본 5개, 하루 목표에 맞춰 최대 10개)
 import { guard, send, readBody, textLLM, parseJson, canParse } from './_lib.js'
 
-const LEVEL_DESC = { e1: '초등 1~2학년', e3: '초등 3~4학년', e5: '초등 5~6학년', m: '중학생', h: '고등학생', a: '성인(토익·실무 수준)' }
+const LEVEL_DESC = { L1: '초등 1~2학년', L2: '초등 3~4학년', L3: '초등 5~6학년', L4: '중학교 1학년', L5: '중학교 2학년', L6: '중학교 3학년', L7: '고등학교 1학년', L8: '고등학교 2학년', L9: '고등학교 3학년', L10: '성인(토익·실무 수준)', e1: '초등 1~2학년', e3: '초등 3~4학년', e5: '초등 5~6학년', m: '중학생', h: '고등학생', a: '성인(토익·실무 수준)' }
 
 export default async function handler(req, res) {
   if (!(await guard(req, res))) return

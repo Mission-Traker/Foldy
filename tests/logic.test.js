@@ -4,7 +4,7 @@ import {
   statusOf, applyAnswer, applyReview, sortWords, pickQuiz, nextStreak, cleanEntry,
   expandStage, isDue, sendToWrongNote, addDays,
 } from '../src/lib/study.js'
-import { dailyPick, recommendLevel, wordsOfLevel, levelTestSet } from '../src/lib/levels.js'
+import { dailyPick, recommendLevel, wordsOfLevel, levelTestSet, LEVELS, levelLabel } from '../src/lib/levels.js'
 
 const base = { en_ok: false, ko_ok: false, sp_ok: false, attempted: false, wrong_modes: [] }
 
@@ -144,11 +144,17 @@ describe('레벨', () => {
     expect(a.includes('apple')).toBe(false)
   })
   it('진단: 처음으로 4개 미만인 레벨 추천', () => {
-    expect(recommendLevel([{ level: 'e1', known: 5 }, { level: 'e3', known: 4 }, { level: 'e5', known: 2 }])).toBe('e5')
+    expect(recommendLevel([{ level: 'L1', known: 5 }, { level: 'L2', known: 4 }, { level: 'L3', known: 2 }])).toBe('L3')
   })
-  it('진단 세트는 5레벨 × 5단어', () => {
+  it('레벨 표기는 Lv.01~Lv.10, 예전 값도 읽음', () => {
+    expect(LEVELS.map((l) => l.label)).toEqual(['Lv.01','Lv.02','Lv.03','Lv.04','Lv.05','Lv.06','Lv.07','Lv.08','Lv.09','Lv.10'])
+    expect(levelLabel('m')).toBe('Lv.04')
+    expect(levelLabel('a')).toBe('Lv.10')
+    expect(wordsOfLevel('e1')).toBe(wordsOfLevel('L1'))
+  })
+  it('진단 세트는 9레벨 × 5단어', () => {
     const s = levelTestSet('x')
-    expect(s.length).toBe(5)
+    expect(s.length).toBe(9)
     expect(s.every((g) => g.words.length === 5)).toBe(true)
   })
 })

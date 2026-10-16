@@ -241,10 +241,18 @@ export default function App() {
     return ids
   }, [todayIds, words, updateDaily])
 
+  // 단어장에서 고른 단어를 오늘의 단어에 더하기(이미 있으면 그대로)
+  const sendToToday = useCallback((id) => {
+    const cur = todayIds()
+    if (cur.includes(id)) return false
+    updateDaily(() => ({ set_ids: [...cur, id] }))
+    return true
+  }, [todayIds, updateDaily])
+
   const value = useMemo(() => ({
     session, setSession, members, setMembers, member, patchMemberLocal: (patch) => { setMember((m) => (m ? { ...m, ...patch } : m)); setMembers((ms) => ms.map((x) => (member && x.id === member.id ? { ...x, ...patch } : x))) }, setMember: (m) => { if (member && member.has_pin && member.id !== m?.id) db.forgetMemberToken(member.id); db.saveMemberId(m?.id || null); setMember(m); setWords([]); dailyRef.current = null; setDaily(null); enrichedOnce.current = null; if (m) navTo('/') },
-    openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, showToast, aiState, runEnrich,
-  }), [session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, showToast, aiState, runEnrich])
+    openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, showToast, aiState, runEnrich,
+  }), [session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, showToast, aiState, runEnrich])
 
   const wrongCount = words.filter((w) => (w.wrong_modes || []).length).length
   const fullScreen = /^\/(quiz|expand|add|level-test)/.test(loc.pathname)

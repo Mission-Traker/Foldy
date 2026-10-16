@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
-import { LEVELS } from '../lib/levels.js'
+import { LEVELS, levelLabel } from '../lib/levels.js'
 import { Blob } from '../components/ui.jsx'
 import PinPad from '../components/PinPad.jsx'
 import { Link } from 'react-router-dom'
@@ -10,7 +10,7 @@ export function MemberForm({ onDone, onCancel }) {
   const { setMembers, showToast } = useApp()
   const [name, setName] = useState('')
   const [avatar, setAvatar] = useState(0)
-  const [level, setLevel] = useState('e1')
+  const [level, setLevel] = useState('L1')
   const [busy, setBusy] = useState(false)
   async function save(e) {
     e.preventDefault()
@@ -78,7 +78,7 @@ export default function Profiles() {
                 {m.has_pin && <span className="absolute right-3 top-3 text-sm" aria-label="비밀번호 잠김">🔒</span>}
                 <Blob i={m.avatar} size={72} />
                 <span className="font-jua text-lg text-slate-deep">{m.name}</span>
-                <span className="text-xs text-soft">{LEVELS.find((l) => l.id === m.level)?.label}</span>
+                <span className="text-xs text-soft">{levelLabel(m.level)}</span>
               </button>
             ))}
             <button onClick={() => setAdding(true)} className="flex flex-col items-center justify-center gap-1 rounded-3xl border-2 border-dashed border-line py-5 text-soft">

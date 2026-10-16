@@ -165,7 +165,7 @@ export function NotifySection({ member, admin, showToast }) {
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 className="font-jua text-lg text-slate-deep">알림</h2>
-          <p className="text-xs text-soft">마지막 학습 뒤 24시간이 지나면 ‘오늘도 짧게 영어단어 하나 배워볼까요?’를 보내요 <span className="whitespace-nowrap">(오전 8시~밤 9시)</span>.{admin && ' 관리자 가족이라 새 수정요청 알림도 와요.'}</p>
+          <p className="text-xs text-soft">마지막 학습 뒤 24시간이 지나면 ‘오늘도 짧게 영어단어 하나 배워볼까요?’를 보내요 <span className="whitespace-nowrap">(오전 8시~밤 9시)</span>.{admin && ' 관리자라서 새 수정요청 알림도 와요.'}</p>
         </div>
         {sup === 'yes' && !iosNeedsHome && (
           <button role="switch" aria-checked={on} aria-label="알림" disabled={busy} onClick={toggle}

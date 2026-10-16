@@ -12,7 +12,7 @@ export default async function handler(req, res) {
       .filter((w) => w.word)
       .slice(0, 15)
     if (!list.length) return send(res, 400, { error: '단어가 없어요' })
-    const kid = ['e1', 'e3', 'e5'].includes(level)
+    const kid = ['e1', 'e3', 'e5', 'L1', 'L2', 'L3'].includes(level)
     const { text } = await textLLM({ req,
       check: canParse,
       maxTokens: 6000,

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
-import { LEVELS } from '../lib/levels.js'
+import { LEVELS, normLevel } from '../lib/levels.js'
 import { Blob } from './ui.jsx'
 import PinPad from './PinPad.jsx'
 
@@ -12,7 +12,7 @@ export default function ProfileSheet({ onClose }) {
   const nav = useNavigate()
   const [name, setName] = useState(member.name)
   const [avatar, setAvatar] = useState(member.avatar)
-  const [level, setLevel] = useState(member.level)
+  const [level, setLevel] = useState(normLevel(member.level))
   const [pinMode, setPinMode] = useState(false)
   const [busy, setBusy] = useState(false)
 

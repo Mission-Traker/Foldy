@@ -4,7 +4,7 @@ import * as db from '../lib/db.js'
 import { FeedbackHead, FeedbackSheet, ReplyBubble } from './Feedback.jsx'
 
 // 내 정보 › 앱 수정요청 — 접수 버튼 + 우리 가족이 보낸 요청(상태·답장)
-export default function MyFeedback({ memberName }) {
+export default function MyFeedback({ memberName, memberId }) {
   const [rows, setRows] = useState(null)
   const [open, setOpen] = useState(false)
   const [all, setAll] = useState(false)
@@ -18,13 +18,13 @@ export default function MyFeedback({ memberName }) {
       setRows(r)
       if (r.some(db.feedbackUnseen)) db.markFeedbackSeen() // 새 답장은 한 번 보면 읽음
     }).catch(() => alive && setRows([]))
-    db.isAdmin().then(async (a) => {
+    db.isAdminMember(memberId).then(async (a) => {
       if (!alive || !a) return
       setAdmin(true)
       try { const list = await db.listFeedback(); if (alive) setNewCount(list.filter((x) => x.status === '신규').length) } catch { /* 무시 */ }
     })
     return () => { alive = false }
-  }, [])
+  }, [memberId])
 
   const shown = rows ? (all ? rows : rows.slice(0, 3)) : []
 
