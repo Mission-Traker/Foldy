@@ -30,6 +30,7 @@ export default function Home() {
   }, [words])
   const due = reviewCount(words, daily?.day === today ? daily.seen_ids : [], today)
   const expandTodo = words.filter((w) => expandStage(w) === 'synant' && w.enriched).length
+  const expandDone = words.filter((w) => expandStage(w) === 'example').length
   const done = daily?.day === today ? daily.done : 0
 
   // 오늘의 추천 5개: 처음엔 레벨 목록에서, 단어가 20개 이상 쌓이면 내 단어와 연관된 단어로
@@ -117,22 +118,17 @@ export default function Home() {
         ))}
       </div>
 
-      {(due > 0 || expandTodo > 0) && (
-        <div className="mb-4 grid grid-cols-2 gap-2">
-          {due > 0 && (
-            <Link to="/quiz/review" className="card flex items-center gap-2 p-3">
-              <span className="text-2xl">⏰</span>
-              <span><b className="font-jua text-slate-deep">복습 {due}개</b><br /><span className="text-xs text-soft">오늘 푼 단어 한 번 더</span></span>
-            </Link>
-          )}
-          {expandTodo > 0 && (
-            <Link to="/expand" className="card flex items-center gap-2 p-3">
-              <span className="text-2xl">🌱</span>
-              <span><b className="font-jua text-slate-deep">확장 {expandTodo}개</b><br /><span className="text-xs text-soft">유의어·반의어</span></span>
-            </Link>
-          )}
-        </div>
-      )}
+      {/* 복습·확장 카드는 늘 같은 자리에 — 할 게 없을 때도 사라지지 않고 상태를 알려 줌 */}
+      <div className="mb-4 grid grid-cols-2 gap-2">
+        <Link to="/quiz/review" className="card flex items-center gap-2 p-3">
+          <span className="text-2xl">⏰</span>
+          <span><b className="font-jua text-slate-deep">복습 {due}개</b><br /><span className="text-xs text-soft">{due > 0 ? '오늘 푼 단어 한 번 더' : '오늘 복습 끝!'}</span></span>
+        </Link>
+        <Link to="/expand" className="card flex items-center gap-2 p-3">
+          <span className="text-2xl">🌱</span>
+          <span><b className="font-jua text-slate-deep">확장 {expandTodo}개</b><br /><span className="text-xs text-soft">{expandTodo > 0 ? '유의어·반의어' : expandDone > 0 ? `${expandDone}개 확장 완료 ✓` : '○ 단어부터 열려요'}</span></span>
+        </Link>
+      </div>
 
       <div className="mb-4 grid grid-cols-2 gap-2">
         <Link to="/add?tab=photo" className="btn-tang">📷 사진으로 추가</Link>

@@ -33,6 +33,8 @@ try {
   await page.getByRole('button', { name: '추가하기' }).click()
   await page.getByText('안녕, 검수!').waitFor()
   check('홈에 Lv.01 표기', (await page.locator('body').textContent()).includes('Lv.01'))
+  const homeTxt = await page.locator('body').textContent()
+  check('단어 0개여도 복습·확장 카드가 보임', homeTxt.includes('복습 0개') && homeTxt.includes('확장 0개') && homeTxt.includes('○ 단어부터 열려요'))
   await page.goto(BASE + '/#/add?tab=manual')
   await page.getByText('✍️ 여러 개 한 번에 적기').click()
   await page.getByLabel('한 줄에 하나씩 (영어 뜻)').fill(Object.entries(words).map(([w, m]) => `${w} ${m}`).join('\n'))
