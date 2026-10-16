@@ -51,9 +51,7 @@ export function applyAnswer(w, mode, ok, today = ymd()) {
     patch.review_step = 0
     patch.next_review = null
   }
-  if (ok && (w.wrong_modes || []).includes(mode)) {
-    patch.wrong_modes = w.wrong_modes.filter((m) => m !== mode)
-  }
+  // 오답노트 단어는 일반 퀴즈에서 한 번 맞혀도 빠지지 않음 — 오답노트 '다시 익히기'에서 서로 다른 날 3번 맞혀야 졸업
   return patch
 }
 
@@ -71,7 +69,45 @@ export function isDue(w, today = ymd()) {
 export function sendToWrongNote(w, mode) {
   const set = new Set(w.wrong_modes || [])
   set.add(mode)
-  return { wrong_modes: [...set] }
+  // 새로 들어온 단어(또는 새 방식이 더해진 단어)는 처음부터: 오늘 바로 다시 보기
+  return { wrong_modes: [...set], wrong_step: 0, wrong_next: null }
+}
+
+// ── 오답노트: 3단계 다시 익히기 + 날짜 간격 졸업 ──
+// 서로 다른 날 3번 맞히면 졸업. 1번째 맞힘 → 3일 뒤, 2번째 → 7일 뒤, 3번째 → 졸업
+export const WRONG_GOAL = 3
+export const WRONG_GAPS = [3, 7]
+export const WRONG_DAILY = 3 // 오늘의 학습에 끼워 넣는 다시 볼 단어 수
+export const inWrong = (w) => !!(w && (w.wrong_modes || []).length)
+export const wrongDue = (w, today = ymd()) => inWrong(w) && (!w.wrong_next || w.wrong_next <= today)
+// 다시 볼 순서: 날짜가 지난 것 → 단계가 낮은 것 → 단어 번호
+export function wrongDueList(words, today = ymd()) {
+  return (words || []).filter((w) => wrongDue(w, today))
+    .sort((a, b) => (a.wrong_next || '').localeCompare(b.wrong_next || '') || (a.wrong_step || 0) - (b.wrong_step || 0) || (a.seq || 0) - (b.seq || 0))
+}
+// 다음에 다시 볼 날이 가장 빠른 단어의 날짜와 그날 볼 단어 수(오늘 볼 단어가 없을 때 안내용)
+export function wrongNextVisit(words, today = ymd()) {
+  const later = (words || []).filter((w) => inWrong(w) && w.wrong_next && w.wrong_next > today).map((w) => w.wrong_next).sort()
+  if (!later.length) return null
+  return { day: later[0], count: later.filter((d) => d === later[0]).length }
+}
+// 3단계(원래 틀린 방식)를 모두 맞혔는지에 따라 단어에 반영할 내용
+export function applyWrongResult(w, ok, today = ymd()) {
+  if (!ok) return { wrong_step: 0, wrong_next: null }
+  const step = Math.min((w.wrong_step || 0) + 1, WRONG_GOAL)
+  if (step >= WRONG_GOAL) return { wrong_modes: [], wrong_step: 0, wrong_next: null, wrong_grad: (w.wrong_grad || 0) + 1 }
+  return { wrong_step: step, wrong_next: addDays(today, WRONG_GAPS[step - 1]) }
+}
+// 2단계 쉬운 문제: 뜻 4지선다 보기(정답 + 다른 단어 뜻 최대 3개, 뜻이 같으면 제외)
+export function meaningChoices(w, words, rand = Math.random) {
+  const seen = new Set([w.meaning])
+  const others = []
+  for (const x of shuffle((words || []).filter((x) => x.id !== w.id && x.meaning), rand)) {
+    if (seen.has(x.meaning)) continue
+    seen.add(x.meaning); others.push(x.meaning)
+    if (others.length === 3) break
+  }
+  return shuffle([w.meaning, ...others], rand)
 }
 
 // 정렬: seq(번호) / date(추가한 날짜) / abc(알파벳)
@@ -305,4 +341,18 @@ export function examPlan(exam, words, today = ymd()) {
   const slots = Math.max(1, dday)
   const todayN = dday < 0 ? 0 : Math.ceil(left.length / slots)
   return { total: list.length, ready: ready.length, left, today: left.slice(0, todayN), dday, missing: (exam.word_ids || []).length - list.length }
+}
+
+// 이름(닉네임)은 한 달에 한 번: 마지막으로 바꾼 날 + 1달(같은 날짜, 그달에 없으면 말일) — 서버 트리거와 같은 규칙
+export function nameNextChange(changedAt) {
+  if (!changedAt) return null
+  const d = new Date(changedAt)
+  const day = d.getDate()
+  const n = new Date(d.getFullYear(), d.getMonth() + 1, 1, d.getHours(), d.getMinutes(), d.getSeconds())
+  n.setDate(Math.min(day, new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate()))
+  return n
+}
+export function nameLocked(changedAt, now = new Date()) {
+  const n = nameNextChange(changedAt)
+  return n && now < n ? n : null
 }

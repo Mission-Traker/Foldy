@@ -4,6 +4,7 @@ import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
 import { LEVELS, normLevel } from '../lib/levels.js'
 import { Blob } from './ui.jsx'
+import { nameLocked } from '../lib/study.js'
 import PinPad from './PinPad.jsx'
 
 // 상단 프로필 아이콘을 누르면 열리는 내 프로필 편집
@@ -16,11 +17,14 @@ export default function ProfileSheet({ onClose }) {
   const [pinMode, setPinMode] = useState(false)
   const [busy, setBusy] = useState(false)
 
+  const lockedUntil = nameLocked(member.name_changed_at)
+  const newName = name.trim().slice(0, 20)
+  const renaming = newName !== member.name
   async function save() {
     if (!name.trim()) return showToast('이름을 적어 주세요')
     setBusy(true)
     try {
-      await updateMember({ name: name.trim().slice(0, 20), avatar, level })
+      await updateMember(renaming ? { name: newName, avatar, level } : { avatar, level })
       showToast('프로필을 저장했어요')
       onClose()
     } catch (e) { showToast(e.message) } finally { setBusy(false) }
@@ -46,8 +50,15 @@ export default function ProfileSheet({ onClose }) {
           <button onClick={onClose} aria-label="닫기" className="text-2xl text-soft">×</button>
         </div>
 
-        <label className="label" htmlFor="pname">이름</label>
-        <input id="pname" className="field mb-3" value={name} onChange={(e) => setName(e.target.value)} maxLength={20} />
+        <label className="label" htmlFor="pname">이름(닉네임)</label>
+        <input id="pname" className="field" value={name} onChange={(e) => setName(e.target.value)} maxLength={20} disabled={!!lockedUntil} />
+        <p className="mb-3 mt-1 text-xs text-soft">
+          {lockedUntil
+            ? `한 달에 한 번 바꿀 수 있어요 · ${lockedUntil.getMonth() + 1}월 ${lockedUntil.getDate()}일부터 다시 바꿀 수 있어요`
+            : renaming && newName
+              ? <span className="text-coral">저장하면 한 달 동안 다시 바꿀 수 없어요</span>
+              : '가족이 누군지 헷갈리지 않게 한 달에 한 번만 바꿀 수 있어요'}
+        </p>
 
         <span className="label">캐릭터</span>
         <div className="mb-3 grid grid-cols-6 gap-2">

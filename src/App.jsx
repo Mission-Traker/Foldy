@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import * as db from './lib/db.js'
 import { enrichPending, personalize, storyOn } from './lib/enrich.js'
-import { enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, ymd, gnawDays, pickGnawWords, reviewCount } from './lib/study.js'
+import { enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, ymd, gnawDays, pickGnawWords, reviewCount, wrongDue } from './lib/study.js'
 import { BottomNav, Confetti, Toast } from './components/ui.jsx'
 import { fanfare } from './lib/sfx.js'
 import { cacheGet, cacheSet, isNetErr, outboxAdd, outboxFlush, outboxSize } from './lib/offline.js'
@@ -14,6 +14,7 @@ import AddWords from './pages/AddWords.jsx'
 import Study from './pages/Study.jsx'
 import Quiz from './pages/Quiz.jsx'
 import WrongNote from './pages/WrongNote.jsx'
+import WrongPractice from './pages/WrongPractice.jsx'
 import Expand from './pages/Expand.jsx'
 import Me from './pages/Me.jsx'
 import LevelTest from './pages/LevelTest.jsx'
@@ -281,7 +282,7 @@ export default function App() {
     openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich,
   }), [session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich])
 
-  const wrongCount = words.filter((w) => (w.wrong_modes || []).length).length
+  const wrongCount = words.filter((w) => wrongDue(w)).length // 오늘 다시 볼 단어만 배지로
   // 오래 쉬었다 들어오면(또는 학습 알림으로 들어오면) 하루 한 번 '갉아먹기' 장면 — 단어는 그대로
   const [gnaw, setGnaw] = useState(null)
   const fromPush = useRef(/[?&]gnaw=1/.test(window.location.hash))
@@ -304,7 +305,7 @@ export default function App() {
     setGnaw({ days, words: picks.map((w) => ({ word: w.word, meaning: w.meaning })) })
   }, [member, membersReady, loadedFor, introOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fullScreen = /^\/(quiz|expand|add|level-test|exam\/new)/.test(loc.pathname)
+  const fullScreen = /^\/(quiz|expand|add|level-test|exam\/new|wrong\/practice)/.test(loc.pathname)
 
   return (
     <Ctx.Provider value={value}>
@@ -331,6 +332,7 @@ export default function App() {
             <Route path="/study" element={<Study />} />
             <Route path="/quiz/:mode" element={<Quiz key={loc.pathname + loc.search} />} />
             <Route path="/wrong" element={<WrongNote />} />
+            <Route path="/wrong/practice" element={<WrongPractice />} />
             <Route path="/expand" element={<Expand />} />
             <Route path="/me" element={<Me />} />
             <Route path="/level-test" element={<LevelTest />} />

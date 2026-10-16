@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import * as db from '../lib/db.js'
 import { useApp } from '../App.jsx'
-import { examPlan, expandStage, MODE_FIELD, resolveTodaySet, reviewCount, statusOf, ymd } from '../lib/study.js'
+import { examPlan, expandStage, MODE_FIELD, resolveTodaySet, reviewCount, statusOf, ymd, wrongDueList, WRONG_DAILY } from '../lib/study.js'
 import { Empty, Header } from '../components/ui.jsx'
 import { canListen } from '../lib/speech.js'
 import { isIOS, pronHereOK } from '../lib/browser.js'
@@ -20,6 +20,7 @@ export default function Study() {
   const due = reviewCount(words, isToday ? daily.seen_ids : [], today)
   const setIds = resolveTodaySet(words, isToday ? daily.set_ids : [], member?.daily_goal || 5)
   const setWords = setIds.map((id) => words.find((w) => w.id === id)).filter(Boolean)
+  const again = wrongDueList(words, today)
   const expandTodo = words.filter((w) => expandStage(w) === 'synant' && w.enriched).length
   const [exams, setExams] = useState([])
   useEffect(() => { if (member) db.listExams(member.id).then(setExams).catch(() => {}) }, [member])
@@ -55,6 +56,14 @@ export default function Study() {
           </ul>
         ) : <p className="text-sm text-sage">단어장의 모든 단어가 ○ 완료예요! 새 단어를 넣어 주세요.</p>}
       </section>
+      {again.length > 0 && (
+        <Link to="/wrong/practice" className="mb-4 flex items-center gap-3 rounded-2xl border border-line bg-paper px-4 py-3">
+          <span className="text-2xl">📌</span>
+          <span className="min-w-0 flex-1"><b className="font-jua text-slate-deep">다시 볼 단어 {Math.min(again.length, WRONG_DAILY)}개</b>
+            <span className="block truncate text-xs text-soft">{again.slice(0, WRONG_DAILY).map((w) => w.word).join(', ')} · 오답노트에서 다시 익히기</span></span>
+          <span className="text-soft">›</span>
+        </Link>
+      )}
       <p className="mb-3 text-sm text-soft">세 가지 퀴즈를 모두 맞히면 단어에 <b className="text-sage">○</b>가 붙어요.</p>
       <div className="space-y-3">
         {CARDS.map((c) => {

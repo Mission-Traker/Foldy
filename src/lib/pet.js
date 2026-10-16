@@ -9,10 +9,12 @@ export const PET_STAGES = [
 ]
 export const WEAR_LABEL = { ribbon: '리본', glasses: '안경', cap: '모자', scarf: '목도리', crown: '왕관' }
 
+// 오답노트를 졸업한 단어는 한 번 더 크게 먹음
+export const PET_GRAD_BONUS = 2
 // 지금까지 먹은 단어 수 = 통과한 퀴즈 수(한→영·영→한·발음, 단어당 최대 3)
 export function petFood(words) {
   let n = 0
-  for (const w of words || []) n += (w.ko_ok ? 1 : 0) + (w.en_ok ? 1 : 0) + (w.sp_ok ? 1 : 0)
+  for (const w of words || []) n += (w.ko_ok ? 1 : 0) + (w.en_ok ? 1 : 0) + (w.sp_ok ? 1 : 0) + PET_GRAD_BONUS * (w.wrong_grad || 0)
   return n
 }
 export function petState(words) {

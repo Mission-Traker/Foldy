@@ -4,7 +4,7 @@ import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
 import { dailyPick, levelLabel } from '../lib/levels.js'
 import { meaningsFor } from '../lib/enrich.js'
-import { expandStage, reviewCount, statusOf, ymd, liveStreak } from '../lib/study.js'
+import { expandStage, reviewCount, statusOf, ymd, liveStreak, wrongDueList, WRONG_DAILY } from '../lib/study.js'
 import { Blob, Ring, Speak, GoalStepper, FitWord } from '../components/ui.jsx'
 import LevelBar from '../components/LevelBar.jsx'
 import { usePet, PetSheet } from '../components/PetCard.jsx'
@@ -37,6 +37,8 @@ export default function Home() {
   const expandTodo = words.filter((w) => expandStage(w) === 'synant' && w.enriched).length
   const expandDone = words.filter((w) => expandStage(w) === 'example').length
   const done = daily?.day === today ? daily.done : 0
+  // 오늘의 학습에 끼워 넣는 오답노트 단어(다시 볼 날이 된 것, 하루 최대 3개)
+  const again = Math.min(wrongDueList(words, today).length, WRONG_DAILY)
 
   // 오늘의 추천 5개: 처음엔 레벨 목록에서, 단어가 20개 이상 쌓이면 내 단어와 연관된 단어로
   useEffect(() => {
@@ -101,13 +103,16 @@ export default function Home() {
           <Ring value={Math.min(done, member.daily_goal)} max={member.daily_goal} size={72} color="#E9954B" track="rgba(255,255,255,.18)" text="#fff" />
           <div className="min-w-0 flex-1">
             <p className="font-jua text-xl">{goalMet ? '오늘 목표 달성! 🎉' : '오늘의 목표'}</p>
-            <p className="text-sm text-white/75"><span className="block">문제 {member.daily_goal}개 맞히기</span><span className="block">지금 {done}개 맞혔어요</span></p>
+            <p className="text-sm text-white/75"><span className="block">문제 {member.daily_goal}개 맞히기{again > 0 && <> + 다시 볼 단어 {again}개</>}</span><span className="block">지금 {done}개 맞혔어요</span></p>
           </div>
         </div>
-        <Link to={!total ? '/add' : goalMet && due > 0 ? '/quiz/review' : '/study'}
+        <Link to={!total ? '/add' : goalMet && again > 0 ? '/wrong/practice' : goalMet && due > 0 ? '/quiz/review' : '/study'}
           className="mt-4 flex w-full items-center justify-center rounded-full bg-paper py-3 font-jua text-lg text-slate-deep shadow-[0_3px_0_rgba(0,0,0,.18)] active:translate-y-[2px] active:shadow-none">
-          {!total ? '첫 단어 넣기' : goalMet ? (due > 0 ? `복습 ${due}개 하기` : '한 번 더 학습하기') : done > 0 ? '이어서 학습하기' : '학습 시작하기'}
+          {!total ? '첫 단어 넣기' : goalMet ? (again > 0 ? `다시 볼 단어 ${again}개 하기` : due > 0 ? `복습 ${due}개 하기` : '한 번 더 학습하기') : done > 0 ? '이어서 학습하기' : '학습 시작하기'}
         </Link>
+        {!goalMet && again > 0 && total > 0 && (
+          <Link to="/wrong/practice" className="mt-2 block text-center text-sm text-white/85">📌 다시 볼 단어 {again}개 먼저 하기 ›</Link>
+        )}
         <button onClick={() => setGoalEdit((v) => !v)} className="mx-auto mt-2 block text-xs text-white/70 underline">✎ 목표 바꾸기</button>
         {goalEdit && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-paper p-3 text-ink">

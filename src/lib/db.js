@@ -5,7 +5,7 @@ const KEY = import.meta.env.VITE_SUPABASE_KEY || 'sb_publishable_kMgYoZQrs5LRk-z
 const TOKEN_KEY = 'foldy.session'
 const MEMBER_KEY = 'foldy.member'
 const MTOK_KEY = 'foldy.memberTokens' // 구성원별 잠금 해제 토큰
-const MEMBER_COLS = 'id,family_id,name,avatar,level,daily_goal,streak,best_streak,last_study,created_at,has_pin,story,pet'
+const MEMBER_COLS = 'id,family_id,name,avatar,level,daily_goal,streak,best_streak,last_study,created_at,has_pin,story,pet,name_changed_at'
 
 function store(k, v) {
   try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)) } catch { /* 저장 불가 환경 */ }
@@ -62,6 +62,8 @@ const ERR = {
 function friendly(error) {
   const m = error?.message || String(error)
   for (const k of Object.keys(ERR)) if (m.includes(k)) return ERR[k]
+  const cool = m.match(/name_cooldown:(\d{4})-(\d{2})-(\d{2})/)
+  if (cool) return `이름은 한 달에 한 번 바꿀 수 있어요. ${+cool[2]}월 ${+cool[3]}일부터 다시 바꿀 수 있어요`
   if (m.includes('login_id')) return '아이디는 영어 소문자·숫자·_ 로 3~30자예요'
   if (m.includes('Failed to fetch') || m.includes('offline')) return '인터넷 연결을 확인해 주세요'
   // 기술적인 원문은 화면에 보이지 않게(개발자 도구에만 남김)

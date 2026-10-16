@@ -3,6 +3,7 @@ import { gradeMeaning, gradeSpelling, gradeSpeech, normalizeKo, speechScore, sou
 import {
   statusOf, applyAnswer, applyReview, sortWords, pickQuiz, nextStreak, cleanEntry,
   expandStage, isDue, sendToWrongNote, addDays,
+  wrongDue, wrongDueList, nameNextChange, nameLocked, wrongNextVisit, applyWrongResult, meaningChoices, WRONG_GOAL,
 } from '../src/lib/study.js'
 import { dailyPick, recommendLevel, wordsOfLevel, levelTestSet, LEVELS, levelLabel } from '../src/lib/levels.js'
 
@@ -58,9 +59,9 @@ describe('답 반영·복습 일정', () => {
     const p = applyAnswer({ ...base, en_ok: true, ko_ok: true, sp_ok: true, review_step: 2 }, 'ko', false)
     expect(p).toMatchObject({ ko_ok: false, review_step: 0, next_review: null })
   })
-  it('오답노트 모드를 맞히면 오답노트에서 빠짐', () => {
+  it('일반 퀴즈에서 한 번 맞혀도 오답노트에서 빠지지 않음', () => {
     const p = applyAnswer({ ...base, wrong_modes: ['ko', 'sp'] }, 'ko', true)
-    expect(p.wrong_modes).toEqual(['sp'])
+    expect(p.wrong_modes).toBeUndefined()
   })
   it('복습 정답이면 간격이 늘어남(1→3일)', () => {
     expect(applyReview({ review_step: 1 }, 'ko', true, '2026-10-15')).toEqual({ review_step: 2, next_review: '2026-10-18' })
@@ -457,5 +458,61 @@ describe('캐릭터 키우기', () => {
     expect(wearing({ wear: ['crown', 'ribbon'] }, ['ribbon'])).toEqual(['ribbon'])
     expect(wearing(null, ['ribbon', 'glasses'])).toEqual(['ribbon', 'glasses'])
     expect(wearing({ wear: [] }, ['ribbon'])).toEqual([])
+  })
+})
+
+describe('오답노트 3단계 다시 익히기 + 날짜 간격 졸업', () => {
+  const T = '2026-10-16'
+  const w = (o) => ({ ...base, id: 'w', wrong_modes: ['ko'], wrong_step: 0, wrong_next: null, wrong_grad: 0, ...o })
+  it('보내면 처음부터(오늘 바로)', () => {
+    expect(sendToWrongNote({ wrong_modes: [], wrong_step: 2, wrong_next: '2026-10-20' }, 'en')).toEqual({ wrong_modes: ['en'], wrong_step: 0, wrong_next: null })
+  })
+  it('오늘 볼 단어 판정', () => {
+    expect(wrongDue(w(), T)).toBe(true)
+    expect(wrongDue(w({ wrong_next: T }), T)).toBe(true)
+    expect(wrongDue(w({ wrong_next: '2026-10-17' }), T)).toBe(false)
+    expect(wrongDue(w({ wrong_modes: [] }), T)).toBe(false)
+  })
+  it('1번째 맞힘 → 3일 뒤, 2번째 → 7일 뒤, 3번째 → 졸업', () => {
+    const a = applyWrongResult(w(), true, T)
+    expect(a).toEqual({ wrong_step: 1, wrong_next: '2026-10-19' })
+    const b = applyWrongResult(w(a), true, '2026-10-19')
+    expect(b).toEqual({ wrong_step: 2, wrong_next: '2026-10-26' })
+    const c = applyWrongResult(w(b), true, '2026-10-26')
+    expect(c).toEqual({ wrong_modes: [], wrong_step: 0, wrong_next: null, wrong_grad: 1 })
+    expect(WRONG_GOAL).toBe(3)
+  })
+  it('틀리면 처음부터(오늘 다시 가능)', () => {
+    expect(applyWrongResult(w({ wrong_step: 2, wrong_next: T }), false, T)).toEqual({ wrong_step: 0, wrong_next: null })
+  })
+  it('다시 볼 순서와 다음 만남', () => {
+    const list = [w({ id: 'a', wrong_next: T, wrong_step: 1 }), w({ id: 'b' }), w({ id: 'c', wrong_next: '2026-10-19' }), w({ id: 'd', wrong_next: '2026-10-19' }), w({ id: 'e', wrong_next: '2026-10-25' })]
+    expect(wrongDueList(list, T).map((x) => x.id)).toEqual(['b', 'a'])
+    expect(wrongNextVisit(list, T)).toEqual({ day: '2026-10-19', count: 2 })
+    expect(wrongNextVisit([w()], T)).toBeNull()
+  })
+  it('뜻 보기는 정답 포함, 같은 뜻 중복 없음', () => {
+    const words = [w({ id: 'a', meaning: '사과' }), w({ id: 'b', meaning: '사과' }), w({ id: 'c', meaning: '배' }), w({ id: 'd', meaning: '감' }), w({ id: 'e', meaning: '귤' })]
+    const ch = meaningChoices(words[0], words)
+    expect(ch).toContain('사과')
+    expect(ch.length).toBe(4)
+    expect(new Set(ch).size).toBe(4)
+    expect(meaningChoices(words[0], [words[0]])).toEqual(['사과'])
+  })
+  it('졸업한 단어는 캐릭터가 2번 더 먹음', () => {
+    expect(petState([{ ko_ok: true, wrong_grad: 1 }]).food).toBe(3)
+  })
+})
+
+describe('이름은 한 달에 한 번', () => {
+  it('처음엔 바꿀 수 있음', () => expect(nameLocked(null)).toBeNull())
+  it('바꾼 뒤 한 달 동안 잠김', () => {
+    const at = new Date(2026, 9, 16, 21, 0).toISOString()
+    expect(nameLocked(at, new Date(2026, 10, 15, 23, 0))).not.toBeNull()
+    expect(nameLocked(at, new Date(2026, 10, 16, 21, 1))).toBeNull()
+  })
+  it('말일은 다음 달 말일로', () => {
+    const n = nameNextChange(new Date(2026, 0, 31, 9).toISOString())
+    expect([n.getMonth(), n.getDate()]).toEqual([1, 28])
   })
 })
