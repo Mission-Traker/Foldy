@@ -108,7 +108,7 @@ function Row({ w, hide, peek, onPeek, onEdit, inToday, onSend }) {
           <Speak text={w.word} size="sm" className="!h-7 !w-7 !text-xs" label="발음 듣기" />
         </div>
         <button onClick={onPeek} className="relative min-w-[84px] flex-1 overflow-hidden rounded-xl text-left" aria-label="뜻 보기">
-          <span className="flex h-full items-center px-2 text-[15px] leading-tight text-slate-deep">{w.meaning}</span>
+          <span className={`flex h-full items-center px-2 leading-tight text-slate-deep ${w.meaning.length > 5 ? "text-[13px]" : "text-[15px]"}`}>{w.meaning}</span>
           <span className={`flap absolute inset-0 flex items-center justify-center rounded-xl border-2 border-line bg-[repeating-linear-gradient(0deg,#FFFBF4,#FFFBF4_9px,#EFE5D3_10px)] text-xs text-soft ${coverMeaning ? '' : 'open'}`}>
             탭해서 보기
           </span>

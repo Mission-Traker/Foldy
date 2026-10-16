@@ -28,8 +28,14 @@ export const useApp = () => useContext(Ctx)
 
 export default function App() {
   const [session, setSession] = useState(db.getSession())
-  const [members, setMembers] = useState([])
-  const [member, setMember] = useState(null)
+  // 새로고침 때 로그인·프로필 화면이 잠깐 보이지 않게: 마지막 구성원 목록으로 바로 그리고 뒤에서 새로 받음
+  const [members, setMembers] = useState(() => (session && cacheGet('members:' + session.family_id)) || [])
+  const [member, setMember] = useState(() => {
+    const ms = session && cacheGet('members:' + session.family_id)
+    const saved = db.savedMemberId()
+    return (ms && saved && ms.find((x) => x.id === saved)) || null
+  })
+  const [membersReady, setMembersReady] = useState(false)
   const [words, setWords] = useState([])
   const [daily, setDaily] = useState(null)
   const dailyRef = useRef(null) // 오늘 기록의 최신값(자식 화면 effect가 부모보다 먼저 돌아도 맞는 값을 보게 바로 넣어 둠)
@@ -79,8 +85,11 @@ export default function App() {
       setMembers(ms)
       const saved = db.savedMemberId()
       const m = ms.find((x) => x.id === saved)
-      if (m) setMember(m)
+      // 같은 사람이면 새 정보만 덮고(단어를 다시 불러오지 않게), 없어진 사람이면 프로필 고르기로
+      setMember((cur) => (m ? (cur && cur.id === m.id ? { ...cur, ...m } : m) : null))
+      setMembersReady(true)
     }).catch((e) => {
+      setMembersReady(true)
       showToast(e.message)
       if (/JWT|permission|401/.test(e.message)) { db.logout(); setSession(null) }
     })
@@ -265,6 +274,8 @@ export default function App() {
       <div className="mx-auto min-h-screen max-w-md px-4 pb-28">
         {!session ? (
           <Auth />
+        ) : !member && !membersReady && db.savedMemberId() ? (
+          <div className="flex min-h-screen items-center justify-center text-soft" aria-busy="true">불러오는 중…</div>
         ) : !member ? (
           <Profiles />
         ) : (

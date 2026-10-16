@@ -54,9 +54,17 @@ try {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
   check('360px 가로 넘침 없음', overflow <= 0, String(overflow))
   await page.waitForTimeout(1500)
+  await page.evaluate(() => { window.__sawProfiles = false })
+  await page.addInitScript(() => {
+    const t0 = Date.now()
+    const tick = () => { if (document.body && /누가 공부할까요|가족 만들기/.test(document.body.innerText)) localStorage.setItem('e2e.flash', '1'); if (Date.now() - t0 < 4000) requestAnimationFrame(tick) }
+    requestAnimationFrame(tick)
+  })
   await page.reload()
   await page.getByRole('button', { name: new RegExp(`^${tw}: 오늘 학습할 단어에 있어요`) }).waitFor({ timeout: 8000 })
   check('새로고침 뒤에도 유지(저장됨)', true)
+  await page.waitForTimeout(1500)
+  check('새로고침 때 로그인·프로필 화면이 비치지 않음', !(await page.evaluate(() => localStorage.getItem('e2e.flash'))))
   await page.goto(BASE + '/#/study')
   await page.getByText('오늘의 단어 6개').waitFor({ timeout: 8000 })
   check('학습 화면 오늘의 단어 6개', true)
