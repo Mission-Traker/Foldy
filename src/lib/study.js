@@ -169,7 +169,7 @@ export function enqueue(id, job) {
   waiting.add(start)
   const next = prev.catch(() => {}).then(start)
   queues.set(id, next)
-  next.finally(() => { if (queues.get(id) === next) queues.delete(id) })
+  next.finally(() => { if (queues.get(id) === next) queues.delete(id) }).catch(() => {}) // 실패는 호출한 쪽에서 처리
   return next
 }
 const waiting = new Set()

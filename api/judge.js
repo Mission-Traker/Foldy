@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   try {
     const { word, meaning, answer } = await readBody(req)
     if (!word || !answer) return send(res, 400, { error: '입력이 없어요' })
-    const { text } = await textLLM({
+    const { text } = await textLLM({ req,
       check: canParse,
       maxTokens: 200,
       system:
@@ -17,6 +17,6 @@ export default async function handler(req, res) {
     const r = parseJson(text)
     send(res, 200, { ok: !!r.ok, reason: String(r.reason || '') })
   } catch (e) {
-    send(res, 500, { error: 'AI 채점을 하지 못했어요: ' + e.message })
+    send(res, e.code === 'LIMIT' ? 429 : 500, { error: e.code === 'LIMIT' ? e.message : 'AI 채점을 하지 못했어요: ' + e.message, code: e.code })
   }
 }

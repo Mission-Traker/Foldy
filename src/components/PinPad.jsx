@@ -3,7 +3,7 @@ import { Blob } from './ui.jsx'
 import { tap, wrong, correct } from '../lib/sfx.js'
 
 // 숫자 비밀번호 입력판(4~6자리)
-export default function PinPad({ title, sub, avatar = 0, onSubmit, onCancel, confirmMode = false }) {
+export default function PinPad({ title, sub, avatar = 0, onSubmit, onCancel, confirmMode = false, footer = null }) {
   const [pin, setPin] = useState('')
   const [first, setFirst] = useState(null)
   const [err, setErr] = useState('')
@@ -45,6 +45,7 @@ export default function PinPad({ title, sub, avatar = 0, onSubmit, onCancel, con
             </button>
           ))}
         </div>
+        {footer}
         <button type="button" className="mt-3 w-full text-sm text-soft" onClick={onCancel}>취소</button>
       </div>
     </div>

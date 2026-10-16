@@ -117,3 +117,33 @@ describe('AI 서버 경로 보호', () => {
     expect(parseJson('설명입니다 {"ok":true} 끝')).toEqual({ ok: true })
   })
 })
+
+describe('무료 AI(Gemini)·하루 한도', () => {
+  beforeEach(() => { vi.restoreAllMocks(); for (const k of ['ANTHROPIC_API_KEY', 'FREE_LLM_BASE_URL', 'FREE_LLM_API_KEY', 'GEMINI_API_KEY']) delete process.env[k] })
+  it('GEMINI_API_KEY만 있어도 사진 읽기는 무료 AI로(Claude 안 부름)', async () => {
+    process.env.GEMINI_API_KEY = 'g'
+    const calls = []
+    vi.stubGlobal('fetch', vi.fn(async (url, opt) => { calls.push({ url, body: opt?.body }); return url.includes('generativelanguage')
+      ? { ok: true, json: async () => ({ choices: [{ message: { content: '[{"word":"apple","meaning":"사과"}]' } }] }) }
+      : { ok: true, json: async () => 'family-uuid' } }))
+    const { default: h } = await import('../api/extract.js')
+    const res = mockRes(); await h(req({ image: 'AAAA', mediaType: 'image/png' }), res)
+    expect(JSON.parse(res.body).words).toEqual([{ word: 'apple', meaning: '사과' }])
+    expect(calls.some((c) => c.url.includes('anthropic'))).toBe(false)
+    const g = calls.find((c) => c.url.includes('generativelanguage'))
+    expect(g.body).toContain('data:image/png;base64,AAAA')
+  })
+  it('무료 AI가 실패하면 Claude로, 한도를 넘으면 429', async () => {
+    process.env.GEMINI_API_KEY = 'g'
+    process.env.ANTHROPIC_API_KEY = 'test'
+    vi.stubGlobal('fetch', vi.fn(async (url) => url.includes('generativelanguage')
+      ? { ok: false, status: 429, json: async () => ({ error: { message: 'quota' } }) }
+      : url.includes('foldy_ai_take') ? { ok: true, json: async () => false }
+      : url.includes('anthropic') ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '{"ok":true}' }] }) }
+      : { ok: true, json: async () => 'family-uuid' }))
+    const { default: h } = await import('../api/judge.js')
+    const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '기분 좋은' }), res)
+    expect(res.statusCode).toBe(429)
+    expect(JSON.parse(res.body).code).toBe('LIMIT')
+  })
+})

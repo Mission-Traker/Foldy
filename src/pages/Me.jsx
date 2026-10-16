@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
@@ -9,11 +9,16 @@ import { MemberForm } from './Profiles.jsx'
 import { soundOn, setSoundOn, correct } from '../lib/sfx.js'
 import MicPicker from '../components/MicPicker.jsx'
 import MyFeedback from '../components/MyFeedback.jsx'
+import { AccountSection, InviteSection, NotifySection } from '../components/Account.jsx'
+import { PrivacySheet } from '../components/Privacy.jsx'
 
 export default function Me() {
   const { member, members, setMember, updateMember, patchMemberLocal, words, session, setSession, showToast, setMembers, aiState, openIntro } = useApp()
   const [adding, setAdding] = useState(false)
   const [sound, setSound] = useState(soundOn())
+  const [privacy, setPrivacy] = useState(false)
+  const [admin, setAdmin] = useState(false)
+  useEffect(() => { db.isAdmin().then(setAdmin) }, [])
   const done = words.filter((w) => statusOf(w) === 'o').length
 
   async function setLevel(id) {
@@ -108,11 +113,19 @@ export default function Me() {
         <p className="mt-2 text-[11px] text-soft">가족 아이디: <b>{session?.login_id}</b> — 다른 기기에서도 이 아이디로 들어오면 같은 단어장이 보여요.</p>
       </section>
 
+      <NotifySection member={member} admin={admin} showToast={showToast} />
+
+      <InviteSection session={session} showToast={showToast} />
+
       <MyFeedback memberName={member.name} />
+
+      <AccountSection session={session} showToast={showToast} openPrivacy={() => setPrivacy(true)}
+        onLeft={() => { setSession(null); setMember(null); showToast('탈퇴했어요. 그동안 고마웠어요') }} />
 
       {aiState === 'nokey' && <p className="mb-3 text-center text-xs text-coral">AI 키(ANTHROPIC_API_KEY)가 아직 연결되지 않았어요.</p>}
       <button className="btn-ghost w-full" onClick={async () => { await db.logout(); setSession(null); setMember(null) }}>로그아웃</button>
       <button className="mt-3 w-full text-center font-jua text-sm text-slate underline" onClick={openIntro}>폴디 소개 다시 보기</button>
+      {privacy && <PrivacySheet onClose={() => setPrivacy(false)} />}
       <p className="mt-4 text-center text-[11px] text-soft">폴디 v1.0 · 홈 화면에 추가하면 앱처럼 쓸 수 있어요</p>
     </div>
   )

@@ -13,7 +13,7 @@ export default async function handler(req, res) {
       .slice(0, 15)
     if (!list.length) return send(res, 400, { error: '단어가 없어요' })
     const kid = ['e1', 'e3', 'e5'].includes(level)
-    const { text } = await textLLM({
+    const { text } = await textLLM({ req,
       check: canParse,
       maxTokens: 6000,
       system:
@@ -37,6 +37,6 @@ export default async function handler(req, res) {
     }))
     send(res, 200, { items: out })
   } catch (e) {
-    send(res, 500, { error: 'AI 정보를 만들지 못했어요: ' + e.message })
+    send(res, e.code === 'LIMIT' ? 429 : 500, { error: e.code === 'LIMIT' ? e.message : 'AI 정보를 만들지 못했어요: ' + e.message, code: e.code })
   }
 }

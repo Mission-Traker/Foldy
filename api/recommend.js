@@ -10,7 +10,7 @@ export default async function handler(req, res) {
     const n = Math.max(1, Math.min(10, parseInt(count, 10) || 5))
     const recentList = (Array.isArray(recent) ? recent : []).map(String).slice(0, 30)
     const ownedList = (Array.isArray(owned) ? owned : []).map((x) => String(x).toLowerCase()).slice(0, 2000)
-    const { text } = await textLLM({
+    const { text } = await textLLM({ req,
       check: canParse,
       maxTokens: 800,
       system:
@@ -27,6 +27,6 @@ export default async function handler(req, res) {
       .slice(0, n)
     send(res, 200, { items })
   } catch (e) {
-    send(res, 500, { error: '추천을 만들지 못했어요: ' + e.message })
+    send(res, e.code === 'LIMIT' ? 429 : 500, { error: e.code === 'LIMIT' ? e.message : '추천을 만들지 못했어요: ' + e.message, code: e.code })
   }
 }

@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     const { word, heard } = await readBody(req)
     const w = String(word || '').trim().slice(0, 60)
     if (!/^[A-Za-z][A-Za-z '\-]*$/.test(w)) return send(res, 400, { error: '영어 단어가 아니에요' })
-    const { text } = await textLLM({
+    const { text } = await textLLM({ req,
       check: (t) => /IPA\s*[:：]/i.test(t) && /SYLLABLES\s*[:：]/i.test(t),
       maxTokens: 600,
       system:
@@ -52,6 +52,6 @@ export default async function handler(req, res) {
     if (!r.ipa && !r.syllables.length) throw new Error('형식이 맞지 않는 응답')
     send(res, 200, r)
   } catch (e) {
-    send(res, 500, { error: '발음 안내를 만들지 못했어요: ' + e.message })
+    send(res, e.code === 'LIMIT' ? 429 : 500, { error: e.code === 'LIMIT' ? e.message : '발음 안내를 만들지 못했어요: ' + e.message, code: e.code })
   }
 }

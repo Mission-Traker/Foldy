@@ -20,6 +20,8 @@ let client = make()
 
 // 저장(POST·PATCH·DELETE)은 keepalive로 — 앱을 바로 닫거나 새로고침해도 요청이 끝까지 감(64KB 이하)
 function keepFetch(input, init = {}) {
+  // 인터넷이 끊겨 있으면 기다리며 다시 시도하지 않고 바로 실패(오프라인 화면으로 곧장)
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return Promise.reject(new DOMException('offline', 'AbortError'))
   const m = (init.method || 'GET').toUpperCase()
   const small = !init.body || (typeof init.body === 'string' && init.body.length < 60000)
   return fetch(input, m !== 'GET' && m !== 'HEAD' && small ? { ...init, keepalive: true } : init)
@@ -52,12 +54,16 @@ const ERR = {
   PIN_FORMAT: '비밀번호는 숫자 4~6자리예요',
   FORBIDDEN: '이 프로필은 비밀번호로 잠겨 있어요',
   LOGIN_LOCKED: '여러 번 틀려서 15분 동안 잠겼어요. 잠시 뒤 다시 해 주세요',
+  RECOVERY_WRONG: '가족 아이디나 복구 코드가 맞지 않아요',
+  PASSWORD_WRONG: '가족 비밀번호가 맞지 않아요',
+  HANDOFF_EXPIRED: '연결 시간이 지났어요. 앱에서 다시 눌러 주세요',
+  NO_SESSION: '다시 로그인해 주세요',
 }
 function friendly(error) {
   const m = error?.message || String(error)
   for (const k of Object.keys(ERR)) if (m.includes(k)) return ERR[k]
   if (m.includes('login_id')) return '아이디는 영어 소문자·숫자·_ 로 3~30자예요'
-  if (m.includes('Failed to fetch')) return '인터넷 연결을 확인해 주세요'
+  if (m.includes('Failed to fetch') || m.includes('offline')) return '인터넷 연결을 확인해 주세요'
   return '문제가 생겼어요: ' + m
 }
 
@@ -219,3 +225,36 @@ export async function deleteFeedback(id) {
 }
 export const markFeedbackSeen = () => client.rpc('foldy_feedback_seen').then(() => {}, () => {})
 export const feedbackUnseen = (f) => !!f.status_changed_at && (!f.user_seen_at || new Date(f.user_seen_at) < new Date(f.status_changed_at))
+
+// 가족 계정: 복구 코드·비밀번호·탈퇴
+async function rpcJson(name, args) {
+  const { data, error } = await client.rpc(name, args)
+  if (error) throw new Error(friendly(error))
+  if (data?.error) throw new Error(friendly({ message: data.error }))
+  return data
+}
+export const recoveryNew = () => rpcJson('foldy_recovery_new').then((d) => d.code)
+export const recoveryStatus = () => rpcJson('foldy_recovery_status')
+export const resetPassword = (login, code, pw) => rpcJson('foldy_reset_password', { p_login: login.trim().toLowerCase(), p_code: code, p_new: pw })
+export const changePassword = (oldPw, newPw) => rpcJson('foldy_change_password', { p_old: oldPw, p_new: newPw })
+export const resetMemberPin = (memberId, familyPw) => rpcJson('foldy_reset_member_pin', { p_member: memberId, p_password: familyPw })
+export async function deleteFamily(pw) {
+  await rpcJson('foldy_delete_family', { p_password: pw })
+  setSession(null)
+  store(MEMBER_KEY, null)
+  store(MTOK_KEY, null)
+  activeMember = null
+}
+export const aiToday = () => rpcJson('foldy_ai_today').catch(() => ({}))
+
+// 다른 브라우저(사파리)로 로그인 이어받기
+export const handoffCreate = (memberId) => rpcJson('foldy_handoff_create', { p_member: memberId || null }).then((d) => d.code)
+export async function handoffRedeem(code) {
+  const d = await rpcJson('foldy_handoff_redeem', { p_code: code })
+  setSession({ token: d.token, family_id: d.family_id, name: d.name, login_id: d.login_id })
+  if (d.member_id) {
+    if (d.member_token) saveMemberToken(d.member_id, d.member_token)
+    saveMemberId(d.member_id)
+  }
+  return d
+}

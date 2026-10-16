@@ -38,6 +38,14 @@
 - 🛠 앱 수정요청(내 정보): 유형(버그·화면·불편·기능·기타)·화면 칩 + 내용(2,000자) → 우리 가족이 보낸 요청 목록에서 상태(접수됨·고치는 중·의견 보류·고쳤어요)와 답장 확인, 새 답장은 '새 소식'으로 표시. 멘토링대학교 수정요청 구조를 그대로 가져옴
 - 수정요청함(`/#/admin`, 관리자 가족만): 상태 필터·신규 배지, 확인→수정진행·의견보류·수정완료, 빠른 답장·답장 고치기, 삭제. 관리자 가족은 DB `foldy_admins`(현재 bang9family)
 
+- 🔑 비밀번호 찾기: 가족을 만들면 복구 코드(XXXX-XXXX-XXXX)를 한 번 보여 줌 → 로그인 화면 '비밀번호를 잊었어요'에서 가족 아이디+복구 코드로 새 비밀번호. 내 정보 › 가족 계정에서 비밀번호 바꾸기·복구 코드 새로 받기
+- 구성원 숫자 비밀번호를 잊으면 비밀번호 입력판의 '비밀번호를 잊었어요' → 가족 비밀번호로 없애고 들어감
+- 가족 계정 탈퇴(내 정보 › 가족 계정, 가족 비밀번호+확인 체크 → 모든 기록 즉시 삭제) · 개인정보 처리방침(표준 13개 조항, 가입 시 [필수] 동의)
+- 🔔 알림(내 정보 › 알림): 마지막 학습 24시간 뒤 '오늘도 짧게 영어단어 하나 배워볼까요?'(오전 8시~밤 9시), 관리자 가족은 새 수정요청 알림. 아이폰은 홈 화면에 추가한 폴디에서만 받을 수 있음
+- 가족 초대하기(내 정보): 링크와 '카톡이면 다른 브라우저로·아이폰 사파리/안드로이드 크롬으로 열기·홈 화면에 추가' 안내가 든 글을 보내거나 복사. 카톡 등 앱 안 브라우저로 열리면 아래에 '사파리/크롬으로 열기' 안내가 뜸
+- 🎤 발음 퀴즈는 아이폰에선 사파리가 기본: 홈 화면 앱·카톡·크롬에서 누르면 사파리로 넘기고(한 번 쓰는 3분짜리 코드로 로그인 이어받기) 거기서 실행. 안드로이드 앱 안 브라우저는 크롬으로
+- 📴 오프라인: 서비스워커가 화면·코드·발음 파일·글꼴을 저장, 마지막으로 받은 구성원·단어·오늘 기록을 기기에 보관 → 인터넷 없이도 열고 공부, 푼 답은 연결되면 자동 저장
+
 **2차**
 - 레벨 6단계 + 레벨 진단(레벨별 5단어 중 4개 이상 알면 다음 단계)
   - 기준: 2022 개정 영어과 교육과정 [별표 3] 기본 어휘 3,000개
@@ -70,14 +78,16 @@
 
 | 이름 | 필수 | 설명 |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | AI 기능에 필요 | 없으면 사진 읽기·유의어/반의어·예문·연관 추천·AI 재채점이 꺼지고 나머지는 정상 동작 |
+| `GEMINI_API_KEY` | 권장(무료) | 구글 Gemini 무료 키(aistudio.google.com) — 넣으면 사진 읽기·뜻 판정·예문·추천을 무료 AI가 먼저 하고, 실패할 때만 Claude |
+| `FOLDY_DAILY_TEXT` / `FOLDY_DAILY_VISION` | 선택 | 가족별 하루 Claude 사용 한도(기본 150 / 사진 20). 넘으면 '오늘 AI 사용량을 다 썼어요' |
+| `ANTHROPIC_API_KEY` | 대체용 | 없으면 사진 읽기·유의어/반의어·예문·연관 추천·AI 재채점이 꺼지고 나머지는 정상 동작 |
 | `FOLDY_MODEL_VISION` | 선택 | 사진 읽기 모델(기본 `claude-sonnet-5-5`) |
 | `FOLDY_MODEL_TEXT` | 선택 | 글자 작업의 Claude 모델(기본 `claude-haiku-5-5`) |
 | `FREE_LLM_BASE_URL` | 선택 | 무료 LLM의 OpenAI 호환 주소(예: `https://…/v1`). 넣으면 유의어·예문·채점·추천을 무료 LLM이 먼저 처리하고, 실패하거나 형식이 깨지면 Claude가 대신함 |
 | `FREE_LLM_API_KEY` | 선택 | 위 주소의 API 키 |
 | `FREE_LLM_MODEL` | 선택 | 모델 이름(기본 `auto`) |
 
-사진 읽기는 이미지 인식이 필요해 항상 Claude를 씁니다.
+사진 읽기는 Gemini(무료)가 먼저, 안 되면 Claude가 합니다.
 ※ 맥에서 돌리는 FreeLLMAPI(`localhost:3001`)는 Vercel 서버가 접근할 수 없습니다. 인터넷에서 닿는 주소(배포한 FreeLLMAPI, OpenRouter·Groq 등 무료 키)를 넣어야 합니다.
 
 Supabase 주소·공개 키는 코드에 기본값이 들어 있습니다(공개용 키, RLS로 보호).
@@ -93,12 +103,13 @@ npx vercel dev       # AI 경로까지 (Vercel CLI 로그인 + ANTHROPIC_API_KEY
 ## 테스트
 
 ```bash
-npm test                                   # 단위 테스트 103개(채점·상태·복습·정렬·레벨·입력검증·AI 경로 보호)
+npm test                                   # 단위 테스트 109개(채점·상태·복습·정렬·레벨·입력검증·AI 경로 보호)
 npm run build && npx vite preview --port 4173 &
 BASE=http://localhost:4173 node tests/e2e.mjs   # 브라우저 자동 점검 52개(390px)
 BASE=http://localhost:4173 node tests/e2e-retry.mjs  # '한 번 더'·오늘의 단어 반복·오늘 복습 13개(느린 인터넷 흉내)
 BASE=http://localhost:4173 node tests/e2e-intro.mjs   # 소개 슬라이드 14개
-BASE=http://localhost:4173 node tests/linebreak.mjs    # 줄바꿈 점검(360·390px, 화면 29종): 단어 중간 잘림·…잘림·넘침·외톨이 줄
+BASE=http://localhost:4173 node tests/e2e-account.mjs  # 동의·복구 코드·비밀번호 찾기·구성원 비밀번호 초기화·오프라인·탈퇴 20개
+BASE=http://localhost:4173 node tests/linebreak.mjs    # 줄바꿈 점검(360·390px, 화면 36종 + 카톡 안 브라우저): 단어 중간 잘림·…잘림·넘침·외톨이 줄
 PHASE=a FID=e2e_fbxx node tests/e2e-feedback.mjs   # 수정요청 접수 10개 → SQL로 그 가족을 foldy_admins에 넣고
 PHASE=b FID=e2e_fbxx node tests/e2e-feedback.mjs   # 관리자 처리·답장 11개 (끝나면 foldy_admins에서 다시 빼기)
 ```
@@ -112,13 +123,15 @@ src/lib/        grading 채점 · study 상태·복습·정렬·입력검증 · 
 src/pages/      Auth Profiles Home Wordbook AddWords Study Quiz WrongNote Expand Me LevelTest
 src/components/ ui.jsx (캐릭터 블롭, ○△✕ 표시, 하단 메뉴 등)
 src/data/       levels.json (기본 어휘 3,000개 레벨 분류)
-supabase/       001_init.sql, 002_login_lock.sql, 003_member_pin.sql, 004_feedback.sql (모두 적용 완료)
+supabase/       001_init.sql, 002_login_lock.sql, 003_member_pin.sql, 004_feedback.sql, 005_account_push_ai.sql (모두 적용 완료) · Edge Function foldy-push
 tests/          logic·api 단위 테스트, e2e.mjs 브라우저 점검
 ```
 
 ## 알려진 한계
 - 발음 인식은 브라우저 기능이라 기기마다 정확도가 다름. 아이폰은 사파리에서, 홈 화면 앱 모드에서는 동작하지 않을 수 있음. 점수는 '알아들은 말'과의 유사도라 음소 단위 채점은 아님
 - 마이크 고르기는 크롬 최신판만 인식에 반영되고, 다른 브라우저는 기기 기본 마이크를 씀
+- 알림 실제 도착은 기기에서 확인 필요(자동 점검은 발송 경로·실패 처리까지만). 아이폰은 iOS 16.4 이상·홈 화면 앱에서만
+- 사파리로 넘기기(x-safari- 주소)는 iOS 17 이상에서 동작, 그보다 낮으면 안내대로 사파리에서 직접 열기
 - 기기 글자인식(대체용)은 AI보다 정확도가 낮고 처음 한 번 언어 데이터(약 10MB)를 내려받음
 - 예문 "관련 이미지"는 현재 장면 이모지로 표시(실사 이미지 생성은 비용 때문에 다음 단계)
 - 로그인은 같은 아이디로 15분에 10번 틀리면 잠김(그 이상의 보안 장치는 없음)

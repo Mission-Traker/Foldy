@@ -56,9 +56,10 @@ export function MemberForm({ onDone, onCancel }) {
 }
 
 export default function Profiles() {
-  const { members, setMember, session, setSession } = useApp()
+  const { members, setMembers, setMember, session, setSession } = useApp()
   const [adding, setAdding] = useState(false)
   const [locked, setLocked] = useState(null)
+  const [forgot, setForgot] = useState(null)
   function choose(m) {
     if (m.has_pin && !db.hasMemberToken(m.id)) return setLocked(m)
     setMember(m)
@@ -90,8 +91,39 @@ export default function Profiles() {
       {locked && (
         <PinPad title={`${locked.name}의 비밀번호`} sub="숫자 4~6자리" avatar={locked.avatar}
           onCancel={() => setLocked(null)}
-          onSubmit={async (pin) => { await db.unlockMember(locked.id, pin); const m = locked; setLocked(null); setMember(m) }} />
+          onSubmit={async (pin) => { await db.unlockMember(locked.id, pin); const m = locked; setLocked(null); setMember(m) }}
+          footer={<button type="button" className="mt-3 w-full text-sm text-slate underline" onClick={() => { setForgot(locked); setLocked(null) }}>비밀번호를 잊었어요</button>} />
       )}
+      {forgot && <ResetPin m={forgot} onClose={() => setForgot(null)}
+        onDone={() => { const m = { ...forgot, has_pin: false }; setMembers((ms) => ms.map((x) => (x.id === m.id ? m : x))); setForgot(null); setMember(m) }} />}
+    </div>
+  )
+}
+
+// 구성원 비밀번호를 잊었을 때: 가족 비밀번호로 없애기
+function ResetPin({ m, onClose, onDone }) {
+  const [pw, setPw] = useState('')
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  async function submit(e) {
+    e.preventDefault(); setErr('')
+    if (!pw) return setErr('가족 비밀번호를 적어 주세요')
+    setBusy(true)
+    try { await db.resetMemberPin(m.id, pw); onDone() } catch (e2) { setErr(e2.message); setBusy(false) }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30 sm:items-center" onClick={onClose}>
+      <form onSubmit={submit} className="safe-b w-full max-w-sm space-y-3 rounded-t-3xl bg-paper p-5 sm:rounded-3xl" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="구성원 비밀번호 초기화">
+        <div className="flex flex-col items-center text-center">
+          <Blob i={m.avatar} size={56} />
+          <h3 className="h-title mt-1 text-xl">{m.name}의 비밀번호 없애기</h3>
+          <p className="text-sm text-soft">가족 비밀번호를 넣으면 {m.name}의 숫자 비밀번호가 없어져요. 들어간 뒤 내 정보에서 새로 정할 수 있어요.</p>
+        </div>
+        <div><label className="label" htmlFor="rp-pw">가족 비밀번호</label><input id="rp-pw" className="field" type="password" value={pw} onChange={(e) => setPw(e.target.value)} maxLength={64} autoFocus /></div>
+        {err && <p className="wiggle text-sm text-coral">{err}</p>}
+        <button className="btn-main w-full" disabled={busy}>{busy ? '잠시만요…' : '비밀번호 없애고 들어가기'}</button>
+        <button type="button" className="w-full text-sm text-soft" onClick={onClose}>취소</button>
+      </form>
     </div>
   )
 }

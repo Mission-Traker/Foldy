@@ -1,0 +1,14 @@
+-- 2026-10-16 적용 완료(MCP execute_sql로 나눠 실행). 여기에는 무엇이 생겼는지 기록만 남김.
+-- [비밀번호 찾기·탈퇴] foldy_families.recovery_hash/recovery_at
+--   foldy_recovery_new() 복구 코드(XXXX-XXXX-XXXX, 해시 저장) · foldy_recovery_status()
+--   foldy_reset_password(login, code, new) 15분에 5번 틀리면 잠김, 성공하면 코드 폐기·모든 기기 로그아웃
+--   foldy_change_password(old, new) · foldy_reset_member_pin(member, family_pw) · foldy_delete_family(pw) (모든 표 on delete cascade)
+-- [사파리로 넘기기] foldy_handoffs(code, family, member, member_unlocked, 3분) · foldy_handoff_create(member) · foldy_handoff_redeem(code) 한 번만
+-- [AI 한도] foldy_ai_usage(family, day, kind, n) · foldy_ai_take(kind, limit) · foldy_ai_today()
+-- [알림] pg_net, pg_cron 켬
+--   foldy_push_subs(endpoint pk, family, member, p256dh, auth, fail_count) RLS 정책 없음 → foldy_push_subscribe/unsubscribe 함수로만
+--   foldy_members.last_study_at/last_reminded_at · 트리거 foldy_daily_touch(오늘 기록이 바뀌면 last_study_at=now())
+--   vault: foldy_vapid_private, foldy_push_secret · foldy_secret(name) service_role 전용
+--   foldy_push_call(body) → Edge Function foldy-push (anon 실행 불가)
+--   트리거 foldy_feedback_notify(수정요청 → 관리자 알림) · cron 'foldy-remind' 매시 7분(24시간 학습 알림)
+-- [정리] foldy_cleanup() cron 'foldy-cleanup' 매일 03:33 KST: 로그인 실패 30일·만료 토큰·handoff·AI 사용 90일

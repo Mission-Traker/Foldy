@@ -26,7 +26,7 @@ export default async function handler(req, res) {
     const query = String(q || '').trim().slice(0, 30)
     if (!query) return send(res, 400, { error: '검색어가 없어요' })
     const isKo = /[ㄱ-ㆎ가-힣]/.test(query)
-    const { text } = await textLLM({
+    const { text } = await textLLM({ req,
       check: (t) => parseLookup(t).length > 0,
       maxTokens: 300,
       system:
@@ -38,6 +38,6 @@ export default async function handler(req, res) {
     })
     send(res, 200, { items: parseLookup(text) })
   } catch (e) {
-    send(res, 500, { error: '단어를 찾지 못했어요: ' + e.message })
+    send(res, e.code === 'LIMIT' ? 429 : 500, { error: e.code === 'LIMIT' ? e.message : '단어를 찾지 못했어요: ' + e.message, code: e.code })
   }
 }

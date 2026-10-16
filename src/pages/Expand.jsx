@@ -5,6 +5,7 @@ import { gradeMeaning, speechScore, SPEECH_PASS } from '../lib/grading.js'
 import { expandStage, shuffle } from '../lib/study.js'
 import { canListen, listenOnce, speak } from '../lib/speech.js'
 import { Blob, Empty, Header, Reaction, FitWord } from '../components/ui.jsx'
+import { isIOS, pronHereOK } from '../lib/browser.js'
 import * as sfx from '../lib/sfx.js'
 import { savedMic } from '../lib/mic.js'
 
@@ -88,7 +89,7 @@ export default function Expand() {
   }
 
   async function practice() {
-    if (!canListen()) return showToast('이 브라우저는 음성 인식을 지원하지 않아요')
+    if (!pronHereOK(canListen())) return showToast(`발음 연습은 ${isIOS() ? '사파리' : '크롬'}에서 돼요 — 학습 › 발음하기에서 열어 주세요`)
     try {
       const alts = await listenOnce({ deviceId: savedMic() })
       { const sc = speechScore(alts, d.word); setHeard(sc >= SPEECH_PASS ? `👍 ${Math.round(sc * 100)}%! “${alts[0]?.t}”` : `“${alts[0]?.t || '잘 안 들렸어요'}” ${Math.round(sc * 100)}% — 한 번 더!`) }

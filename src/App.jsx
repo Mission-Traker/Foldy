@@ -5,6 +5,7 @@ import { enrichPending } from './lib/enrich.js'
 import { enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, ymd } from './lib/study.js'
 import { BottomNav, Confetti, Toast } from './components/ui.jsx'
 import { fanfare } from './lib/sfx.js'
+import { cacheGet, cacheSet, isNetErr, outboxAdd, outboxFlush, outboxSize } from './lib/offline.js'
 import Auth from './pages/Auth.jsx'
 import Profiles from './pages/Profiles.jsx'
 import Home from './pages/Home.jsx'
@@ -19,6 +20,7 @@ import LevelTest from './pages/LevelTest.jsx'
 import Family from './pages/Family.jsx'
 import Admin from './pages/Admin.jsx'
 import Intro, { introSeen } from './components/Intro.jsx'
+import InAppBanner from './components/InAppBanner.jsx'
 import ProfileSheet from './components/ProfileSheet.jsx'
 
 const Ctx = createContext(null)
@@ -48,10 +50,32 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToastMsg(''), 2200)
   }, [])
 
+  // 사파리로 넘어온 경우: 한 번 쓰는 코드로 로그인 이어받기(#/handoff?c=…&to=/quiz/sp)
+  const handoffTo = useRef(null)
+  useEffect(() => {
+    const m = window.location.hash.match(/^#\/handoff\?(.*)$/)
+    if (!m) return
+    const p = new URLSearchParams(m[1])
+    window.history.replaceState(null, '', '#/')
+    try { localStorage.setItem('foldy.introSeen', '1') } catch { /* */ }
+    setIntroOpen(false)
+    db.handoffRedeem(p.get('c') || '')
+      .then(() => { handoffTo.current = p.get('to') || '/'; setSession(db.getSession()) })
+      .catch((e) => showToast(e.message))
+  }, [showToast])
+  useEffect(() => {
+    if (member && handoffTo.current) { const to = handoffTo.current; handoffTo.current = null; navTo(to) }
+  }, [member, navTo])
+
   // 로그인 후 구성원 불러오기
   useEffect(() => {
     if (!session) return
-    db.listMembers().then((ms) => {
+    db.listMembers().catch((e) => {
+      // 인터넷이 없으면 마지막으로 받은 구성원으로
+      const c = isNetErr(e) && cacheGet('members:' + session.family_id)
+      if (c) return c
+      throw e
+    }).then((ms) => {
       setMembers(ms)
       const saved = db.savedMemberId()
       const m = ms.find((x) => x.id === saved)
@@ -66,8 +90,17 @@ export default function App() {
   useEffect(() => {
     if (!member) return
     setLoading(true)
-    Promise.all([db.listWords(member.id), db.getDaily(member.id, ymd())])
-      .then(([ws, d]) => { dailyRef.current = d; setWords(ws); setDaily(d); setLoadedFor(member.id) })
+    const id = member.id
+    Promise.all([db.listWords(id), db.getDaily(id, ymd())])
+      .catch((e) => {
+        // 인터넷이 없으면 이 기기에 저장해 둔 단어로 공부(푼 답은 연결되면 보냄)
+        const ws = isNetErr(e) && cacheGet('words:' + id)
+        if (!ws) throw e
+        const d = cacheGet('daily:' + id)
+        showToast('오프라인이에요 · 저장해 둔 단어로 공부해요')
+        return [ws, d && d.day === ymd() ? d : null]
+      })
+      .then(([ws, d]) => { dailyRef.current = d; setWords(ws); setDaily(d); setLoadedFor(id) })
       .catch((e) => showToast(e.message))
       .finally(() => setLoading(false))
   }, [member?.id, showToast])
@@ -96,6 +129,25 @@ export default function App() {
     runEnrich(words)
   }, [member, loadedFor, words, runEnrich])
 
+  // 오프라인 대비: 구성원·받은 단어·오늘 기록을 기기에 보관
+  useEffect(() => { if (session && members.length) cacheSet('members:' + session.family_id, members) }, [members, session])
+  useEffect(() => { if (member && loadedFor === member.id) { const t = setTimeout(() => cacheSet('words:' + member.id, words), 400); return () => clearTimeout(t) } }, [words, member, loadedFor])
+  useEffect(() => { if (member && daily) cacheSet('daily:' + member.id, daily) }, [daily, member])
+  // 인터넷이 돌아오면 모아 둔 답을 보냄
+  const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false)
+  const flushOutbox = useCallback(async () => {
+    if (!outboxSize()) return
+    const ok = await outboxFlush((kind, id, patch) => (kind === 'daily' ? db.upsertDaily(patch) : db.updateWord(id, patch)))
+    if (ok) showToast('오프라인에서 푼 기록을 저장했어요')
+  }, [showToast])
+  useEffect(() => {
+    const on = () => { setOnline(true); flushOutbox() }
+    const off = () => setOnline(false)
+    window.addEventListener('online', on); window.addEventListener('offline', off)
+    if (session) flushOutbox()
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
+  }, [session, flushOutbox])
+
   // 화면을 닫거나 다른 앱으로 갈 때 줄 서 있던 저장을 바로 보냄
   useEffect(() => {
     const flush = () => flushQueued()
@@ -114,6 +166,7 @@ export default function App() {
       // 그사이 더 새로 바뀐 칸은 덮어쓰지 않음
       setWords((ws) => ws.map((w) => (w.id === id ? mergePatchResult(w, saved, tracker.current.fresh(id, ticket)) : w)))
     } catch (e) {
+      if (isNetErr(e)) { outboxAdd('word', id, patch); return } // 연결되면 보냄
       showToast('저장 실패: ' + e.message)
       // 잠금 해제가 만료된 경우: 다시 비밀번호를 받도록 프로필 선택으로
       if (/잠겨/.test(e.message) && member) { db.forgetMemberToken(member.id); db.saveMemberId(null); setMember(null) }
@@ -151,7 +204,7 @@ export default function App() {
     const next = { ...base, ...change }
     dailyRef.current = next
     setDaily(next)
-    enqueue('daily:' + member.id, () => db.upsertDaily(next)).catch(() => { /* 다음 저장 때 같이 감 */ })
+    enqueue('daily:' + member.id, () => db.upsertDaily(next)).catch((e) => { if (isNetErr(e)) outboxAdd('daily', member.id, next) })
     return next
   }, [member])
 
@@ -199,6 +252,7 @@ export default function App() {
   return (
     <Ctx.Provider value={value}>
       <Confetti />
+      {!online && <div className="fixed inset-x-0 top-0 z-[55] bg-slate-deep py-1 text-center font-jua text-xs text-white">오프라인이에요 · 푼 답은 연결되면 저장돼요</div>}
       {introOpen && <Intro onDone={() => setIntroOpen(false)} />}
       <div className="mx-auto min-h-screen max-w-md px-4 pb-28">
         {!session ? (
@@ -224,6 +278,7 @@ export default function App() {
       </div>
       {session && member && !fullScreen && <BottomNav wrongCount={wrongCount} />}
       {profileOpen && member && <ProfileSheet onClose={() => setProfileOpen(false)} />}
+      <InAppBanner />
       <Toast msg={toast} />
     </Ctx.Provider>
   )

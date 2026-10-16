@@ -5,6 +5,7 @@ import * as db from '../lib/db.js'
 import { gradeMeaning, gradeSpelling, speechScore, SPEECH_PASS } from '../lib/grading.js'
 import { applyAnswer, applyReview, MODE_FIELD, MODE_LABEL, nextCandidates, reviewQueue, sendToWrongNote, shuffle, statusOf, todayQueue, ymd } from '../lib/study.js'
 import { canListen, listenOnce, speak } from '../lib/speech.js'
+import { isIOS, openOutside, pronHereOK } from '../lib/browser.js'
 import { Blob, Empty, Header, Reaction, FitWord } from '../components/ui.jsx'
 import * as sfx from '../lib/sfx.js'
 import MicPicker from '../components/MicPicker.jsx'
@@ -39,12 +40,16 @@ export default function Quiz() {
   const [queue, setQueue] = useState(null)
   const [setIds, setSetIds] = useState([])
   const [round, setRound] = useState(1)
+  const [here, setHere] = useState(false)
   const seenToday = () => (daily && daily.day === ymd() ? daily.seen_ids || [] : [])
   useEffect(() => {
     if (!ready || queue) return
     const ids = ensureTodaySet()
     setSetIds(ids)
-    setQueue(buildQueue(words, mode, src, params.get('ids')?.split(',').filter(Boolean), ids, seenToday()))
+    let q = buildQueue(words, mode, src, params.get('ids')?.split(',').filter(Boolean), ids, seenToday())
+    // 발음 인식이 안 되는 곳(아이폰 홈 화면 앱·카톡 등)에서는 섞인 발음 문제를 빼고, 발음 퀴즈는 사파리로 넘김
+    if (mode !== 'sp' && !pronHereOK(canListen())) q = q.filter((x) => x.mode !== 'sp')
+    setQueue(q)
   }, [ready]) // eslint-disable-line
   const [idx, setIdx] = useState(0)
   const [input, setInput] = useState('')
@@ -70,6 +75,7 @@ export default function Quiz() {
   }, [idx, queue])
 
   if (!queue) return <p className="py-20 text-center text-soft">불러오는 중…</p>
+  if (mode === 'sp' && !here && !pronHereOK(canListen())) return <PronElsewhere memberId={member?.id} onHere={canListen() ? () => setHere(true) : null} showToast={showToast} />
   if (!['ko', 'en', 'sp', 'review', 'focus'].includes(mode)) return <Empty title="없는 퀴즈예요"><Link to="/study" className="btn-main mt-2">돌아가기</Link></Empty>
 
   const practiceRound = ['ko', 'en', 'sp'].includes(mode) && queue[0]?.practice
@@ -330,6 +336,32 @@ export default function Quiz() {
         </div>
       )}
       {pron && <PronSheet word={w.word} heard={res?.heard} score={res?.score} onClose={() => setPron(false)} />}
+    </div>
+  )
+}
+
+// 발음 퀴즈는 아이폰에선 사파리, 그 밖엔 크롬 등 음성 인식이 되는 브라우저에서 — 로그인은 한 번 쓰는 코드로 이어받음
+function PronElsewhere({ memberId, onHere, showToast }) {
+  const [busy, setBusy] = useState(false)
+  const where = isIOS() ? '사파리' : '크롬'
+  async function go() {
+    setBusy(true)
+    try {
+      const code = await db.handoffCreate(memberId)
+      openOutside(`${window.location.origin}/#/handoff?c=${code}&to=${encodeURIComponent('/quiz/sp')}`)
+    } catch (e) { showToast(e.message) } finally { setTimeout(() => setBusy(false), 1500) }
+  }
+  return (
+    <div>
+      <Header noProfile title="발음" back />
+      <div className="card flex flex-col items-center gap-3 px-6 py-8 text-center">
+        <span className="text-5xl">🎤</span>
+        <p className="font-jua text-xl text-slate-deep">발음 퀴즈는 {where}에서 열려요</p>
+        <p className="text-sm leading-relaxed text-soft">{isIOS() ? '아이폰은 홈 화면 앱·카카오톡·다른 브라우저에서 마이크 인식이 잘 안 돼서, 발음 퀴즈만 사파리로 열어요.' : '지금 브라우저에서는 마이크 인식이 안 돼서 크롬으로 열어요.'} 로그인은 그대로 이어져요.</p>
+        <button className="btn-main w-full" disabled={busy} onClick={go}>{busy ? '여는 중…' : `${where}로 열어서 하기`}</button>
+        <p className="text-xs text-soft">안 열리면 {where}에서 foldy-lake.vercel.app 을 직접 열어 주세요.</p>
+        {onHere && <button className="text-sm text-slate underline" onClick={onHere}>그래도 여기서 해 보기</button>}
+      </div>
     </div>
   )
 }

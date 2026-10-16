@@ -287,3 +287,51 @@ describe('오늘의 단어 · 반복 학습 · 오늘 복습', async () => {
     expect(S.nextStreak({ streak: 1, best_streak: 1, last_study: '2026-10-15' }, '2026-10-16')).toEqual({ streak: 2, best_streak: 2, last_study: '2026-10-16' })
   })
 })
+
+describe('오프라인 보낼 목록', async () => {
+  const store = {}
+  globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v) }, removeItem: (k) => { delete store[k] } }
+  const O = await import('../src/lib/offline.js')
+  it('같은 단어는 칸별로 합치고, 보낸 것만 지운다', async () => {
+    O.outboxAdd('word', 'w1', { ko_ok: true })
+    O.outboxAdd('word', 'w1', { attempted: true })
+    O.outboxAdd('daily', 'm1', { done: 1 })
+    O.outboxAdd('daily', 'm1', { done: 2 })
+    expect(O.outboxSize()).toBe(2)
+    const sent = []
+    await O.outboxFlush(async (kind, id, patch) => { sent.push([kind, id, patch]) })
+    expect(sent).toEqual([['word', 'w1', { ko_ok: true, attempted: true }], ['daily', 'm1', { done: 2 }]])
+    expect(O.outboxSize()).toBe(0)
+  })
+  it('인터넷 오류면 멈추고 남겨 둔다', async () => {
+    O.outboxAdd('word', 'w2', { en_ok: true })
+    const ok = await O.outboxFlush(async () => { throw new Error('인터넷 연결을 확인해 주세요') })
+    expect(ok).toBe(false)
+    expect(O.outboxSize()).toBe(1)
+  })
+})
+
+describe('브라우저 판별(발음 퀴즈는 아이폰에선 사파리)', async () => {
+  const B = await import('../src/lib/browser.js')
+  const as = (ua, standalone = false) => {
+    const nav = { userAgent: ua, maxTouchPoints: 5, standalone }
+    Object.defineProperty(globalThis, 'navigator', { value: nav, configurable: true, writable: true })
+    globalThis.window = { navigator: nav, matchMedia: () => ({ matches: standalone }) }
+  }
+  it('아이폰 사파리만 그 자리에서, 홈 화면 앱·카톡·크롬은 사파리로', () => {
+    as('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1')
+    expect(B.pronHereOK(true)).toBe(true)
+    as('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148', true)
+    expect(B.pronHereOK(true)).toBe(false)
+    as('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 KAKAOTALK 10.8.5')
+    expect(B.isKakao()).toBe(true); expect(B.pronHereOK(true)).toBe(false)
+    as('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/126.0 Mobile/15E148 Safari/604.1')
+    expect(B.pronHereOK(true)).toBe(false)
+  })
+  it('안드로이드 크롬은 그 자리에서, 카톡 안은 크롬으로', () => {
+    as('Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36')
+    expect(B.pronHereOK(true)).toBe(true)
+    as('Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36 KAKAOTALK 10.8.5')
+    expect(B.pronHereOK(true)).toBe(false)
+  })
+})

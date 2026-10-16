@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import { expandStage, MODE_FIELD, resolveTodaySet, reviewCount, statusOf, ymd } from '../lib/study.js'
 import { Empty, Header } from '../components/ui.jsx'
+import { canListen } from '../lib/speech.js'
+import { isIOS, pronHereOK } from '../lib/browser.js'
 
 const CARDS = [
   { mode: 'ko', icon: '🔤', title: '영어 보고 뜻 쓰기', desc: '비슷한 뜻이면 정답이에요', cls: 'bg-tang/15 border-tang/40' },
@@ -61,7 +63,7 @@ export default function Study() {
               <span className="text-4xl">{c.icon}</span>
               <span className="min-w-0 flex-1">
                 <b className="font-jua text-xl text-slate-deep">{c.title}</b>
-                <span className="block text-sm text-soft">{clear ? '오늘의 단어 통과! 눌러서 다시 외우기' : c.desc}</span>
+                <span className="block text-sm text-soft">{c.mode === 'sp' && !pronHereOK(canListen()) ? `${isIOS() ? '사파리' : '크롬'}에서 열려요 ↗` : clear ? '오늘의 단어 통과! 눌러서 다시 외우기' : c.desc}</span>
                 <span className="mt-1.5 block h-2 overflow-hidden rounded-full bg-white/70">
                   <span className="block h-full rounded-full bg-sage transition-all" style={{ width: `${setWords.length ? (done / setWords.length) * 100 : 0}%` }} />
                 </span>
