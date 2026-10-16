@@ -88,7 +88,9 @@ export default function App() {
     }).then((ms) => {
       setMembers(ms)
       const saved = db.savedMemberId()
-      const m = ms.find((x) => x.id === saved)
+      const found = ms.find((x) => x.id === saved)
+      // 다른 기기에서 숫자 비밀번호가 걸렸는데 이 기기는 아직 안 열었으면: 프로필 고르기(비밀번호 입력)로
+      const m = found && found.has_pin && !db.hasMemberToken(found.id) ? null : found
       // 같은 사람이면 새 정보만 덮고(단어를 다시 불러오지 않게), 없어진 사람이면 프로필 고르기로
       setMember((cur) => (m ? (cur && cur.id === m.id ? { ...cur, ...m } : m) : null))
       setMembersReady(true)
