@@ -161,7 +161,7 @@ export default function Home() {
         </ul>
       </section>
       {aiState === 'nokey' && (
-        <p className="mt-3 text-center text-xs text-soft">AI 키가 아직 연결되지 않아 사진 읽기·유의어·예문 기능이 잠시 꺼져 있어요.</p>
+        <p className="mt-3 text-center text-xs text-soft">AI 기능을 준비하고 있어서 사진 읽기·유의어·예문이 잠시 꺼져 있어요.</p>
       )}
     </div>
   )

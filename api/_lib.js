@@ -75,8 +75,24 @@ async function freeChat({ system, text, maxTokens, image, mediaType }) {
   return out
 }
 
-// 가족별 하루 Claude 사용 한도(유료). 무료 AI는 한도 없이 먼저 씀
+// 유료 AI(Claude)는 관리자가 정한 가족(foldy_families.ai_paid)만 — 다른 가족은 무료 AI만 씀
+async function isPaidFamily(req) {
+  const token = req?.headers?.['x-foldy-token']
+  if (!token) return false
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/foldy_ai_paid`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json', 'x-foldy-token': token },
+      body: '{}',
+    })
+    return r.ok && (await r.json()) === true
+  } catch { return false }
+}
+const usesClaude = (req) => !!req?.foldyPaid && hasKey()
+
+// 유료 가족의 하루 Claude 사용 한도
 export const LIMITS = { text: Number(process.env.FOLDY_DAILY_TEXT || 150), vision: Number(process.env.FOLDY_DAILY_VISION || 20) }
+export class FreeOnlyError extends Error { constructor() { super('AI 기능을 준비하고 있어요. 조금만 기다려 주세요'); this.code = 'NO_KEY' } }
 export class LimitError extends Error { constructor() { super('오늘 AI 사용량을 다 썼어요. 내일 다시 쓸 수 있어요'); this.code = 'LIMIT' } }
 async function takeQuota(req, kind) {
   const token = req?.headers?.['x-foldy-token']
@@ -99,39 +115,53 @@ async function paidClaude(req, kind, opts) {
 // 글자만 다루는 작업: 무료 LLM을 먼저 쓰고, 실패하면 Claude로 대신함
 // check(text)가 false면(형식이 깨진 응답) 역시 Claude로 다시 시도
 export async function textLLM({ system, text, maxTokens = 2000, check = () => true, req }) {
-  if (hasFree()) {
+  if (usesClaude(req)) {
+    // 유료 가족: Claude 먼저(품질), 한도·오류면 무료 AI로
     try {
-      const out = await freeChat({ system, text, maxTokens })
-      if (check(out)) return { text: out, via: 'free' }
+      let out = await paidClaude(req, 'text', { model: MODEL_TEXT, system, content: [{ type: 'text', text }], maxTokens })
+      if (!check(out)) out = await paidClaude(req, 'text', { model: MODEL_TEXT, system: system + '\n\n반드시 요청한 형식만 정확히 출력하라. 문자열 안의 큰따옴표는 쓰지 말고 작은따옴표를 써라.', content: [{ type: 'text', text }], maxTokens })
+      if (check(out)) return { text: out, via: 'claude' }
     } catch (e) {
-      if (!hasKey()) throw e
+      if (!hasFree()) throw e
+      var claudeErr = e
     }
+    let out
+    try { out = await freeChat({ system, text, maxTokens }) } catch (e) { throw claudeErr || e }
+    if (!check(out)) throw new Error('AI 응답 형식이 맞지 않아요. 다시 해 주세요')
+    return { text: out, via: 'free' }
   }
-  if (!hasKey()) throw new Error('무료 AI 응답 형식이 맞지 않아요. 다시 해 주세요')
-  let out = await paidClaude(req, 'text', { model: MODEL_TEXT, system, content: [{ type: 'text', text }], maxTokens })
-  if (!check(out)) {
-    // 형식이 깨졌으면 한 번 더(형식을 강조해서)
-    out = await paidClaude(req, 'text', { model: MODEL_TEXT, system: system + '\n\n반드시 요청한 형식만 정확히 출력하라. 문자열 안의 큰따옴표는 쓰지 말고 작은따옴표를 써라.', content: [{ type: 'text', text }], maxTokens })
+  // 그 밖의 가족: 무료 AI만
+  if (!hasFree()) throw new FreeOnlyError()
+  for (let i = 0; i < 2; i++) {
+    const out = await freeChat({ system: i ? system + '\n\n반드시 요청한 형식만 정확히 출력하라.' : system, text, maxTokens })
+    if (check(out)) return { text: out, via: 'free' }
   }
-  return { text: out, via: 'claude' }
+  throw new Error('AI 응답 형식이 맞지 않아요. 다시 해 주세요')
 }
 
 // 사진 읽기: 사진도 되는 무료 AI(Gemini 등)를 먼저, 안 되면 Claude
 export async function visionLLM({ system, text, image, mediaType, maxTokens = 8000, check = () => true, req }) {
-  if (hasFreeVision()) {
-    try {
-      const out = await freeChat({ system, text, maxTokens, image, mediaType })
-      if (check(out)) return { text: out, via: 'free' }
-    } catch (e) {
-      if (!hasKey()) throw e
-    }
-  }
-  if (!hasKey()) throw new Error('무료 AI가 사진을 읽지 못했어요. 다시 해 주세요')
-  const out = await paidClaude(req, 'vision', {
+  const claudeVision = () => paidClaude(req, 'vision', {
     model: MODEL_VISION, maxTokens, system,
     content: [{ type: 'image', source: { type: 'base64', media_type: mediaType, data: image } }, { type: 'text', text }],
   })
-  return { text: out, via: 'claude' }
+  if (usesClaude(req)) {
+    try {
+      const out = await claudeVision()
+      if (check(out)) return { text: out, via: 'claude' }
+    } catch (e) {
+      if (!hasFreeVision()) throw e
+      var claudeErr = e
+    }
+    let out
+    try { out = await freeChat({ system, text, maxTokens, image, mediaType }) } catch (e) { throw claudeErr || e }
+    if (!check(out)) throw new Error('사진을 읽지 못했어요. 다시 해 주세요')
+    return { text: out, via: 'free' }
+  }
+  if (!hasFreeVision()) throw new FreeOnlyError()
+  const out = await freeChat({ system, text, maxTokens, image, mediaType })
+  if (!check(out)) throw new Error('무료 AI가 사진을 읽지 못했어요. 다시 해 주세요')
+  return { text: out, via: 'free' }
 }
 
 export function canParse(t) {
@@ -174,7 +204,9 @@ export async function guard(req, res, { needVision = false } = {}) {
   if (req.method !== 'POST') { send(res, 405, { error: 'POST만 가능해요' }); return false }
   const fam = await requireFamily(req)
   if (!fam) { send(res, 401, { error: '로그인이 필요해요' }); return false }
-  const ok = needVision ? hasKey() || hasFreeVision() : hasKey() || hasFree()
-  if (!ok) { send(res, 503, { error: 'AI 키가 아직 설정되지 않았어요', code: 'NO_KEY' }); return false }
+  req.foldyPaid = await isPaidFamily(req)
+  const free = needVision ? hasFreeVision() : hasFree()
+  const ok = free || (req.foldyPaid && hasKey())
+  if (!ok) { send(res, 503, { error: 'AI 기능을 준비하고 있어요', code: 'NO_KEY' }); return false }
   return true
 }

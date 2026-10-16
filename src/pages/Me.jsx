@@ -122,7 +122,7 @@ export default function Me() {
       <AccountSection session={session} showToast={showToast} openPrivacy={() => setPrivacy(true)}
         onLeft={() => { setSession(null); setMember(null); showToast('탈퇴했어요. 그동안 고마웠어요') }} />
 
-      {aiState === 'nokey' && <p className="mb-3 text-center text-xs text-coral">AI 키(ANTHROPIC_API_KEY)가 아직 연결되지 않았어요.</p>}
+      {aiState === 'nokey' && <p className="mb-3 text-center text-xs text-coral">AI 기능을 준비하고 있어요. 조금만 기다려 주세요.</p>}
       <button className="btn-ghost w-full" onClick={async () => { await db.logout(); setSession(null); setMember(null) }}>로그아웃</button>
       <button className="mt-3 w-full text-center font-jua text-sm text-slate underline" onClick={openIntro}>폴디 소개 다시 보기</button>
       {privacy && <PrivacySheet onClose={() => setPrivacy(false)} />}

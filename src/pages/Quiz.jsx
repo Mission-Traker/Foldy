@@ -237,7 +237,7 @@ export default function Quiz() {
         setRes((x) => ({ ...x, judgedNo: r.reason || 'AI도 다른 뜻으로 봤어요' }))
       }
     } catch (err) {
-      showToast(err.code === 'NO_KEY' ? 'AI 키가 연결되면 쓸 수 있어요' : err.message)
+      showToast(err.code === 'NO_KEY' ? 'AI 기능을 준비하고 있어요' : err.message)
     } finally { setJudging(false) }
   }
 

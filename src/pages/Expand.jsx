@@ -44,7 +44,7 @@ export default function Expand() {
     return (
       <div>
         <Header title="확장 학습" back />
-        <Empty title="지금 확장할 단어가 없어요" desc={waiting ? (aiState === 'nokey' ? 'AI 키가 연결되면 유의어·반의어가 만들어져요' : `유의어·반의어를 준비 중인 단어 ${waiting}개`) : '세 가지 퀴즈를 모두 맞혀 ○를 받은 단어가 여기로 와요'} i={1}>
+        <Empty title="지금 확장할 단어가 없어요" desc={waiting ? (aiState === 'nokey' ? 'AI 기능이 준비되면 유의어·반의어가 만들어져요' : `유의어·반의어를 준비 중인 단어 ${waiting}개`) : '세 가지 퀴즈를 모두 맞혀 ○를 받은 단어가 여기로 와요'} i={1}>
           <Link to="/study" className="btn-main mt-2">학습으로</Link>
         </Empty>
       </div>

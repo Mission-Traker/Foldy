@@ -7,6 +7,8 @@ function mockRes() {
   res.end = (b) => { res.body = b }
   return res
 }
+// 가족 확인 응답: paid=true면 '유료 AI를 쓰는 가족'(foldy_ai_paid)
+const fam = (url, paid = false) => ({ ok: true, json: async () => (String(url).includes('foldy_ai_paid') ? paid : 'family-uuid') })
 const req = (body, token = 'tok', method = 'POST') => ({ method, headers: token ? { 'x-foldy-token': token } : {}, body })
 
 describe('AI 서버 경로 보호', () => {
@@ -29,12 +31,12 @@ describe('AI 서버 경로 보호', () => {
     expect(res.statusCode).toBe(503)
     expect(JSON.parse(res.body).code).toBe('NO_KEY')
   })
-  it('키가 있으면 Claude 응답을 정리해서 돌려줌(enrich)', async () => {
+  it('유료 가족: Claude 응답을 정리해서 돌려줌(enrich)', async () => {
     process.env.ANTHROPIC_API_KEY = 'test'
     const claudeText = '```json\n[{"word":"happy","meaning":"행복한","accepted":["기쁜","즐거운"],"syn":{"word":"glad","meaning":"기쁜"},"ant":{"word":"sad","meaning":"슬픈"},"example":{"en":"I am happy.","ko":"나는 행복해.","scene":"😊🎈"}}]\n```'
     vi.stubGlobal('fetch', vi.fn(async (url) => url.includes('anthropic')
       ? { ok: true, json: async () => ({ content: [{ type: 'text', text: claudeText }] }) }
-      : { ok: true, json: async () => 'family-uuid' }))
+      : fam(url, true)))
     const { default: h } = await import('../api/enrich.js')
     const res = mockRes(); await h(req({ words: [{ word: 'happy', meaning: '행복한' }], level: 'e1' }), res)
     expect(res.statusCode).toBe(200)
@@ -47,14 +49,14 @@ describe('AI 서버 경로 보호', () => {
     process.env.ANTHROPIC_API_KEY = 'test'
     vi.stubGlobal('fetch', vi.fn(async (url) => url.includes('anthropic')
       ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '[{"word":"apple","meaning":"사과"},{"word":"12","meaning":"x"}]' }] }) }
-      : { ok: true, json: async () => 'family-uuid' }))
+      : fam(url, true)))
     const { default: h } = await import('../api/extract.js')
     const res = mockRes(); await h(req({ image: 'AAAA', mediaType: 'image/jpeg' }), res)
     expect(JSON.parse(res.body).words).toEqual([{ word: 'apple', meaning: '사과' }])
   })
   it('사진이 없으면 400', async () => {
     process.env.ANTHROPIC_API_KEY = 'test'
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => 'family-uuid' })))
+    vi.stubGlobal('fetch', vi.fn(async (url) => fam(url, true)))
     const { default: h } = await import('../api/extract.js')
     const res = mockRes(); await h(req({}), res)
     expect(res.statusCode).toBe(400)
@@ -71,18 +73,43 @@ describe('AI 서버 경로 보호', () => {
     expect(JSON.parse(res.body).ok).toBe(true)
     expect(calls.some((u) => u.includes('anthropic'))).toBe(false)
   })
-  it('무료 LLM 응답이 깨지면 Claude로 대신', async () => {
+  it('다른 가족: 무료 AI 응답이 깨져도 Claude는 부르지 않음', async () => {
     process.env.FREE_LLM_BASE_URL = 'https://free.example/v1'
     process.env.FREE_LLM_API_KEY = 'f'
     process.env.ANTHROPIC_API_KEY = 'test'
-    vi.stubGlobal('fetch', vi.fn(async (url) => url.includes('free.example')
+    const calls = []
+    vi.stubGlobal('fetch', vi.fn(async (url) => { calls.push(url); return url.includes('free.example')
       ? { ok: true, json: async () => ({ choices: [{ message: { content: '죄송해요 모르겠어요' } }] }) }
-      : url.includes('anthropic')
-        ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '{"ok":false,"reason":"다른 뜻"}' }] }) }
-        : { ok: true, json: async () => 'family-uuid' }))
+      : url.includes('anthropic') ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '{"ok":false}' }] }) }
+      : fam(url, false) }))
+    const { default: h } = await import('../api/judge.js')
+    const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '자동차' }), res)
+    expect(res.statusCode).toBe(500)
+    expect(calls.some((u) => u.includes('anthropic'))).toBe(false)
+  })
+  it('다른 가족: Claude 키만 있고 무료 AI가 없으면 503(유료 AI 안 씀)', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test'
+    const calls = []
+    vi.stubGlobal('fetch', vi.fn(async (url) => { calls.push(url); return fam(url, false) }))
+    const { default: h } = await import('../api/judge.js')
+    const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '기쁜' }), res)
+    expect(res.statusCode).toBe(503)
+    expect(JSON.parse(res.body).code).toBe('NO_KEY')
+    expect(calls.some((u) => u.includes('anthropic'))).toBe(false)
+  })
+  it('유료 가족: 무료 AI가 있어도 Claude를 먼저 씀', async () => {
+    process.env.FREE_LLM_BASE_URL = 'https://free.example/v1'
+    process.env.FREE_LLM_API_KEY = 'f'
+    process.env.ANTHROPIC_API_KEY = 'test'
+    const calls = []
+    vi.stubGlobal('fetch', vi.fn(async (url) => { calls.push(url); return url.includes('anthropic')
+      ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '{"ok":false,"reason":"다른 뜻"}' }] }) }
+      : url.includes('free.example') ? { ok: true, json: async () => ({ choices: [{ message: { content: '{"ok":true}' } }] }) }
+      : fam(url, true) }))
     const { default: h } = await import('../api/judge.js')
     const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '자동차' }), res)
     expect(JSON.parse(res.body)).toEqual({ ok: false, reason: '다른 뜻' })
+    expect(calls.some((u) => u.includes('free.example'))).toBe(false)
   })
   it('사진 읽기는 무료 LLM만으로는 안 됨(503)', async () => {
     process.env.FREE_LLM_BASE_URL = 'https://free.example/v1'
@@ -102,7 +129,7 @@ describe('AI 서버 경로 보호', () => {
     let n = 0
     vi.stubGlobal('fetch', vi.fn(async (url) => url.includes('anthropic')
       ? { ok: true, json: async () => ({ content: [{ type: 'text', text: ++n === 1 ? '{"ok":tru' : '{"ok":true,"reason":"맞음"}' }] }) }
-      : { ok: true, json: async () => 'family-uuid' }))
+      : fam(url, true)))
     const { default: h } = await import('../api/judge.js')
     const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '기쁜' }), res)
     expect(JSON.parse(res.body).ok).toBe(true)
@@ -133,14 +160,26 @@ describe('무료 AI(Gemini)·하루 한도', () => {
     const g = calls.find((c) => c.url.includes('generativelanguage'))
     expect(g.body).toContain('data:image/png;base64,AAAA')
   })
-  it('무료 AI가 실패하면 Claude로, 한도를 넘으면 429', async () => {
+  it('유료 가족: 한도를 넘으면 무료 AI로 대신', async () => {
+    process.env.GEMINI_API_KEY = 'g'
+    process.env.ANTHROPIC_API_KEY = 'test'
+    vi.stubGlobal('fetch', vi.fn(async (url) => url.includes('generativelanguage')
+      ? { ok: true, json: async () => ({ choices: [{ message: { content: '{"ok":true,"reason":"무료"}' } }] }) }
+      : url.includes('foldy_ai_take') ? { ok: true, json: async () => false }
+      : url.includes('anthropic') ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '{"ok":false}' }] }) }
+      : fam(url, true)))
+    const { default: h } = await import('../api/judge.js')
+    const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '기분 좋은' }), res)
+    expect(JSON.parse(res.body)).toEqual({ ok: true, reason: '무료' })
+  })
+  it('유료 가족: 한도를 넘고 무료 AI도 실패하면 429', async () => {
     process.env.GEMINI_API_KEY = 'g'
     process.env.ANTHROPIC_API_KEY = 'test'
     vi.stubGlobal('fetch', vi.fn(async (url) => url.includes('generativelanguage')
       ? { ok: false, status: 429, json: async () => ({ error: { message: 'quota' } }) }
       : url.includes('foldy_ai_take') ? { ok: true, json: async () => false }
       : url.includes('anthropic') ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '{"ok":true}' }] }) }
-      : { ok: true, json: async () => 'family-uuid' }))
+      : fam(url, true)))
     const { default: h } = await import('../api/judge.js')
     const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '기분 좋은' }), res)
     expect(res.statusCode).toBe(429)

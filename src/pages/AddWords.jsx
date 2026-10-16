@@ -234,7 +234,7 @@ export default function AddWords() {
           <button className="btn-tang w-full" disabled={!!busy} onClick={() => fileRef.current?.click()}>
             {rows.length ? '📷 사진 더 올리기' : '📷 사진 찍기 / 고르기'}
           </button>
-          {aiState === 'nokey' && <p className="mt-2 text-xs text-soft">AI 키가 없으면 기기 안에서 글자를 읽어요(조금 덜 정확해요).</p>}
+          {aiState === 'nokey' && <p className="mt-2 text-xs text-soft">AI가 준비되기 전에는 기기 안에서 글자를 읽어요(조금 덜 정확해요).</p>}
           {fails.length > 0 && (
             <div className="mt-3 rounded-2xl border-2 border-coral/40 bg-coral/10 p-3 text-sm">
               <p className="mb-1 font-jua text-coral">못 읽은 사진 {fails.length}장</p>
