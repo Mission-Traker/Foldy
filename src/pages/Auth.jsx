@@ -23,7 +23,7 @@ export default function Auth({ preview = false }) {
     setErr('')
     const loginId = f.login.trim().toLowerCase()
     if (!/^[a-z0-9_]{3,30}$/.test(loginId)) return setErr('아이디는 영어 소문자·숫자·_ 로 3~30자예요')
-    if (f.pw.length < 4) return setErr('비밀번호는 4자 이상이에요')
+    if (f.pw.length < 8) return setErr('비밀번호는 8자 이상이에요')
     if (tab === 'signup' && !f.name.trim()) return setErr('가족 이름을 적어 주세요')
     if (tab === 'signup' && !agree) return setErr('개인정보 처리방침에 동의해 주세요')
     if (preview) return setErr('미리보기에서는 실제로 가입·로그인되지 않아요')
@@ -87,7 +87,7 @@ export default function Auth({ preview = false }) {
           </div>
           <div>
             <label className="label" htmlFor="pw">비밀번호</label>
-            <input id="pw" className="field" type="password" placeholder="4자 이상" value={f.pw} onChange={set('pw')} maxLength={64} />
+            <input id="pw" className="field" type="password" placeholder="8자 이상" value={f.pw} onChange={set('pw')} maxLength={64} />
           </div>
           {tab === 'signup' && (
             <label className="flex items-start gap-2 text-sm text-ink">
@@ -119,7 +119,7 @@ function Forgot({ onBack, preview }) {
     setErr('')
     if (!f.login.trim()) return setErr('가족 아이디를 적어 주세요')
     if (f.code.replace(/[^0-9A-Za-z]/g, '').length !== 12) return setErr('복구 코드 12자리를 적어 주세요')
-    if (f.pw.length < 4) return setErr('새 비밀번호는 4자 이상이에요')
+    if (f.pw.length < 8) return setErr('새 비밀번호는 8자 이상이에요')
     if (f.pw !== f.pw2) return setErr('새 비밀번호가 서로 달라요')
     if (preview) return setErr('미리보기에서는 실제로 가입·로그인되지 않아요')
     setBusy(true)
@@ -139,7 +139,7 @@ function Forgot({ onBack, preview }) {
             <p className="text-sm text-soft">가족을 만들 때 받은 <b className="text-ink">복구 코드</b>로 새 비밀번호를 정해요.</p>
             <div><label className="label" htmlFor="fg-login">가족 아이디</label><input id="fg-login" className="field" autoCapitalize="none" value={f.login} onChange={set('login')} maxLength={30} /></div>
             <div><label className="label" htmlFor="fg-code">복구 코드</label><input id="fg-code" className="field font-title tracking-widest" placeholder="XXXX-XXXX-XXXX" autoCapitalize="characters" value={f.code} onChange={set('code')} maxLength={20} /></div>
-            <div><label className="label" htmlFor="fg-pw">새 비밀번호</label><input id="fg-pw" className="field" type="password" placeholder="4자 이상" value={f.pw} onChange={set('pw')} maxLength={64} /></div>
+            <div><label className="label" htmlFor="fg-pw">새 비밀번호</label><input id="fg-pw" className="field" type="password" placeholder="8자 이상" value={f.pw} onChange={set('pw')} maxLength={64} /></div>
             <div><label className="label" htmlFor="fg-pw2">새 비밀번호 한 번 더</label><input id="fg-pw2" className="field" type="password" value={f.pw2} onChange={set('pw2')} maxLength={64} /></div>
             {err && <p className="wiggle text-sm text-coral">{err}</p>}
             <button className="btn-main w-full" disabled={busy}>{busy ? '잠시만요…' : '새 비밀번호로 바꾸기'}</button>

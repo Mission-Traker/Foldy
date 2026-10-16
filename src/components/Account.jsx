@@ -71,7 +71,7 @@ function ChangePw({ onClose, showToast }) {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
   async function submit(e) {
     e.preventDefault(); setErr('')
-    if (f.pw.length < 4) return setErr('새 비밀번호는 4자 이상이에요')
+    if (f.pw.length < 8) return setErr('새 비밀번호는 8자 이상이에요')
     if (f.pw !== f.pw2) return setErr('새 비밀번호가 서로 달라요')
     setBusy(true)
     try { await db.changePassword(f.old, f.pw); showToast('가족 비밀번호를 바꿨어요'); onClose() } catch (e2) { setErr(e2.message) } finally { setBusy(false) }
@@ -80,7 +80,7 @@ function ChangePw({ onClose, showToast }) {
     <Modal title="가족 비밀번호 바꾸기" onClose={onClose}>
       <form onSubmit={submit} className="space-y-3">
         <div><label className="label" htmlFor="cp-old">지금 비밀번호</label><input id="cp-old" className="field" type="password" value={f.old} onChange={set('old')} maxLength={64} /></div>
-        <div><label className="label" htmlFor="cp-new">새 비밀번호</label><input id="cp-new" className="field" type="password" placeholder="4자 이상" value={f.pw} onChange={set('pw')} maxLength={64} /></div>
+        <div><label className="label" htmlFor="cp-new">새 비밀번호</label><input id="cp-new" className="field" type="password" placeholder="8자 이상" value={f.pw} onChange={set('pw')} maxLength={64} /></div>
         <div><label className="label" htmlFor="cp-new2">새 비밀번호 한 번 더</label><input id="cp-new2" className="field" type="password" value={f.pw2} onChange={set('pw2')} maxLength={64} /></div>
         {err && <p className="wiggle text-sm text-coral">{err}</p>}
         <button className="btn-main w-full" disabled={busy}>{busy ? '잠시만요…' : '바꾸기'}</button>
@@ -192,7 +192,7 @@ export function inviteText(familyName, loginId) {
     '',
     '👉 열 때 꼭 확인해 주세요',
     '· 카카오톡에서 링크를 누르면 카톡 안에서 열려요. 오른쪽 아래(아이폰은 오른쪽 위) ⋯ 를 눌러 ‘다른 브라우저로 열기’를 골라 주세요.',
-    '· 아이폰은 사파리, 안드로이드는 크롬으로 열어야 발음 퀴즈의 마이크가 잘 돼요.',
+    '· 발음 자동 채점은 아이폰은 사파리, 안드로이드는 크롬에서 돼요(다른 곳에선 내 목소리로 확인해요).',
     '· 열고 나서 ‘홈 화면에 추가’를 하면 앱처럼 쓸 수 있어요.',
   ].join('\n')
 }

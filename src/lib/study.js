@@ -234,22 +234,24 @@ export class PatchTracker {
 
 // ── 오늘의 단어(하루 목표 개수만큼 고정) ──
 // 아직 ○가 아닌 단어 중: 학습 중(△) → 미학습(✕), 같은 상태면 번호 순
-export function nextCandidates(words, exclude = []) {
+// later: 바로 전날 오늘의 단어 — 다 못 끝냈어도 새 날엔 다른 단어부터 하고, 모자랄 때만 다시 넣음(다음 날 다시 돌아옴)
+export function nextCandidates(words, exclude = [], later = []) {
   const ex = new Set(exclude)
-  const rank = (w) => (statusOf(w) === 'x' ? 1 : 0)
+  const lt = new Set(later || [])
+  const rank = (w) => (lt.has(w.id) ? 2 : 0) + (statusOf(w) === 'x' ? 1 : 0)
   return words
     .filter((w) => statusOf(w) !== 'o' && !ex.has(w.id))
     .sort((a, b) => rank(a) - rank(b) || (a.seq || 0) - (b.seq || 0))
 }
 // 오늘의 단어 수는 '하루 목표 + 직접 더 하기로 한 개수(extra)'로 고정
 // 저장된 세트를 지키되, 지워진 단어는 빼고, 많으면 뒤에서부터(오늘 아직 안 푼 단어 먼저) 덜어 내고, 모자라면 채움(○가 된 단어는 세트에 그대로 남아 반복 학습)
-export function resolveTodaySet(words, savedIds = [], goal = 5, seenIds = [], extra = 0) {
+export function resolveTodaySet(words, savedIds = [], goal = 5, seenIds = [], extra = 0, restIds = []) {
   const have = new Set(words.map((w) => w.id))
   const cap = Math.max(1, goal + (extra || 0))
   let kept = (savedIds || []).filter((id, i, a) => have.has(id) && a.indexOf(id) === i)
   if (kept.length > cap) kept = trimSet(kept, cap, seenIds)
   if (kept.length >= cap) return kept
-  return [...kept, ...nextCandidates(words, kept).slice(0, cap - kept.length).map((w) => w.id)]
+  return [...kept, ...nextCandidates(words, kept, restIds).slice(0, cap - kept.length).map((w) => w.id)]
 }
 // 뒤에서부터 덜어 냄: 오늘 이미 푼 단어는 되도록 남김
 export function trimSet(ids, cap, seenIds = []) {

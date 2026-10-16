@@ -1,0 +1,60 @@
+// 소개 건너뛰기 · 가족 비밀번호 8자 · 자동 채점이 안 되는 곳의 '내 목소리로 확인' 발음 · 새 날 오늘의 단어
+// 실행: BASE=http://localhost:4173 node tests/e2e-pron.mjs
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+let pw
+try { pw = require('playwright') } catch { pw = require('/opt/npm-tools/node_modules/playwright') }
+const BASE = process.env.BASE || 'http://localhost:4173'
+const id = 'e2e_pr' + Date.now().toString(36)
+const results = []
+const check = (name, ok, extra = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${extra ? ' — ' + extra : ''}`) }
+const browser = await pw.chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] })
+const ctx = await browser.newContext({ viewport: { width: 360, height: 780 }, permissions: ['microphone'] })
+// 음성 인식이 없는 브라우저처럼(데스크톱 마이크 문제·아이폰 홈 화면 앱과 같은 상황)
+await ctx.addInitScript(() => { try { delete window.webkitSpeechRecognition; delete window.SpeechRecognition } catch {} })
+const page = await ctx.newPage()
+const errors = []
+page.on('pageerror', (e) => errors.push(e.message))
+try {
+  await page.goto(BASE)
+  await page.getByRole('button', { name: '건너뛰기' }).waitFor({ timeout: 8000 })
+  await page.getByRole('button', { name: '건너뛰기' }).click()
+  await page.getByText('가족 만들기').waitFor()
+  check('소개 슬라이드 건너뛰기', !(await page.getByRole('dialog', { name: '폴디 소개' }).count()))
+  await page.getByText('가족 만들기').click()
+  await page.getByLabel('가족 이름').fill('발음')
+  await page.getByLabel('가족 아이디').fill(id)
+  await page.getByLabel('비밀번호').fill('1234567')
+  await page.getByLabel('개인정보 처리방침 동의').check()
+  await page.getByRole('button', { name: '우리 가족 단어장 만들기' }).click()
+  check('가족 비밀번호 7자는 거절', await page.getByText('비밀번호는 8자 이상이에요').isVisible())
+  await page.getByLabel('비밀번호').fill('12345678')
+  await page.getByRole('button', { name: '우리 가족 단어장 만들기' }).click()
+  await page.getByRole('button', { name: '저장했어요, 시작하기' }).click()
+  await page.getByText('누가 공부할까요?').waitFor()
+  check('8자 비밀번호로 가입', true)
+  await page.getByLabel('이름', { exact: true }).fill('발음이')
+  await page.getByRole('button', { name: '추가하기' }).click()
+  await page.getByText('안녕, 발음이!').waitFor()
+  await page.goto(BASE + '/#/add?tab=manual')
+  await page.getByText('✍️ 여러 개 한 번에 적기').click()
+  await page.getByLabel('한 줄에 하나씩 (영어 뜻)').fill('apple 사과\nschool 학교')
+  await page.getByRole('button', { name: '아래 목록에 넣기' }).click()
+  await page.getByRole('button', { name: /2개 단어장에 넣기/ }).click()
+  await page.getByText('2개 담았어요!').waitFor()
+  await page.goto(BASE + '/#/study')
+  check('발음 카드 안내가 내 목소리 확인', await page.getByText('듣고 따라 말한 뒤 내 목소리와 비교해요').isVisible({ timeout: 8000 }).catch(() => false))
+  await page.goto(BASE + '/#/quiz/sp')
+  await page.getByRole('button', { name: '🎙 눌러서 따라 말하기' }).waitFor({ timeout: 8000 })
+  check('사파리로 보내지 않고 바로 발음 문제', !(await page.getByText('발음 퀴즈는').count()))
+  await page.getByRole('button', { name: '🎙 눌러서 따라 말하기' }).click()
+  await page.getByRole('button', { name: '✓ 비슷해요' }).waitFor({ timeout: 8000 })
+  check('3초 녹음 → 내 목소리·정답 비교 버튼', await page.getByRole('button', { name: '▶ 내 목소리' }).isVisible())
+  await page.getByRole('button', { name: '✓ 비슷해요' }).click()
+  check('비슷해요 → 정답 처리', await page.getByText('정답!').first().isVisible({ timeout: 3000 }).catch(() => false))
+  await page.getByRole('button', { name: '🎙 눌러서 따라 말하기' }).waitFor({ timeout: 5000 })
+  check('다음 문제로 넘어감', true)
+} catch (e) { check('실행 중 오류', false, e.message.split('\n').slice(0, 3).join(' / ')); await page.screenshot({ path: '/tmp/claude-0/pr.png' }) }
+check('페이지 오류 없음', errors.length === 0, errors.join(' | '))
+await browser.close()
+console.log(`\n${results.filter((r) => r.ok).length}/${results.length} 통과 · 가족 ${id}`)

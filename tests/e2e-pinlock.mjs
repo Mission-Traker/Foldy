@@ -20,7 +20,7 @@ try {
   await page.getByText('가족 만들기').click()
   await page.getByLabel('가족 이름').fill('잠금')
   await page.getByLabel('가족 아이디').fill(id)
-  await page.getByLabel('비밀번호').fill('1234')
+  await page.getByLabel('비밀번호').fill('pass1234')
   await page.getByLabel('개인정보 처리방침 동의').check()
   await page.getByRole('button', { name: '우리 가족 단어장 만들기' }).click()
   await page.getByRole('button', { name: '저장했어요, 시작하기' }).click()

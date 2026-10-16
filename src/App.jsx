@@ -87,6 +87,8 @@ export default function App() {
       if (c) return c
       throw e
     }).then((ms) => {
+      // 구성원이 하나도 안 보이면: 다른 기기에서 비밀번호를 바꿔 이 기기 로그인이 끝난 경우만 로그아웃
+      if (!ms.length) db.sessionAlive().then(async (ok) => { if (ok === false) { await db.logout(); setSession(null); showToast('가족 비밀번호가 바뀌어서 다시 로그인해 주세요') } })
       setMembers(ms)
       const saved = db.savedMemberId()
       const found = ms.find((x) => x.id === saved)
@@ -98,7 +100,8 @@ export default function App() {
     }).catch((e) => {
       setMembersReady(true)
       showToast(e.message)
-      if (/JWT|permission|401/.test(e.message)) { db.logout(); setSession(null) }
+      // 로그아웃 버튼을 누르기 전엔 로그인을 유지: 로그인이 정말 끝났을 때만 로그인 화면으로
+      db.sessionAlive().then((ok) => { if (ok === false) { db.logout(); setSession(null) } })
     })
   }, [session, showToast])
 
@@ -112,6 +115,12 @@ export default function App() {
     window.addEventListener('focus', check)
     return () => { clearInterval(t); document.removeEventListener('visibilitychange', check); window.removeEventListener('focus', check) }
   }, [])
+  // 바로 전날의 오늘의 단어(새 날엔 다른 단어부터)
+  const [prevSet, setPrevSet] = useState([])
+  useEffect(() => {
+    const d = dailyRef.current
+    if (d && d.day !== today) setPrevSet(d.set_ids || [])
+  }, [today])
   const [loadError, setLoadError] = useState('')
   const [loadTry, setLoadTry] = useState(0)
   useEffect(() => {
@@ -120,16 +129,16 @@ export default function App() {
     setLoadError('')
     const id = member.id
     let alive = true // 그사이 다른 구성원으로 바뀌면 늦게 온 결과는 버림
-    Promise.all([db.listWords(id), db.getDaily(id, ymd())])
+    Promise.all([db.listWords(id), db.getDaily(id, ymd()), db.getPrevSetIds(id, ymd()).catch(() => [])])
       .catch((e) => {
         // 인터넷이 없으면 이 기기에 저장해 둔 단어로 공부(푼 답은 연결되면 보냄)
         const ws = isNetErr(e) && cacheGet('words:' + id)
         if (!ws) throw e
         const d = cacheGet('daily:' + id)
         showToast('오프라인이에요 · 저장해 둔 단어로 공부해요')
-        return [ws, d && d.day === ymd() ? d : null]
+        return [ws, d && d.day === ymd() ? d : null, d && d.day !== ymd() ? d.set_ids || [] : []]
       })
-      .then(([ws, d]) => { if (!alive) return; dailyRef.current = d; setWords(ws); setDaily(d); setLoadedFor(id) })
+      .then(([ws, d, prev]) => { if (!alive) return; dailyRef.current = d; setPrevSet(prev || []); setWords(ws); setDaily(d); setLoadedFor(id) })
       .catch((e) => { if (alive) setLoadError(e.message || '단어를 불러오지 못했어요') })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
@@ -273,8 +282,9 @@ export default function App() {
     const d = dailyRef.current
     const saved = d && d.day === ymd() ? d.set_ids || [] : []
     const today = d && d.day === ymd() ? d : null
-    return resolveTodaySet(words, saved, member?.daily_goal || 5, today?.seen_ids || [], today?.extra || 0)
-  }, [words, member])
+    const rest = d && d.day !== ymd() ? d.set_ids || [] : prevSet
+    return resolveTodaySet(words, saved, member?.daily_goal || 5, today?.seen_ids || [], today?.extra || 0, rest)
+  }, [words, member, prevSet])
   const ensureTodaySet = useCallback(() => {
     const ids = todayIds()
     updateDaily((d) => (JSON.stringify(d.set_ids) === JSON.stringify(ids) ? null : { set_ids: ids }))
@@ -283,11 +293,11 @@ export default function App() {
   // '새 단어 더 하기': 오늘의 단어 수를 직접 늘림(extra에 기록해 다음 계산에도 유지)
   const extendTodaySet = useCallback((n) => {
     const cur = todayIds()
-    const add = nextCandidates(words, cur).slice(0, n).map((w) => w.id)
+    const add = nextCandidates(words, cur, prevSet).slice(0, n).map((w) => w.id)
     const ids = [...cur, ...add]
     updateDaily((d) => ({ set_ids: ids, extra: (d.extra || 0) + add.length }))
     return ids
-  }, [todayIds, words, updateDaily])
+  }, [todayIds, words, updateDaily, prevSet])
 
   // 단어장에서 고른 단어를 오늘의 단어 맨 앞에 넣고 개수는 그대로(아직 안 푼 단어 하나가 빠짐) → 빠진 단어 id 목록
   const sendToToday = useCallback((id) => {

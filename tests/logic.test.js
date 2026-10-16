@@ -547,3 +547,20 @@ describe('오늘의 단어 수는 하루 목표로 고정', async () => {
     expect(ids).toEqual(['w9', 'w8', 'w1'])
   })
 })
+
+describe('새 날 오늘의 단어', async () => {
+  const { resolveTodaySet } = await import('../src/lib/study.js')
+  const ws = Array.from({ length: 30 }, (_, i) => ({ id: 'w' + i, seq: i, ko_ok: i < 3, en_ok: false, sp_ok: false }))
+  it('어제 세트(다 못 끝낸 단어)는 뒤로 미루고 다음 단어부터', () => {
+    const yesterday = ws.slice(0, 10).map((w) => w.id)
+    const set = resolveTodaySet(ws, [], 10, [], 0, yesterday)
+    expect(set).toHaveLength(10)
+    expect(set.some((id) => yesterday.includes(id))).toBe(false)
+  })
+  it('다른 단어가 모자라면 어제 단어로 채움', () => {
+    const few = ws.slice(0, 12)
+    const set = resolveTodaySet(few, [], 10, [], 0, few.slice(0, 10).map((w) => w.id))
+    expect(set.slice(0, 2)).toEqual(['w10', 'w11'])
+    expect(set).toHaveLength(10)
+  })
+})

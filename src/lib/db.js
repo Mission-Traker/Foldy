@@ -51,7 +51,7 @@ const ERR = {
   SIGNUP_BUSY: '지금 가입이 많아요. 잠시 뒤 다시 해 주세요',
   LOGIN_TAKEN: '이미 쓰고 있는 아이디예요',
   LOGIN_FAILED: '아이디 또는 비밀번호가 맞지 않아요',
-  PASSWORD_SHORT: '비밀번호는 4자 이상이에요',
+  PASSWORD_SHORT: '비밀번호는 8자 이상이에요',
   PIN_WRONG: '비밀번호가 맞지 않아요',
   PIN_FORMAT: '비밀번호는 숫자 4~6자리예요',
   FORBIDDEN: '이 프로필은 비밀번호로 잠겨 있어요',
@@ -180,6 +180,11 @@ export async function getDaily(memberId, day) {
   const rows = await q(client.from('foldy_daily').select('*').eq('member_id', memberId).eq('day', day))
   return rows[0] || null
 }
+// 오늘 전 가장 최근 날의 오늘의 단어(새 날엔 이 단어들을 뒤로 미룸)
+export async function getPrevSetIds(memberId, day) {
+  const rows = await q(client.from('foldy_daily').select('day,set_ids').eq('member_id', memberId).lt('day', day).order('day', { ascending: false }).limit(1))
+  return (rows[0] && rows[0].set_ids) || []
+}
 export const upsertDaily = (row) => q(client.from('foldy_daily').upsert(row).select().single())
 
 // 공유 AI 캐시(같은 단어는 한 번만 AI 호출)
@@ -274,6 +279,15 @@ export async function deleteFamily(pw) {
   store(MEMBER_KEY, null)
   store(MTOK_KEY, null)
   activeMember = null
+}
+// 이 기기의 가족 로그인이 아직 살아 있는지(true/false). 인터넷 문제 등으로 알 수 없으면 null
+export async function sessionAlive() {
+  if (!session) return false
+  try {
+    const { data, error } = await client.rpc('foldy_family')
+    if (error) return null
+    return !!data
+  } catch { return null }
 }
 export const aiToday = () => rpcJson('foldy_ai_today').catch(() => ({}))
 

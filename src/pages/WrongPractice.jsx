@@ -8,6 +8,7 @@ import { canListen, listenOnce, speak } from '../lib/speech.js'
 import { isIOS, openOutside, pronHereOK } from '../lib/browser.js'
 import { loadIpa, ipaFromMap, ipaCached } from '../lib/ipa.js'
 import { savedMic } from '../lib/mic.js'
+import SelfPron from '../components/SelfPron.jsx'
 import { Blob, Empty, FitWord, Header, Reaction } from '../components/ui.jsx'
 import * as sfx from '../lib/sfx.js'
 
@@ -27,7 +28,7 @@ export default function WrongPractice() {
   const [params] = useSearchParams()
   const nav = useNavigate()
   const all = params.get('n') === 'all'
-  const pronOK = pronHereOK(canListen())
+  const pronOK = true // 자동 채점이 안 되는 곳에서는 내 목소리로 확인(SelfPron)해서 어디서나 풀 수 있음
   const [batch, setBatch] = useState(0)
   const [session, setSession] = useState(null) // { list: 시작할 때의 단어 사본, q3: ③ 문제 }
   const [stage, setStage] = useState(0)
@@ -130,12 +131,12 @@ export default function WrongPractice() {
           const r = results[w.id]
           const p = r?.patch || {}
           return (
-            <li key={w.id} className="flex items-center gap-3 py-3">
-              <b className="min-w-0 flex-1 truncate font-title text-lg">{w.word}</b>
-              {!r || r.partial ? <span className="text-xs text-soft">발음은 {isIOS() ? '사파리' : '크롬'}에서 마저</span>
-                : p.wrong_grad ? <span className="font-jua text-sm text-sage">🎓 졸업 · 캐릭터가 2번 더 먹어요</span>
-                  : r.ok ? <span className="flex items-center gap-2 text-xs text-soft"><Dots n={p.wrong_step} />{mdLabel(p.wrong_next)}에 다시</span>
-                    : <span className="text-xs text-coral">처음부터 · 오늘 다시 할 수 있어요</span>}
+            <li key={w.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3">
+              <b className="min-w-0 break-words font-title text-lg">{w.word}</b>
+              {!r || r.partial ? <span className="ml-auto whitespace-nowrap text-xs text-soft">발음은 {isIOS() ? '사파리' : '크롬'}에서 마저</span>
+                : p.wrong_grad ? <span className="ml-auto whitespace-nowrap font-jua text-sm text-sage">🎓 졸업 · 캐릭터가 2번 더 먹어요</span>
+                  : r.ok ? <span className="ml-auto flex items-center gap-2 whitespace-nowrap text-xs text-soft"><Dots n={p.wrong_step} />{mdLabel(p.wrong_next)}에 다시</span>
+                    : <span className="ml-auto whitespace-nowrap text-xs text-coral">처음부터 · 오늘 다시 할 수 있어요</span>}
             </li>
           )
         })}
@@ -211,6 +212,8 @@ function AnswerCard({ w, mode, onAnswer, onNext, showToast }) {
   const [input, setInput] = useState('')
   const [res, setRes] = useState(null)
   const [listening, setListening] = useState(false)
+  const [selfMode, setSelfMode] = useState(() => !pronHereOK(canListen()))
+  const [fails, setFails] = useState(0)
   const ref = useRef()
   useEffect(() => {
     if (mode !== 'en') setTimeout(() => speak(w.word), 250)
@@ -226,15 +229,16 @@ function AnswerCard({ w, mode, onAnswer, onNext, showToast }) {
     done(g.ok, { close: g.close })
   }
   async function mic() {
-    if (!canListen()) return showToast('이 브라우저는 음성 인식을 지원하지 않아요(크롬·사파리 권장)')
+    if (!canListen()) { setSelfMode(true); return }
     setListening(true)
     try {
       const alts = await listenOnce({ deviceId: savedMic() })
       const score = speechScore(alts, w.word)
       if (score >= SPEECH_PASS) done(true, { heard: alts[0]?.t, score })
-      else { sfx.wrong(); setRes({ ok: false, retry: true, heard: alts[0]?.t || '(잘 안 들렸어요)', score }) }
+      else { sfx.wrong(); setFails((n) => n + 1); setRes({ ok: false, retry: true, heard: alts[0]?.t || '(잘 안 들렸어요)', score }) }
     } catch (err) {
-      showToast(err.message === 'not-allowed' ? '마이크 권한을 허용해 주세요' : '음성 인식 오류: ' + err.message)
+      setSelfMode(true)
+      showToast(err.message === 'not-allowed' ? '마이크 권한이 꺼져 있어요 · 듣고 따라 말하기로 할게요' : '자동 채점이 안 돼서 내 목소리로 확인할게요')
     } finally { setListening(false) }
   }
   const final = res && !res.retry
@@ -242,7 +246,7 @@ function AnswerCard({ w, mode, onAnswer, onNext, showToast }) {
     <>
       <div className={`relative mb-4 flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-3xl border bg-paper p-6 text-center ${final ? (res.ok ? 'border-ok' : 'border-no') : 'border-line'}`}>
         <Reaction kind={final ? (res.ok ? 'ok' : 'no') : null} k={`${w.id}-${mode}-${res?.ok}`} />
-        <p className="font-jua text-sm text-soft">{MODE_LABEL[mode]} · {mode === 'ko' ? '뜻을 적어 보세요' : mode === 'en' ? '영어로 적어 보세요' : '마이크를 누르고 읽어 보세요'}</p>
+        <p className="font-jua text-sm text-soft">{MODE_LABEL[mode]} · {mode === 'ko' ? '뜻을 적어 보세요' : mode === 'en' ? '영어로 적어 보세요' : selfMode ? '듣고 따라 말해 보세요' : '마이크를 누르고 읽어 보세요'}</p>
         {mode === 'en' ? (
           <>
             <p className="font-jua text-3xl text-slate-deep">{w.meaning}</p>
@@ -260,8 +264,11 @@ function AnswerCard({ w, mode, onAnswer, onNext, showToast }) {
       </div>
       {final ? (
         <button className="btn-main w-full" onClick={onNext}>다음 →</button>
+      ) : mode === 'sp' && selfMode ? (
+        <SelfPron word={w.word} onResult={(ok) => done(ok)} />
       ) : mode === 'sp' ? (
         <div className="space-y-2">
+          {fails >= 2 && <button type="button" onClick={() => { setSelfMode(true); setRes(null) }} className="btn-main w-full">🙋 내 목소리로 확인하기</button>}
           <button onClick={mic} disabled={listening} className={`btn-coral w-full py-5 text-xl ${listening ? 'animate-pulse' : ''}`}>{listening ? '듣고 있어요…' : res?.retry ? '🎤 다시 말하기' : '🎤 누르고 말하기'}</button>
           <button onClick={() => done(false)} disabled={listening} className="btn-ghost w-full">잘 모르겠어요</button>
         </div>

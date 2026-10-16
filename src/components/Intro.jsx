@@ -69,7 +69,10 @@ export default function Intro({ onDone }) {
       <div className="safe-b relative mx-auto flex min-h-full max-w-md flex-col px-6 pt-[max(env(safe-area-inset-top),20px)]">
         <div className="flex items-center justify-between py-2">
           <span className="font-title text-xl font-bold text-slate-deep">Foldy</span>
-          <span className="font-jua text-sm text-soft">{i + 1} / {SLIDES.length}</span>
+          <div className="flex items-center gap-3">
+            <span className="font-jua text-sm text-soft">{i + 1} / {SLIDES.length}</span>
+            {!last && <button type="button" className="rounded-full border-2 border-line bg-paper px-3 py-1 font-jua text-sm text-slate-deep" onClick={finish}>건너뛰기</button>}
+          </div>
         </div>
 
         <div key={i} className="flex flex-1 flex-col items-center justify-center py-6 text-center">

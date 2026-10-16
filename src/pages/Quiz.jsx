@@ -6,6 +6,7 @@ import { gradeMeaning, gradeSpelling, speechScore, SPEECH_PASS } from '../lib/gr
 import { applyAnswer, applyReview, MODE_FIELD, MODE_LABEL, nextCandidates, reviewQueue, sendToWrongNote, shuffle, statusOf, todayQueue, ymd } from '../lib/study.js'
 import { canListen, listenOnce, speak } from '../lib/speech.js'
 import { isIOS, openOutside, pronHereOK } from '../lib/browser.js'
+import SelfPron from '../components/SelfPron.jsx'
 import { Blob, Empty, Header, Reaction, FitWord } from '../components/ui.jsx'
 import * as sfx from '../lib/sfx.js'
 import MicPicker from '../components/MicPicker.jsx'
@@ -40,15 +41,15 @@ export default function Quiz() {
   const [queue, setQueue] = useState(null)
   const [setIds, setSetIds] = useState([])
   const [round, setRound] = useState(1)
-  const [here, setHere] = useState(false)
+  // 자동 채점(음성 인식)이 안 되는 곳·마이크가 자꾸 바뀌는 곳에서는 '내 목소리로 확인'(녹음해서 비교)
+  const [selfMode, setSelfMode] = useState(() => !pronHereOK(canListen()))
+  const [spFails, setSpFails] = useState(0)
   const seenToday = () => (daily && daily.day === ymd() ? daily.seen_ids || [] : [])
   useEffect(() => {
     if (!ready || queue) return
     const ids = ensureTodaySet()
     setSetIds(ids)
     let q = buildQueue(words, mode, src, params.get('ids')?.split(',').filter(Boolean), ids, seenToday())
-    // 발음 인식이 안 되는 곳(아이폰 홈 화면 앱·카톡 등)에서는 섞인 발음 문제를 빼고, 발음 퀴즈는 사파리로 넘김
-    if (mode !== 'sp' && !pronHereOK(canListen())) q = q.filter((x) => x.mode !== 'sp')
     setQueue(q)
   }, [ready]) // eslint-disable-line
   const [idx, setIdx] = useState(0)
@@ -66,7 +67,7 @@ export default function Quiz() {
   const qmode = item?.mode
 
   useEffect(() => {
-    setInput(''); setRes(null); setSent(false)
+    setInput(''); setRes(null); setSent(false); setSpFails(0)
     // 영어→뜻·발음 문제는 들어오자마자 발음 재생(뜻→영어는 정답이 드러나므로 재생 안 함)
     // queue도 지켜봐야 첫 문제(단어 목록을 불러온 직후)에서도 재생됨
     if ((qmode === 'ko' || qmode === 'sp') && w) setTimeout(() => speak(w.word), 250)
@@ -75,7 +76,6 @@ export default function Quiz() {
   }, [idx, queue])
 
   if (!queue) return <p className="py-20 text-center text-soft">불러오는 중…</p>
-  if (mode === 'sp' && !here && !pronHereOK(canListen())) return <PronElsewhere memberId={member?.id} onHere={canListen() ? () => setHere(true) : null} showToast={showToast} />
   if (!['ko', 'en', 'sp', 'review', 'focus'].includes(mode)) return <Empty title="없는 퀴즈예요"><Link to="/study" className="btn-main mt-2">돌아가기</Link></Empty>
 
   const practiceRound = ['ko', 'en', 'sp'].includes(mode) && queue[0]?.practice
@@ -207,16 +207,18 @@ export default function Quiz() {
   }
 
   async function mic() {
-    if (!canListen()) return showToast('이 브라우저는 음성 인식을 지원하지 않아요(크롬·사파리 권장)')
+    if (!canListen()) { setSelfMode(true); return }
     setListening(true)
     try {
       const alts = await listenOnce({ deviceId: savedMic() })
       const score = speechScore(alts, w.word)
       const heard = alts[0]?.t
       if (score >= SPEECH_PASS) record(true, { heard, score })
-      else { sfx.wrong(); markSeen(w.id); setRes({ ok: false, retry: true, heard: heard || '(잘 안 들렸어요)', score }) }
+      else { sfx.wrong(); markSeen(w.id); setSpFails((n) => n + 1); setRes({ ok: false, retry: true, heard: heard || '(잘 안 들렸어요)', score }) }
     } catch (err) {
-      showToast(err.message === 'not-allowed' ? '마이크 권한을 허용해 주세요' : '음성 인식 오류: ' + err.message)
+      // 마이크·인식 서비스 문제면 내 목소리로 확인하는 방식으로 바로 넘어감
+      setSelfMode(true)
+      showToast(err.message === 'not-allowed' ? '마이크 권한이 꺼져 있어요 · 듣고 따라 말하기로 할게요' : '자동 채점이 안 돼서 내 목소리로 확인할게요')
     } finally { setListening(false) }
   }
 
@@ -257,7 +259,7 @@ export default function Quiz() {
 
       <div className={`card relative mb-4 flex min-h-[220px] flex-col items-center justify-center gap-3 p-6 text-center ${res && !res.ok ? 'wiggle border-no' : ''} ${res?.ok ? 'pop glow-ok border-ok' : ''}`}>
         <Reaction kind={res ? (res.ok ? 'ok' : 'no') : null} k={`${idx}-${res?.ok}-${res?.heard || ''}`} />
-        <p className="font-jua text-sm text-soft">{qmode === 'ko' ? '뜻을 적어 보세요' : qmode === 'en' ? '영어로 적어 보세요' : '마이크를 누르고 읽어 보세요 (70% 비슷하면 통과)'}</p>
+        <p className="font-jua text-sm text-soft">{qmode === 'ko' ? '뜻을 적어 보세요' : qmode === 'en' ? '영어로 적어 보세요' : selfMode ? '듣고 따라 말한 뒤 내 목소리와 비교해 보세요' : '마이크를 누르고 읽어 보세요 (70% 비슷하면 통과)'}</p>
         {qmode === 'en' ? (
           <>
             <p className={`break-words font-jua text-slate-deep ${w.meaning.length > 14 ? 'text-2xl' : 'text-3xl'}`}>{w.meaning}</p>
@@ -294,12 +296,18 @@ export default function Quiz() {
       </div>
 
       {qmode === 'sp' ? (
-        !res || res.retry ? (
+        (!res || res.retry) && selfMode ? (
           <div className="space-y-2">
+            <SelfPron key={`${idx}-${round}`} word={w.word} onResult={(ok) => record(ok, ok ? { self: true } : {})} />
+            {pronHereOK(canListen()) && <button type="button" className="mx-auto block text-xs text-soft underline" onClick={() => setSelfMode(false)}>🎤 자동 채점으로 하기</button>}
+            {!pronHereOK(canListen()) && <AutoGradeLink memberId={member?.id} showToast={showToast} />}
+          </div>
+        ) : !res || res.retry ? (
+          <div className="space-y-2">
+            {spFails >= 2 && <button type="button" onClick={() => { setSelfMode(true); setRes(null) }} className="btn-main w-full">🙋 내 목소리로 확인하기</button>}
             <button onClick={mic} disabled={listening} className={`btn-coral w-full py-5 text-xl ${listening ? 'animate-pulse' : ''}`}>
               {listening ? '듣고 있어요…' : res?.retry ? '🎤 다시 말하기' : '🎤 누르고 말하기'}
             </button>
-            {!canListen() && <p className="text-center text-xs text-coral">이 브라우저는 음성 인식이 안 돼요. 크롬(안드로이드)이나 사파리(아이폰)에서 열어 주세요.</p>}
             <button onClick={() => record(false)} disabled={listening} className="btn-ghost w-full">잘 모르겠어요</button>
             <details className="text-sm">
               <summary className="cursor-pointer py-1 text-center text-soft">🎙 마이크 바꾸기</summary>
@@ -340,8 +348,8 @@ export default function Quiz() {
   )
 }
 
-// 발음 퀴즈는 아이폰에선 사파리, 그 밖엔 크롬 등 음성 인식이 되는 브라우저에서 — 로그인은 한 번 쓰는 코드로 이어받음
-function PronElsewhere({ memberId, onHere, showToast }) {
+// 자동 채점(70%)은 아이폰은 사파리, 그 밖엔 크롬에서 — 로그인은 한 번 쓰는 코드로 이어받음
+function AutoGradeLink({ memberId, showToast }) {
   const [busy, setBusy] = useState(false)
   const where = isIOS() ? '사파리' : '크롬'
   async function go() {
@@ -351,17 +359,5 @@ function PronElsewhere({ memberId, onHere, showToast }) {
       openOutside(`${window.location.origin}/#/handoff?c=${code}&to=${encodeURIComponent('/quiz/sp')}`)
     } catch (e) { showToast(e.message) } finally { setTimeout(() => setBusy(false), 1500) }
   }
-  return (
-    <div>
-      <Header noProfile title="발음" back />
-      <div className="card flex flex-col items-center gap-3 px-6 py-8 text-center">
-        <span className="text-5xl">🎤</span>
-        <p className="font-jua text-xl text-slate-deep">발음 퀴즈는 {where}에서 열려요</p>
-        <p className="text-sm leading-relaxed text-soft">{isIOS() ? '아이폰은 홈 화면 앱·카카오톡·다른 브라우저에서 마이크 인식이 잘 안 돼서, 발음 퀴즈만 사파리로 열어요.' : '지금 브라우저에서는 마이크 인식이 안 돼서 크롬으로 열어요.'} 로그인은 그대로 이어져요.</p>
-        <button className="btn-main w-full" disabled={busy} onClick={go}>{busy ? '여는 중…' : `${where}로 열어서 하기`}</button>
-        <p className="text-xs text-soft">안 열리면 {where}에서 foldy-lake.vercel.app 을 직접 열어 주세요.</p>
-        {onHere && <button className="text-sm text-slate underline" onClick={onHere}>그래도 여기서 해 보기</button>}
-      </div>
-    </div>
-  )
+  return <button type="button" className="mx-auto block text-xs text-soft underline" disabled={busy} onClick={go}>{busy ? '여는 중…' : `자동 채점은 ${where}에서 열기 ›`}</button>
 }

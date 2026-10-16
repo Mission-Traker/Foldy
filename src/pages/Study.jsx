@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import * as db from '../lib/db.js'
 import { useApp } from '../App.jsx'
-import { examPlan, expandStage, MODE_FIELD, resolveTodaySet, reviewCount, statusOf, ymd, wrongDueList, WRONG_DAILY } from '../lib/study.js'
+import { examPlan, expandStage, MODE_FIELD, reviewCount, statusOf, ymd, wrongDueList, WRONG_DAILY } from '../lib/study.js'
 import { Empty, Header } from '../components/ui.jsx'
 import { canListen } from '../lib/speech.js'
-import { isIOS, pronHereOK } from '../lib/browser.js'
+import { pronHereOK } from '../lib/browser.js'
 
 const CARDS = [
   { mode: 'ko', icon: '🔤', title: '영어 보고 뜻 쓰기', desc: '비슷한 뜻이면 정답이에요', cls: 'bg-paper border-line' },
@@ -14,11 +14,11 @@ const CARDS = [
 ]
 
 export default function Study() {
-  const { words, daily, member } = useApp()
+  const { words, daily, member, todayIds } = useApp()
   const today = ymd()
   const isToday = daily && daily.day === today
   const due = reviewCount(words, isToday ? daily.seen_ids : [], today)
-  const setIds = resolveTodaySet(words, isToday ? daily.set_ids : [], member?.daily_goal || 5, isToday ? daily.seen_ids : [], isToday ? daily.extra : 0)
+  const setIds = todayIds()
   const setWords = setIds.map((id) => words.find((w) => w.id === id)).filter(Boolean)
   const again = wrongDueList(words, today)
   const expandTodo = words.filter((w) => expandStage(w) === 'synant' && w.enriched).length
@@ -76,7 +76,7 @@ export default function Study() {
               <span className="text-4xl">{c.icon}</span>
               <span className="min-w-0 flex-1">
                 <b className="font-jua text-xl text-slate-deep">{c.title}</b>
-                <span className="block text-sm text-soft">{c.mode === 'sp' && !pronHereOK(canListen()) ? `${isIOS() ? '사파리' : '크롬'}에서 열려요 ↗` : clear ? '오늘의 단어 통과! 눌러서 다시 외우기' : c.desc}</span>
+                <span className="block text-sm text-soft">{c.mode === 'sp' && !pronHereOK(canListen()) ? '듣고 따라 말한 뒤 내 목소리와 비교해요' : clear ? '오늘의 단어 통과! 눌러서 다시 외우기' : c.desc}</span>
                 <span className="mt-1.5 block h-2 overflow-hidden rounded-full bg-line">
                   <span className="block h-full rounded-full bg-sage transition-all" style={{ width: `${setWords.length ? (done / setWords.length) * 100 : 0}%` }} />
                 </span>

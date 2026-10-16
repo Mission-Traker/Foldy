@@ -1,4 +1,4 @@
-// 카톡(아이폰) 발음 퀴즈 → '사파리로 열어서 하기' → 사파리에서 로그인 이어받아 발음 퀴즈 열림
+// 카톡(아이폰) 발음 퀴즈(내 목소리로 확인) → '자동 채점은 사파리에서 열기' → 사파리에서 로그인 이어받아 발음 퀴즈 열림
 // 비밀번호 없는 프로필(가장 흔한 경우)과 비밀번호 있는 프로필 둘 다
 // 실행: BASE=http://localhost:4173 node tests/e2e-handoff.mjs
 import { createRequire } from 'module'
@@ -17,7 +17,7 @@ const init = () => { try { localStorage.setItem('foldy.introSeen', '1') } catch 
 async function grabHandoff(page) {
   // 카톡 → 사파리 이동(kakaotalk://)은 테스트 브라우저에서 못 따라가므로, 서버가 준 한 번 쓰는 코드로 사파리 주소를 만듦
   const resP = page.waitForResponse((r) => r.url().includes('foldy_handoff_create'), { timeout: 10000 })
-  await page.getByRole('button', { name: '사파리로 열어서 하기' }).click()
+  await page.getByRole('button', { name: '자동 채점은 사파리에서 열기 ›' }).click()
   const res = await resP
   const body = await res.json().catch(() => ({}))
   await page.waitForTimeout(800)
@@ -48,7 +48,7 @@ try {
   await page.getByText('가족 만들기').click()
   await page.getByLabel('가족 이름').fill('넘기기')
   await page.getByLabel('가족 아이디').fill(id)
-  await page.getByLabel('비밀번호').fill('1234')
+  await page.getByLabel('비밀번호').fill('pass1234')
   await page.getByLabel('개인정보 처리방침 동의').check()
   await page.getByRole('button', { name: '우리 가족 단어장 만들기' }).click()
   await page.getByRole('button', { name: '저장했어요, 시작하기' }).click()
@@ -65,7 +65,7 @@ try {
   await page.getByText('2개 담았어요!').waitFor()
 
   await page.goto(BASE + '/#/quiz/sp')
-  await page.getByRole('button', { name: '사파리로 열어서 하기' }).waitFor()
+  await page.getByRole('button', { name: '자동 채점은 사파리에서 열기 ›' }).waitFor()
   const a = await grabHandoff(page)
   check('비밀번호 없는 프로필: 사파리 연결 코드 만들기 성공', a.status === 200 && !!a.out && !a.toast, `${a.status} ${a.err}`)
   if (a.out) await viaSafari(a.out, '비밀번호 없음')
