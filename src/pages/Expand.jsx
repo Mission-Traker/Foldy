@@ -4,7 +4,7 @@ import { useApp } from '../App.jsx'
 import { gradeMeaning, speechScore, SPEECH_PASS } from '../lib/grading.js'
 import { expandStage, shuffle } from '../lib/study.js'
 import { canListen, listenOnce, speak } from '../lib/speech.js'
-import { Blob, Empty, Header, Reaction, fitWord } from '../components/ui.jsx'
+import { Blob, Empty, Header, Reaction, FitWord } from '../components/ui.jsx'
 import * as sfx from '../lib/sfx.js'
 import { savedMic } from '../lib/mic.js'
 
@@ -102,8 +102,8 @@ export default function Expand() {
       <div className={`card relative mb-4 flex flex-col items-center gap-2 p-6 text-center ${res && !res.ok ? 'wiggle border-no' : ''} ${res?.ok ? 'pop glow-ok border-ok' : ''}`}>
         <Reaction kind={res ? (res.ok ? 'ok' : 'no') : null} k={`${idx}-${res?.ok}`} />
         <p className="text-sm text-soft"><b className="font-title text-base text-ink">{w.word}</b> ({w.meaning}) 의 <b className={`font-jua ${k.color}`}>{k.label}</b> · {k.hint}</p>
-        <div className="flex max-w-full items-center justify-center gap-3">
-          <p className={`min-w-0 break-words font-title font-bold leading-tight [overflow-wrap:anywhere] ${fitWord(d.word, ['text-4xl', 'text-3xl', 'text-2xl'])}`}>{d.word}</p>
+        <div className="flex w-full max-w-full items-center justify-center gap-3">
+          <FitWord as="p" text={d.word} max={36} min={18} className="min-w-0 flex-1 text-center font-title font-bold leading-tight" />
           <button onClick={() => speak(d.word)} className="h-11 w-11 rounded-full bg-slate/10 text-xl" aria-label="듣기">🔊</button>
         </div>
         <button onClick={practice} className="chip">🎤 발음 연습</button>

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useApp } from '../App.jsx'
-import { expandStage, isDue, MODE_FIELD, statusOf, ymd } from '../lib/study.js'
+import { expandStage, MODE_FIELD, resolveTodaySet, reviewCount, statusOf, ymd } from '../lib/study.js'
 import { Empty, Header } from '../components/ui.jsx'
 
 const CARDS = [
@@ -10,9 +10,12 @@ const CARDS = [
 ]
 
 export default function Study() {
-  const { words } = useApp()
+  const { words, daily, member } = useApp()
   const today = ymd()
-  const due = words.filter((w) => isDue(w, today)).length
+  const isToday = daily && daily.day === today
+  const due = reviewCount(words, isToday ? daily.seen_ids : [], today)
+  const setIds = resolveTodaySet(words, isToday ? daily.set_ids : [], member?.daily_goal || 5)
+  const setWords = setIds.map((id) => words.find((w) => w.id === id)).filter(Boolean)
   const expandTodo = words.filter((w) => expandStage(w) === 'synant' && w.enriched).length
 
   if (!words.length) {
@@ -27,21 +30,40 @@ export default function Study() {
   return (
     <div>
       <Header title="학습" />
-      <p className="mb-3 text-sm text-soft">세 가지를 모두 맞히면 단어에 <b className="text-sage">○</b>가 붙어요. 퀴즈마다 <b>이미 통과한 단어는 건너뛰고</b> 남은 단어만 10문제씩 나와요.</p>
+      <section className="card mb-4 p-4">
+        <div className="mb-1 flex items-baseline justify-between gap-2">
+          <h2 className="font-jua text-lg text-slate-deep">오늘의 단어 {setWords.length}개</h2>
+          <span className="text-xs text-soft">하루 목표 {member?.daily_goal || 5}개</span>
+        </div>
+        <p className="mb-3 text-sm text-soft">오늘은 이 단어들만 퀴즈에 나와요. 한 바퀴를 다 돌면 같은 단어로 다시 외워요.</p>
+        {setWords.length ? (
+          <ul className="flex flex-wrap gap-1.5">
+            {setWords.map((w) => {
+              const st = statusOf(w)
+              return (
+                <li key={w.id} className={`rounded-full border-2 px-2.5 py-1 font-title text-sm ${st === 'o' ? 'border-sage bg-sage/15 text-[#5E7F4B]' : st === 't' ? 'border-mustard/60 bg-mustard/10 text-ink' : 'border-line bg-white text-ink'}`}>
+                  {st === 'o' ? '○ ' : ''}{w.word}
+                </li>
+              )
+            })}
+          </ul>
+        ) : <p className="text-sm text-sage">단어장의 모든 단어가 ○ 완료예요! 새 단어를 넣어 주세요.</p>}
+      </section>
+      <p className="mb-3 text-sm text-soft">세 가지 퀴즈를 모두 맞히면 단어에 <b className="text-sage">○</b>가 붙어요.</p>
       <div className="space-y-3">
         {CARDS.map((c) => {
-          const left = words.filter((w) => !w[MODE_FIELD[c.mode]]).length
-          const done = words.length - left
-          const clear = left === 0
+          const left = setWords.filter((w) => !w[MODE_FIELD[c.mode]]).length
+          const done = setWords.length - left
+          const clear = setWords.length > 0 && left === 0
           return (
             <Link key={c.mode} to={`/quiz/${c.mode}`}
               className={`relative flex items-center gap-4 rounded-3xl border-2 p-4 shadow-card ${clear ? 'border-sage bg-sage/20' : c.cls}`}>
               <span className="text-4xl">{c.icon}</span>
               <span className="min-w-0 flex-1">
                 <b className="font-jua text-xl text-slate-deep">{c.title}</b>
-                <span className="block text-sm text-soft">{clear ? '모두 통과! 통과한 단어는 다시 안 나와요' : c.desc}</span>
+                <span className="block text-sm text-soft">{clear ? '오늘의 단어 통과! 눌러서 다시 외우기' : c.desc}</span>
                 <span className="mt-1.5 block h-2 overflow-hidden rounded-full bg-white/70">
-                  <span className="block h-full rounded-full bg-sage transition-all" style={{ width: `${words.length ? (done / words.length) * 100 : 0}%` }} />
+                  <span className="block h-full rounded-full bg-sage transition-all" style={{ width: `${setWords.length ? (done / setWords.length) * 100 : 0}%` }} />
                 </span>
               </span>
               {clear ? (
@@ -53,10 +75,10 @@ export default function Study() {
           )
         })}
       </div>
-      {words.some((w) => statusOf(w) !== 'o') && (
+      {setWords.some((w) => statusOf(w) !== 'o') && (
         <Link to="/quiz/focus" className="nudge mt-4 flex items-center gap-3 rounded-3xl border-2 border-dashed border-slate bg-paper p-4">
           <span className="text-3xl">🎯</span>
-          <span className="flex-1"><b className="font-jua text-lg text-slate-deep">○ 만들기 도전</b><span className="block text-xs text-soft">✕·△ 단어의 못 맞힌 퀴즈만 골라서 한 번에!</span></span>
+          <span className="flex-1"><b className="font-jua text-lg text-slate-deep">○ 만들기 도전</b><span className="block text-xs text-soft">오늘의 단어 중 못 맞힌 퀴즈만 한 번에</span></span>
           <span className="font-jua text-slate">시작 →</span>
         </Link>
       )}
@@ -66,12 +88,12 @@ export default function Study() {
         <Link to="/quiz/review" className="card p-4">
           <span className="text-3xl">⏰</span>
           <b className="mt-1 block font-jua text-slate-deep">오늘 복습 {due}</b>
-          <span className="text-xs text-soft">○ 단어를 1·3·7·30일 뒤 다시</span>
+          <span className="text-xs text-soft">오늘 푼 단어와 복습 날이 된 ○ 단어</span>
         </Link>
         <Link to="/expand" className="card p-4">
           <span className="text-3xl">🌱</span>
           <b className="mt-1 block font-jua text-slate-deep">확장 학습 {expandTodo}</b>
-          <span className="text-xs text-soft">유의어·반의어 → 예문 열기</span>
+          <span className="text-xs text-soft">비슷한 말·반대말 → 예문</span>
         </Link>
       </div>
     </div>

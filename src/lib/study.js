@@ -163,11 +163,19 @@ export function mergePatchResult(current, saved, patch) {
 const queues = new Map()
 export function enqueue(id, job) {
   const prev = queues.get(id) || Promise.resolve()
-  const next = prev.catch(() => {}).then(job)
+  // 아직 시작 못 한 저장은 waiting에 두었다가, 화면을 닫을 때(flushQueued) 바로 보낸다
+  let started = null
+  const start = () => { if (!started) { waiting.delete(start); started = Promise.resolve().then(job) } return started }
+  waiting.add(start)
+  const next = prev.catch(() => {}).then(start)
   queues.set(id, next)
   next.finally(() => { if (queues.get(id) === next) queues.delete(id) })
   return next
 }
+const waiting = new Set()
+// 앱을 닫거나 새로고침하기 직전: 줄 서 있던 저장을 기다리지 않고 한꺼번에 보냄(keepalive 요청이라 닫혀도 끝까지 감)
+export function flushQueued() { for (const start of [...waiting]) start() }
+export const pendingSaves = () => queues.size
 
 // 단어별·칸별 저장 순번 — 응답이 왔을 때 그 뒤로 더 바뀐 칸은 건너뜀
 export class PatchTracker {
@@ -186,4 +194,50 @@ export class PatchTracker {
     for (const k of Object.keys(patch)) if (m[k] === ticket[k]) out[k] = patch[k]
     return out
   }
+}
+
+// ── 오늘의 단어(하루 목표 개수만큼 고정) ──
+// 아직 ○가 아닌 단어 중: 학습 중(△) → 미학습(✕), 같은 상태면 번호 순
+export function nextCandidates(words, exclude = []) {
+  const ex = new Set(exclude)
+  const rank = (w) => (statusOf(w) === 'x' ? 1 : 0)
+  return words
+    .filter((w) => statusOf(w) !== 'o' && !ex.has(w.id))
+    .sort((a, b) => rank(a) - rank(b) || (a.seq || 0) - (b.seq || 0))
+}
+// 저장된 오늘 세트를 지키되, 지워진 단어는 빼고 목표 개수에 모자라면 채움(○가 된 단어는 세트에 그대로 남아 반복 학습)
+export function resolveTodaySet(words, savedIds = [], goal = 5) {
+  const have = new Set(words.map((w) => w.id))
+  const kept = (savedIds || []).filter((id) => have.has(id))
+  if (kept.length >= goal) return kept
+  return [...kept, ...nextCandidates(words, kept).slice(0, goal - kept.length).map((w) => w.id)]
+}
+// 퀴즈 한 판: 오늘 세트 중 이 퀴즈를 아직 못 맞힌 단어. 모두 맞혔으면 오늘 세트 전체를 다시(외울 때까지 반복)
+export function todayQueue(words, setIds, mode) {
+  const set = setIds.map((id) => words.find((w) => w.id === id)).filter(Boolean)
+  const left = set.filter((w) => !w[MODE_FIELD[mode]])
+  if (left.length) return shuffle(left).map((w) => ({ id: w.id, mode }))
+  return shuffle(set).map((w) => ({ id: w.id, mode, practice: true }))
+}
+// 오늘 복습: 복습 날짜가 된 ○ 단어 + 오늘 한 번이라도 푼 단어
+export function reviewQueue(words, seenIds = [], today = ymd(), rand = Math.random) {
+  const out = []
+  const used = new Set()
+  for (const w of words) if (isDue(w, today)) { out.push({ id: w.id, mode: rand() < 0.5 ? 'ko' : 'en', review: true }); used.add(w.id) }
+  for (const id of seenIds) {
+    const w = words.find((x) => x.id === id)
+    if (w && !used.has(id)) { out.push({ id, mode: rand() < 0.5 ? 'ko' : 'en', practice: true }); used.add(id) }
+  }
+  return shuffle(out, rand).slice(0, 40)
+}
+export const reviewCount = (words, seenIds = [], today = ymd()) => {
+  const ids = new Set(words.filter((w) => isDue(w, today)).map((w) => w.id))
+  const have = new Set(words.map((w) => w.id))
+  for (const id of seenIds) if (have.has(id)) ids.add(id)
+  return ids.size
+}
+// 화면에 보일 연속 학습일: 어제나 오늘 공부했으면 이어지는 중, 그보다 오래됐으면 0(끊김)
+export function liveStreak(member, today = ymd()) {
+  if (!member?.last_study) return 0
+  return member.last_study === today || member.last_study === addDays(today, -1) ? member.streak || 0 : 0
 }

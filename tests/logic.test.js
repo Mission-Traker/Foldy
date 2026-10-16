@@ -234,3 +234,56 @@ describe('AI 정보 붙이기가 퀴즈 결과를 덮어쓰지 않음', () => {
     expect(out).toMatchObject({ ko_ok: true, attempted: true, enriched: true, syn: { word: 'glad' } })
   })
 })
+
+describe('flushQueued (화면을 닫을 때 저장 줄 비우기)', () => {
+  it('앞 저장이 끝나기 전이라도 뒤 저장을 바로 보낸다', async () => {
+    const { enqueue, flushQueued } = await import('../src/lib/study.js')
+    const log = []
+    let release
+    enqueue('w1', () => new Promise((r) => { log.push('a'); release = r }))
+    const second = enqueue('w1', () => { log.push('b'); return 'B' })
+    const tick = () => new Promise((r) => setTimeout(r, 0))
+    await tick()
+    expect(log).toEqual(['a'])
+    flushQueued()
+    await tick()
+    expect(log).toEqual(['a', 'b'])
+    release()
+    expect(await second).toBe('B')
+    expect(log).toEqual(['a', 'b']) // 두 번 보내지 않음
+  })
+})
+
+describe('오늘의 단어 · 반복 학습 · 오늘 복습', async () => {
+  const S = await import('../src/lib/study.js')
+  const mk = (seq, f = {}) => ({ id: 'w' + seq, seq, word: 'w' + seq, ...f })
+  const all = [mk(1, { ko_ok: true, en_ok: true, sp_ok: true }), mk(2), mk(3, { attempted: true }), mk(4), mk(5), mk(6, { ko_ok: true }), mk(7)]
+  it('목표 개수만큼, 학습 중(△)부터 번호 순으로 고르고 ○ 단어는 뺀다', () => {
+    expect(S.resolveTodaySet(all, [], 3)).toEqual(['w3', 'w6', 'w2'])
+  })
+  it('저장된 세트는 그대로 지키고(○가 돼도 남김), 지워진 단어만 빼고 채운다', () => {
+    const words = all.map((w) => (w.id === 'w3' ? { ...w, ko_ok: true, en_ok: true, sp_ok: true } : w)).filter((w) => w.id !== 'w6')
+    expect(S.resolveTodaySet(words, ['w3', 'w6', 'w2'], 3)).toEqual(['w3', 'w2', 'w4'])
+  })
+  it('한 바퀴: 못 맞힌 단어만 → 다 맞히면 같은 세트 전체를 다시(다른 단어로 안 넘어감)', () => {
+    const set = ['w2', 'w6']
+    expect(S.todayQueue(all, set, 'ko').map((x) => x.id)).toEqual(['w2'])
+    const passed = all.map((w) => (w.id === 'w2' ? { ...w, ko_ok: true } : w))
+    const q = S.todayQueue(passed, set, 'ko')
+    expect(q.map((x) => x.id).sort()).toEqual(['w2', 'w6'])
+    expect(q.every((x) => x.practice)).toBe(true)
+  })
+  it('오늘 복습 = 복습 날이 된 ○ 단어 + 오늘 푼 단어(중복 없이)', () => {
+    const words = [...all, mk(8, { ko_ok: true, en_ok: true, sp_ok: true, next_review: '2026-10-16' })]
+    const q = S.reviewQueue(words, ['w2', 'w8', 'gone'], '2026-10-16')
+    expect(q.map((x) => x.id).sort()).toEqual(['w2', 'w8'])
+    expect(q.find((x) => x.id === 'w8').review).toBe(true)
+    expect(q.find((x) => x.id === 'w2').practice).toBe(true)
+    expect(S.reviewCount(words, ['w2', 'w8', 'gone'], '2026-10-16')).toBe(2)
+  })
+  it('연속 학습일: 어제·오늘 공부했으면 유지, 이틀 이상 빠지면 0', () => {
+    expect(S.liveStreak({ streak: 3, last_study: '2026-10-15' }, '2026-10-16')).toBe(3)
+    expect(S.liveStreak({ streak: 3, last_study: '2026-10-13' }, '2026-10-16')).toBe(0)
+    expect(S.nextStreak({ streak: 1, best_streak: 1, last_study: '2026-10-15' }, '2026-10-16')).toEqual({ streak: 2, best_streak: 2, last_study: '2026-10-16' })
+  })
+})

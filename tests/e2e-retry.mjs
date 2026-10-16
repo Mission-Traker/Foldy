@@ -17,6 +17,11 @@ const page = await ctx.newPage()
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message))
 page.on('dialog', (d) => d.accept())
+if (process.env.DEBUGD) {
+  page.on('requestfinished', async (r) => { if (/foldy_daily/.test(r.url()) && r.method() !== 'GET') { const res = await r.response(); console.log('  DAILY', r.method(), res.status(), (r.postData() || '').slice(0, 160)) } })
+  page.on('requestfailed', (r) => { if (/foldy_daily/.test(r.url())) console.log('  DAILY FAIL', r.failure()?.errorText) })
+  page.on('console', (m) => { if (m.type() === 'error') console.log('  CONSOLE', m.text().slice(0, 200)) })
+}
 // 느린 인터넷 흉내: 단어 저장(PATCH)을 1.5초 늦춤
 await page.route('**/rest/v1/foldy_words**', async (route) => {
   if (route.request().method() === 'PATCH') await new Promise((r) => setTimeout(r, 1500))
@@ -24,6 +29,7 @@ await page.route('**/rest/v1/foldy_words**', async (route) => {
 })
 
 const ANS = { apple: '사과', happy: '행복한', library: '도서관', orange: '오렌지', school: '학교' }
+const EXTRA = { banana: '바나나', tiger: '호랑이' } // 오늘의 단어(목표 5개) 밖 — 퀴즈에 나오면 안 됨
 const word = async () => (await page.locator('.card p.font-title').first().textContent()).trim()
 const progress = async () => (await page.locator('header, .sticky').first().textContent()).match(/(\d+)\/(\d+)/)
 
@@ -40,17 +46,19 @@ try {
   await page.getByText('안녕, 검수!').waitFor()
   await page.goto(BASE + '/#/add?tab=manual')
   await page.getByText('✍️ 여러 개 한 번에 적기').click()
-  await page.getByLabel('한 줄에 하나씩 (영어 뜻)').fill(Object.entries(ANS).map(([w, m]) => `${w} ${m}`).join('\n'))
+  await page.getByLabel('한 줄에 하나씩 (영어 뜻)').fill([...Object.entries(ANS), ...Object.entries(EXTRA)].map(([w, m]) => `${w} ${m}`).join('\n'))
   await page.getByRole('button', { name: '아래 목록에 넣기' }).click()
-  await page.getByRole('button', { name: /5개 단어장에 넣기/ }).click()
-  await page.getByText('5개 담았어요!').waitFor()
+  await page.getByRole('button', { name: /7개 단어장에 넣기/ }).click()
+  await page.getByText('7개 담았어요!').waitFor()
 
   // 1회차: 5문제 중 library·school 두 개를 일부러 틀림
   await page.goto(BASE + '/#/quiz/ko')
   await page.getByPlaceholder('한글 뜻').waitFor()
   const wrongSet = new Set(['library', 'school'])
+  const round1 = []
   for (let i = 0; i < 5; i++) {
     const w = await word()
+    round1.push(w)
     await page.getByPlaceholder('한글 뜻').fill(wrongSet.has(w) ? '자동차' : ANS[w])
     await page.getByRole('button', { name: '확인' }).click()
     if (wrongSet.has(w)) { await page.getByText('틀렸어요').waitFor(); await page.getByRole('button', { name: '다음 →' }).click() }
@@ -59,6 +67,7 @@ try {
   }
   await page.getByText(/5문제 중 3개 정답/).waitFor()
   check('1회차 결과: 5문제 중 3개', true)
+  check('오늘의 단어 5개만 나옴(목표 밖 단어 없음)', round1.every((w) => ANS[w]) && new Set(round1).size === 5, round1.join(','))
   const btn = page.getByRole('button', { name: /한 번 더/ })
   check('버튼에 남은 단어 수 표시(2개)', /2/.test(await btn.textContent()), (await btn.textContent()).trim())
 
@@ -75,14 +84,32 @@ try {
   }
   check('2회차: 틀린 단어만 나옴(library, school)', seen.sort().join() === 'library,school', seen.join(','))
   check('2회차 문제 수 2개', await page.getByText(/2문제 중 2개 정답/).waitFor({ timeout: 6000 }).then(() => true, () => false))
-  const allPass = await page.getByText('이 퀴즈는 모두 통과!').waitFor({ timeout: 4000 }).then(() => true, () => false)
-  check('다 맞히면 "한 번 더" 대신 모두 통과 안내', allPass && !(await page.getByRole('button', { name: /한 번 더/ }).isVisible()))
+  const allPass = await page.getByText('오늘의 단어 이 퀴즈 통과!').waitFor({ timeout: 4000 }).then(() => true, () => false)
+  check('다 맞히면 통과 안내 + 같은 단어 다시 외우기 버튼', allPass && await page.getByRole('button', { name: '오늘의 단어 5개 처음부터 다시' }).isVisible())
+  // 다시 외우기: 다른 단어로 넘어가지 않고 같은 5개
+  await page.getByRole('button', { name: '오늘의 단어 5개 처음부터 다시' }).click()
+  await page.getByPlaceholder('한글 뜻').waitFor()
+  const again = []
+  for (let i = 0; i < 5; i++) {
+    const w = await word(); again.push(w)
+    await page.getByPlaceholder('한글 뜻').fill(ANS[w] || '모름')
+    await page.getByRole('button', { name: '확인' }).click()
+    await page.getByText('정답!').waitFor()
+    if (i < 4) await page.locator('.card p.font-title').first().filter({ hasNotText: new RegExp(`^${w}$`) }).waitFor()
+  }
+  check('다시 외우기도 같은 오늘의 단어 5개', again.every((w) => ANS[w]) && new Set(again).size === 5, again.join(','))
+  check('2바퀴째 표시 후 3바퀴째 결과', await page.getByText(/3바퀴째/).waitFor({ timeout: 6000 }).then(() => true, () => false))
 
   // 저장 확인: 새로고침해도 다시 안 나와야 함
   await page.waitForTimeout(2500)
   await page.goto(BASE + '/#/quiz/ko')
   await page.reload()
-  check('새로고침 후 뜻 퀴즈는 모두 통과 상태', await page.getByText(/모두 통과했어요/).waitFor({ timeout: 10000 }).then(() => true, () => false))
+  check('새로고침 후에도 오늘의 단어로 다시 외우기', await page.getByRole('heading', { name: /다시 외우기/ }).waitFor({ timeout: 10000 }).then(() => true, () => false) && ANS[await word()] !== undefined)
+  await page.goto(BASE + '/#/study')
+  check('학습: 오늘 복습에 오늘 푼 단어 5개', await page.getByText('오늘 복습 5').waitFor({ timeout: 8000 }).then(() => true, () => false))
+  check('학습: 오늘의 단어 5개 카드', await page.getByText('오늘의 단어 5개').isVisible())
+  await page.goto(BASE + '/#/quiz/review')
+  check('오늘 복습 퀴즈: 5문제', await page.getByText('1/5').waitFor({ timeout: 8000 }).then(() => true, () => false))
 } catch (e) {
   if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT })
   check('예외 없이 완료', false, e.message.split('\n')[0])

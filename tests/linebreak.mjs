@@ -1,0 +1,162 @@
+// 줄바꿈 전수 점검: 화면마다 '단어 중간에서 줄이 바뀐 곳', '…로 잘린 글', '칸 밖으로 넘친 글', '마지막 줄에 한 글자만 남은 곳'을 찾음
+// 실행: BASE=http://localhost:4173 node tests/linebreak.mjs   (WIDTHS=360,390 기본)
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+let pw
+try { pw = require('playwright') } catch { pw = require('/opt/npm-tools/node_modules/playwright') }
+const BASE = process.env.BASE || 'http://localhost:4173'
+const WIDTHS = (process.env.WIDTHS || '360,390').split(',').map(Number)
+const id = 'e2e_lb' + Date.now().toString(36)
+
+// 브라우저 안에서 도는 검사
+function scan() {
+  const word = /[\p{L}\p{N}]/u
+  const out = { breaks: [], cut: [], overflow: [], orphans: [] }
+  const vis = (el) => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.opacity !== '0' }
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+  const range = document.createRange()
+  let n
+  while ((n = walker.nextNode())) {
+    const t = n.nodeValue
+    if (!t || t.trim().length < 2) continue
+    const el = n.parentElement
+    if (!el || !vis(el) || el.closest('svg, script, style, textarea, input, [aria-hidden=true]')) continue
+    // 글자마다 줄 위치
+    let prevTop = null, prevCh = null, lines = [[]]
+    for (let i = 0; i < t.length; i++) {
+      const ch = t[i]
+      if (/\s/.test(ch)) { prevCh = ch; lines[lines.length - 1].push(ch); continue }
+      range.setStart(n, i); range.setEnd(n, i + 1)
+      const rs = range.getClientRects()
+      if (!rs.length) continue
+      const top = Math.round(rs[0].top)
+      if (prevTop !== null && Math.abs(top - prevTop) > 4) {
+        if (prevCh && word.test(prevCh) && word.test(ch)) out.breaks.push(t.slice(Math.max(0, i - 8), i) + '⏎' + t.slice(i, i + 8))
+        lines.push([])
+      }
+      lines[lines.length - 1].push(ch)
+      prevTop = top; prevCh = ch
+    }
+  }
+  // 문단 단위로 마지막 줄에 한두 글자만 남았는지
+  for (const el of document.querySelectorAll('body *')) {
+    if (!vis(el) || el.closest('svg, textarea, [aria-hidden=true]')) continue
+    const disp = getComputedStyle(el).display
+    if (disp.startsWith('inline') && disp !== 'inline-block' && disp !== 'inline-flex') continue
+    if (![...el.childNodes].some((c) => c.nodeType === 3 && c.nodeValue.trim())) continue
+    const rows = new Map()
+    const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    let tn
+    while ((tn = tw.nextNode())) {
+      const pe = tn.parentElement
+      if (pe !== el && !getComputedStyle(pe).display.startsWith('inline')) continue
+      for (let i = 0; i < tn.nodeValue.length; i++) {
+        if (/\s/.test(tn.nodeValue[i])) continue
+        range.setStart(tn, i); range.setEnd(tn, i + 1)
+        const r = range.getClientRects()[0]
+        if (!r) continue
+        const key = Math.round(r.top / 6)
+        rows.set(key, (rows.get(key) || '') + tn.nodeValue[i])
+      }
+    }
+    if (rows.size > 1) {
+      const keys = [...rows.keys()].sort((x, y) => x - y)
+      const last = rows.get(keys[keys.length - 1])
+      if (last.replace(/[^\p{L}\p{N}]/gu, '').length <= 2 && !/^[\d.%/·]+$/.test(last)) out.orphans.push((el.innerText || '').replace(/\s+/g, ' ').trim().slice(-26))
+    }
+  }
+  for (const el of document.querySelectorAll('body *')) {
+    if (!vis(el) || el.closest('svg')) continue
+    const cs = getComputedStyle(el)
+    const txt = (el.innerText || '').trim()
+    if (!txt) continue
+    if (el.children.length > 3 && !(cs.overflowX === 'auto' || cs.overflowX === 'scroll')) continue
+    if ((cs.overflowX === 'auto' || cs.overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 2 && el.children.length) out.cut.push('가로로 숨은 칸: ' + (el.innerText || '').replace(/\s+/g, ' ').slice(0, 30))
+    if (cs.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1) out.cut.push(txt.slice(0, 30))
+    else if ((cs.overflowX === 'hidden' || cs.overflow === 'hidden') && el.scrollWidth > el.clientWidth + 2 && !el.querySelector('img,svg,canvas') && cs.display !== 'flex') out.overflow.push(txt.slice(0, 30))
+  }
+  if (document.documentElement.scrollWidth > window.innerWidth + 1) out.overflow.push('(화면 전체 가로 넘침)')
+  for (const k of Object.keys(out)) out[k] = [...new Set(out[k])]
+  return out
+}
+
+const report = []
+const browser = await pw.chromium.launch()
+async function audit(page, name) {
+  await page.waitForTimeout(1900) // 애니메이션 끝나기 기다림
+  const r = await page.evaluate(scan)
+  const issues = r.breaks.length + r.cut.length + r.overflow.length + r.orphans.length
+  report.push({ name, w: page.viewportSize().width, ...r })
+  console.log(`${issues ? '⚠️' : '✅'} [${page.viewportSize().width}] ${name}${issues ? '' : ' — 문제 없음'}`)
+  for (const b of r.breaks) console.log('     단어 잘림: ' + b)
+  for (const c of r.cut) console.log('     …로 잘림: ' + c)
+  for (const o of r.overflow) console.log('     넘침: ' + o)
+  for (const o of r.orphans) console.log('     외톨이 줄: …' + o)
+}
+
+const WORDS = [
+  'apple 사과', 'responsibility 책임, 책임감', 'congratulations 축하해요, 축하합니다', 'extraordinary 보통이 아닌, 비범한, 놀라운',
+  'environment 환경', 'library 도서관', 'umbrella 우산', 'photosynthesis 광합성(식물이 빛으로 양분을 만드는 일)',
+  'neighborhood 이웃, 동네', 'happy 행복한, 기쁜',
+]
+
+for (const W of WIDTHS) {
+  const ctx = await browser.newContext({ viewport: { width: W, height: 800 }, hasTouch: true })
+  const page = await ctx.newPage()
+  page.on('dialog', (d) => d.accept())
+  await page.goto(BASE)
+  await page.getByRole('dialog', { name: '폴디 소개' }).waitFor()
+  const total = Number((await page.getByText(/^1 \/ \d+$/).textContent()).split('/')[1])
+  for (let k = 1; k <= total; k++) {
+    await audit(page, `소개 슬라이드 ${k}`)
+    if (k < total) await page.getByRole('button', { name: '다음' }).click()
+  }
+  await page.getByRole('button', { name: '폴디 시작하기' }).click()
+  await audit(page, '로그인')
+  await page.getByText('가족 만들기').click()
+  await audit(page, '가족 만들기')
+  await page.getByLabel('가족 이름').fill('줄바꿈점검가족')
+  await page.getByLabel('가족 아이디').fill(id + W)
+  await page.getByLabel('비밀번호').fill('1234')
+  await page.getByRole('button', { name: '우리 가족 단어장 만들기' }).click()
+  await page.getByText('누가 공부할까요?').waitFor()
+  await audit(page, '프로필 고르기(처음)')
+  await page.getByLabel('이름', { exact: true }).fill('하은이')
+  await page.getByRole('button', { name: '추가하기' }).click()
+  await page.getByText('안녕, 하은이!').waitFor()
+  await audit(page, '홈(단어 없음)')
+  await page.goto(BASE + '/#/add?tab=manual')
+  await audit(page, '단어 추가 · 직접')
+  await page.getByText('✍️ 여러 개 한 번에 적기').click()
+  await page.getByLabel('한 줄에 하나씩 (영어 뜻)').fill(WORDS.join('\n'))
+  await page.getByRole('button', { name: '아래 목록에 넣기' }).click()
+  await audit(page, '단어 추가 · 여러 개 미리보기')
+  await page.getByRole('button', { name: /단어장에 넣기/ }).click()
+  await page.getByText(/담았어요!/).waitFor()
+  await page.goto(BASE + '/#/add')
+  await audit(page, '단어 추가 · 사진')
+  for (const [path, name] of [['/', '홈'], ['/book', '단어장'], ['/study', '학습'], ['/wrong', '오답노트(빈)'], ['/me', '내 정보'], ['/family', '가족 학습현황'], ['/expand', '확장 학습'], ['/level-test', '레벨 진단']]) {
+    await page.goto(BASE + '/#' + path)
+    await audit(page, name)
+  }
+  await page.goto(BASE + '/#/book')
+  await page.getByText('탭해서 보기').first().click().catch(() => {})
+  await audit(page, '단어장(뜻 펼침)')
+  for (const [mode, name] of [['ko', '퀴즈 영→뜻'], ['en', '퀴즈 뜻→영'], ['sp', '퀴즈 발음']]) {
+    await page.goto(BASE + '/#/quiz/' + mode)
+    await page.waitForTimeout(800)
+    await audit(page, name)
+  }
+  await page.goto(BASE + '/#/quiz/ko')
+  await page.getByPlaceholder('한글 뜻').fill('자동차')
+  await page.getByRole('button', { name: '확인' }).click()
+  await audit(page, '퀴즈 오답 화면')
+  await page.goto(BASE + '/#/me')
+  await page.getByRole('button', { name: '수정요청 보내기' }).click()
+  await audit(page, '수정요청 창')
+  await ctx.close()
+}
+await browser.close()
+const bad = report.filter((r) => r.breaks.length + r.cut.length + r.overflow.length + r.orphans.length)
+console.log(`\n화면 ${report.length}개 중 문제 ${bad.length}개`)
+process.exit(bad.length ? 1 : 0)

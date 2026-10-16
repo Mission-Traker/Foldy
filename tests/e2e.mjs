@@ -18,6 +18,12 @@ const page = await ctx.newPage()
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message))
 page.on('dialog', (d) => d.accept())
+if (process.env.DEBUG) {
+  const t0 = Date.now()
+  const lg = (k, r) => { if (/foldy_words/.test(r.url()) && r.method() === 'PATCH') console.log(`  [${((Date.now() - t0) / 1000).toFixed(1)}s] ${k} ${r.postData()}`) }
+  page.on('request', (r) => lg('REQ', r)); page.on('requestfinished', (r) => lg('OK ', r)); page.on('requestfailed', (r) => lg('FAIL', r))
+  page.on('framenavigated', (f) => { if (f === page.mainFrame()) console.log(`  [${((Date.now() - t0) / 1000).toFixed(1)}s] NAV ${f.url()}`) })
+}
 
 try {
   await page.goto(BASE)
@@ -84,10 +90,10 @@ try {
   await page.getByRole('button', { name: '뜻 보기' }).first().click()
   check('가림판 탭 → 열림', (await page.locator('.flap.open').count()) === 1)
   await page.getByRole('button', { name: /^ABC/ }).click()
-  const firstWord = await page.locator('ul li .font-title.text-\\[19px\\]').first().textContent()
+  const firstWord = await page.locator('ul li .font-title.font-semibold').first().textContent()
   check('알파벳 정렬', firstWord === 'apple', firstWord)
   await page.getByRole('button', { name: /^ABC/ }).click()
-  const firstDesc = await page.locator('ul li .font-title.text-\\[19px\\]').first().textContent()
+  const firstDesc = await page.locator('ul li .font-title.font-semibold').first().textContent()
   check('알파벳 역순', firstDesc === 'umbrella', firstDesc)
 
   // 퀴즈: 영어 → 뜻 (맥락 채점) — 첫 문제부터 발음 자동 재생

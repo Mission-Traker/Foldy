@@ -7,7 +7,14 @@ body {
   @apply bg-cream text-ink font-body antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
+  /* 줄바꿈: 한글 단어를 중간에서 자르지 않음(띄어쓰기에서만 줄바꿈), 칸보다 긴 영어 단어만 마지막 수단으로 나눔 */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
 }
+/* 제목은 줄 길이를 고르게, 문단은 마지막 줄에 한 단어만 남지 않게 */
+h1, h2, h3, h4 { text-wrap: balance; }
+p, li, label, figcaption, blockquote { text-wrap: pretty; }
 input, button, textarea, select { font: inherit; }
 
 @layer components {

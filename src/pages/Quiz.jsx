@@ -3,33 +3,31 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
 import { gradeMeaning, gradeSpelling, speechScore, SPEECH_PASS } from '../lib/grading.js'
-import { applyAnswer, applyReview, isDue, MODE_FIELD, MODE_LABEL, pickQuiz, sendToWrongNote, shuffle, statusOf, ymd } from '../lib/study.js'
+import { applyAnswer, applyReview, MODE_FIELD, MODE_LABEL, nextCandidates, reviewQueue, sendToWrongNote, shuffle, statusOf, todayQueue, ymd } from '../lib/study.js'
 import { canListen, listenOnce, speak } from '../lib/speech.js'
-import { Blob, Empty, Header, Reaction, fitWord } from '../components/ui.jsx'
+import { Blob, Empty, Header, Reaction, FitWord } from '../components/ui.jsx'
 import * as sfx from '../lib/sfx.js'
 import MicPicker from '../components/MicPicker.jsx'
 import PronSheet from '../components/PronSheet.jsx'
 import { savedMic } from '../lib/mic.js'
 
-// 완료 도전: ✕·△ 단어의 아직 못 맞힌 퀴즈만 모아서(단어 하나만 고를 수도 있음)
-function focusQueue(words, ids) {
-  const pick = ids ? words.filter((w) => ids.includes(w.id)) : shuffle(words.filter((w) => statusOf(w) !== 'o')).slice(0, 6)
+// 완료 도전: 오늘의 단어 중 ✕·△ 단어의 아직 못 맞힌 퀴즈만 모아서(단어 하나만 고를 수도 있음)
+function focusQueue(words, ids, setIds) {
+  const pool = ids ? words.filter((w) => ids.includes(w.id)) : words.filter((w) => setIds.includes(w.id) && statusOf(w) !== 'o')
   const items = []
-  for (const w of pick) for (const m of ['ko', 'en', 'sp']) if (!w[MODE_FIELD[m]]) items.push({ id: w.id, mode: m })
+  for (const w of pool) for (const m of ['ko', 'en', 'sp']) if (!w[MODE_FIELD[m]]) items.push({ id: w.id, mode: m })
   // 같은 단어가 연달아 나오지 않게 퀴즈 종류별로 묶어서 섞기
-  return ['ko', 'en', 'sp'].flatMap((m) => items.filter((x) => x.mode === m)).slice(0, 18)
+  return ['ko', 'en', 'sp'].flatMap((m) => shuffle(items.filter((x) => x.mode === m))).slice(0, 30)
 }
 
-function buildQueue(words, mode, src, ids) {
-  if (mode === 'focus') return focusQueue(words, ids)
-  if (mode === 'review') {
-    const today = ymd()
-    return shuffle(words.filter((w) => isDue(w, today))).slice(0, 20).map((w) => ({ id: w.id, mode: Math.random() < 0.5 ? 'ko' : 'en', review: true }))
-  }
+// setIds: 오늘의 단어(하루 목표 개수). 일반 퀴즈는 이 단어들만 — 다 맞히면 같은 단어로 다시
+function buildQueue(words, mode, src, ids, setIds, seenIds) {
+  if (mode === 'focus') return focusQueue(words, ids, setIds)
+  if (mode === 'review') return reviewQueue(words, seenIds)
   if (src === 'wrong') {
     return shuffle(words.filter((w) => (w.wrong_modes || []).includes(mode))).slice(0, 20).map((w) => ({ id: w.id, mode }))
   }
-  return pickQuiz(words, mode, 10).map((w) => ({ id: w.id, mode }))
+  return todayQueue(words, setIds, mode)
 }
 
 export default function Quiz() {
@@ -37,9 +35,17 @@ export default function Quiz() {
   const [params] = useSearchParams()
   const src = params.get('src') || 'all'
   const nav = useNavigate()
-  const { words, ready, patchWord, bumpDaily, showToast } = useApp()
+  const { words, ready, patchWord, bumpDaily, markSeen, daily, ensureTodaySet, extendTodaySet, member, showToast } = useApp()
   const [queue, setQueue] = useState(null)
-  useEffect(() => { if (ready && !queue) setQueue(buildQueue(words, mode, src, params.get('ids')?.split(',').filter(Boolean))) }, [ready]) // eslint-disable-line
+  const [setIds, setSetIds] = useState([])
+  const [round, setRound] = useState(1)
+  const seenToday = () => (daily && daily.day === ymd() ? daily.seen_ids || [] : [])
+  useEffect(() => {
+    if (!ready || queue) return
+    const ids = ensureTodaySet()
+    setSetIds(ids)
+    setQueue(buildQueue(words, mode, src, params.get('ids')?.split(',').filter(Boolean), ids, seenToday()))
+  }, [ready]) // eslint-disable-line
   const [idx, setIdx] = useState(0)
   const [input, setInput] = useState('')
   const [res, setRes] = useState(null) // { ok, close, heard }
@@ -66,7 +72,8 @@ export default function Quiz() {
   if (!queue) return <p className="py-20 text-center text-soft">불러오는 중…</p>
   if (!['ko', 'en', 'sp', 'review', 'focus'].includes(mode)) return <Empty title="없는 퀴즈예요"><Link to="/study" className="btn-main mt-2">돌아가기</Link></Empty>
 
-  const title = mode === 'review' ? '복습' : mode === 'focus' ? `○ 만들기 · ${MODE_LABEL[qmode] || ''}` : `${src === 'wrong' ? '오답노트 · ' : ''}${MODE_LABEL[mode]}`
+  const practiceRound = ['ko', 'en', 'sp'].includes(mode) && queue[0]?.practice
+  const title = mode === 'review' ? '오늘 복습' : mode === 'focus' ? `○ 만들기 · ${MODE_LABEL[qmode] || ''}` : `${src === 'wrong' ? '오답노트 · ' : ''}${MODE_LABEL[mode]}${practiceRound ? ' · 다시 외우기' : ''}`
 
   if (!queue.length && ['ko', 'en', 'sp'].includes(mode) && src !== 'wrong' && words.length) {
     // 이 퀴즈는 모든 단어를 이미 통과함
@@ -75,8 +82,8 @@ export default function Quiz() {
         <Header noProfile title={title} back />
         <div className="card flex flex-col items-center gap-2 px-6 py-8 text-center">
           <span className="pop flex h-16 w-16 items-center justify-center rounded-full bg-sage text-4xl font-bold text-white shadow-[0_4px_0_#6E8E5B]">✓</span>
-          <p className="font-jua text-xl text-slate-deep">{MODE_LABEL[mode]} — 모두 통과했어요! 🎉</p>
-          <p className="text-sm text-soft">통과한 단어는 다시 나오지 않아요. 새 단어를 넣거나 다른 퀴즈를 풀어 보세요.</p>
+          <p className="font-jua text-xl text-slate-deep">단어장의 모든 단어가 ○ 완료예요! 🎉</p>
+          <p className="text-sm text-soft">새 단어를 넣으면 내일부터 오늘의 단어로 나와요.</p>
           <div className="mt-2 flex gap-2">
             <Link to="/study" className="btn-ghost">다른 퀴즈</Link>
             <Link to="/add" className="btn-main">단어 추가</Link>
@@ -90,7 +97,7 @@ export default function Quiz() {
     return (
       <div>
         <Header title={title} back />
-        <Empty title={mode === 'focus' ? '모든 단어가 ○ 완료예요! 🎉' : mode === 'review' ? '오늘 복습할 단어가 없어요' : src === 'wrong' ? '오답노트가 비어 있어요' : '단어장에 단어를 먼저 넣어 주세요'}>
+        <Empty title={mode === 'focus' ? '오늘의 단어가 모두 ○ 완료예요! 🎉' : mode === 'review' ? '오늘 복습할 단어가 없어요' : src === 'wrong' ? '오답노트가 비어 있어요' : '단어장에 단어를 먼저 넣어 주세요'}>
           <Link to={src === 'wrong' || mode === 'review' ? '/study' : '/add'} className="btn-main mt-2">{src === 'wrong' || mode === 'review' ? '학습으로' : '단어 추가'}</Link>
         </Empty>
       </div>
@@ -100,22 +107,28 @@ export default function Quiz() {
   if (idx >= queue.length || !w) {
     const perfect = score.ok === score.total
     if (!endSound.current) { endSound.current = true; setTimeout(() => (perfect ? sfx.fanfare() : sfx.correct()), 50) }
-    // 남은(모르는) 문제 수: 방금 푼 결과가 화면 상태에 이미 반영돼 있으므로 그대로 계산
     const ids = params.get('ids')?.split(',').filter(Boolean)
-    const remaining = ['ko', 'en', 'sp'].includes(mode) && src !== 'wrong'
-      ? words.filter((x) => !x[MODE_FIELD[mode]]).length
-      : buildQueue(words, mode, src, ids).length
-    // '한 번 더': 새로고침하지 않고 남은 문제로 다시 시작(저장 중인 답이 끊기지 않게)
-    const restart = () => {
-      setQueue(buildQueue(words, mode, src, ids))
+    const daily3 = ['ko', 'en', 'sp'].includes(mode) && src !== 'wrong'
+    const setWords = setIds.map((id) => words.find((x) => x.id === id)).filter(Boolean)
+    // 남은(모르는) 문제 수: 방금 푼 결과가 화면 상태에 이미 반영돼 있으므로 그대로 계산
+    const remaining = daily3 ? setWords.filter((x) => !x[MODE_FIELD[mode]]).length : mode === 'review' ? 0 : buildQueue(words, mode, src, ids, setIds, seenToday()).length
+    const more = daily3 ? nextCandidates(words, setIds).length : 0
+    const goal = member?.daily_goal || 5
+    // 새로고침하지 않고 다시 시작(저장 중인 답이 끊기지 않게)
+    const start = (q, ids2 = setIds) => {
+      setSetIds(ids2); setQueue(q); setRound((r) => r + 1)
       setIdx(0); setScore({ ok: 0, total: 0 }); setRes(null); setInput(''); setSent(false)
       endSound.current = false
     }
+    const restart = () => start(daily3 ? todayQueue(words, setIds, mode) : buildQueue(words, mode, src, ids, setIds, seenToday()))
+    const againAll = () => start(shuffle(setWords).map((x) => ({ id: x.id, mode, practice: true })))
+    const addMore = () => { const ids2 = extendTodaySet(goal); start(todayQueue(words, ids2, mode), ids2) }
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-center">
         <Blob i={perfect ? 1 : 3} size={110} className="pop" />
         <h2 className="h-title text-3xl">{perfect ? '모두 맞혔어요!' : '수고했어요!'}</h2>
         <p className="font-jua text-xl text-slate-deep">{score.total}문제 중 {score.ok}개 정답</p>
+        {daily3 && <p className="text-sm text-soft">오늘의 단어 {setWords.length}개 · {round}바퀴째</p>}
         {mode === 'focus' && (
           <ul className="card w-full max-w-xs divide-y-2 divide-dashed divide-line px-3 text-left">
             {[...new Set(queue.map((x) => x.id))].map((id) => {
@@ -132,17 +145,28 @@ export default function Quiz() {
             })}
           </ul>
         )}
-        {remaining > 0 ? (
+        {daily3 ? (
+          <div className="mt-2 flex w-full max-w-xs flex-col gap-2">
+            {remaining > 0
+              ? <button className="btn-main" onClick={restart}>모르는 단어 {remaining}개 한 번 더</button>
+              : <p className="pop mx-auto flex items-center gap-2 rounded-full bg-sage px-4 py-1.5 font-jua text-white">✓ 오늘의 단어 이 퀴즈 통과!</p>}
+            <button className={remaining > 0 ? 'btn-ghost' : 'btn-main'} onClick={againAll}>오늘의 단어 {setWords.length}개 처음부터 다시</button>
+            {remaining === 0 && more > 0 && <button className="btn-ghost" onClick={addMore}>새 단어 {Math.min(goal, more)}개 더 하기</button>}
+            <button className="text-sm text-soft underline" onClick={() => nav('/study')}>그만하기</button>
+          </div>
+        ) : remaining > 0 ? (
           <div className="mt-2 flex gap-2">
             <button className="btn-ghost" onClick={() => nav(src === 'wrong' ? '/wrong' : '/study')}>그만하기</button>
             <button className="btn-main" onClick={restart}>모르는 단어 {remaining}개 한 번 더</button>
           </div>
         ) : (
           <>
-            <p className="pop flex items-center gap-2 rounded-full bg-sage px-4 py-1.5 font-jua text-white">✓ {mode === 'review' ? '오늘 복습 끝!' : src === 'wrong' ? '오답노트 모두 통과!' : '이 퀴즈는 모두 통과!'}</p>
+            <p className="pop flex items-center gap-2 rounded-full bg-sage px-4 py-1.5 font-jua text-white">✓ {mode === 'review' ? '오늘 복습 끝!' : src === 'wrong' ? '오답노트 모두 통과!' : '모두 통과!'}</p>
             <div className="mt-1 flex gap-2">
               <button className="btn-ghost" onClick={() => nav('/study')}>다른 퀴즈</button>
-              <button className="btn-main" onClick={() => nav('/book')}>단어장 보기</button>
+              {mode === 'review'
+                ? <button className="btn-main" onClick={restart}>한 번 더 복습</button>
+                : <button className="btn-main" onClick={() => nav('/book')}>단어장 보기</button>}
             </div>
           </>
         )}
@@ -154,9 +178,13 @@ export default function Quiz() {
     setRes({ ok, ...extra })
     ok ? sfx.correct() : sfx.wrong()
     setScore((s) => ({ ok: s.ok + (ok ? 1 : 0), total: s.total + 1 }))
-    const patch = item.review ? applyReview(w, qmode, ok) : applyAnswer(w, qmode, ok)
+    markSeen(w.id)
     if (ok) setTimeout(() => setIdx((i) => i + 1), 900)
-    await patchWord(w.id, patch)
+    // 다시 외우기·오늘 복습(이미 푼 단어)에서 틀려도 맞힌 기록은 그대로 둠 — 연습이니까
+    if (!(item.practice && !ok)) {
+      const patch = item.review ? applyReview(w, qmode, ok) : item.practice ? {} : applyAnswer(w, qmode, ok)
+      if (Object.keys(patch).length) await patchWord(w.id, patch)
+    }
     if (ok) bumpDaily()
   }
 
@@ -180,7 +208,7 @@ export default function Quiz() {
       const score = speechScore(alts, w.word)
       const heard = alts[0]?.t
       if (score >= SPEECH_PASS) record(true, { heard, score })
-      else { sfx.wrong(); setRes({ ok: false, retry: true, heard: heard || '(잘 안 들렸어요)', score }) }
+      else { sfx.wrong(); markSeen(w.id); setRes({ ok: false, retry: true, heard: heard || '(잘 안 들렸어요)', score }) }
     } catch (err) {
       showToast(err.message === 'not-allowed' ? '마이크 권한을 허용해 주세요' : '음성 인식 오류: ' + err.message)
     } finally { setListening(false) }
@@ -227,11 +255,11 @@ export default function Quiz() {
         {qmode === 'en' ? (
           <>
             <p className={`break-words font-jua text-slate-deep ${w.meaning.length > 14 ? 'text-2xl' : 'text-3xl'}`}>{w.meaning}</p>
-            <p className={`max-w-full break-all font-title text-soft ${w.word.length > 10 ? 'tracking-[0.15em]' : 'tracking-[0.3em]'}`}>{w.word[0]}{w.word.slice(1).replace(/[A-Za-z]/g, '_')}</p>
+            <p className={`max-w-full break-words font-title text-soft ${w.word.length > 10 ? 'tracking-[0.15em]' : 'tracking-[0.3em]'}`}>{w.word[0]}{w.word.slice(1).replace(/[A-Za-z]/g, '_')}</p>
           </>
         ) : (
-          <div className="flex max-w-full items-center justify-center gap-3">
-            <p className={`min-w-0 break-words text-center font-title font-bold leading-tight text-ink [overflow-wrap:anywhere] ${fitWord(w.word, ['text-4xl', 'text-3xl', 'text-2xl'])}`}>{w.word}</p>
+          <div className="flex w-full max-w-full items-center justify-center gap-3">
+            <FitWord as="p" text={w.word} max={36} min={18} className="min-w-0 flex-1 text-center font-title font-bold leading-tight text-ink" />
             <button onClick={() => speak(w.word)} className="h-11 w-11 rounded-full bg-slate/10 text-xl" aria-label="듣기">🔊</button>
           </div>
         )}

@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import * as db from './lib/db.js'
 import { enrichPending } from './lib/enrich.js'
-import { enqueue, mergePatchResult, nextStreak, PatchTracker, ymd } from './lib/study.js'
+import { enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, ymd } from './lib/study.js'
 import { BottomNav, Confetti, Toast } from './components/ui.jsx'
 import { fanfare } from './lib/sfx.js'
 import Auth from './pages/Auth.jsx'
@@ -30,6 +30,7 @@ export default function App() {
   const [member, setMember] = useState(null)
   const [words, setWords] = useState([])
   const [daily, setDaily] = useState(null)
+  const dailyRef = useRef(null) // 오늘 기록의 최신값(자식 화면 effect가 부모보다 먼저 돌아도 맞는 값을 보게 바로 넣어 둠)
   const [loading, setLoading] = useState(false)
   const [loadedFor, setLoadedFor] = useState(null)
   const [toast, setToastMsg] = useState('')
@@ -66,7 +67,7 @@ export default function App() {
     if (!member) return
     setLoading(true)
     Promise.all([db.listWords(member.id), db.getDaily(member.id, ymd())])
-      .then(([ws, d]) => { setWords(ws); setDaily(d); setLoadedFor(member.id) })
+      .then(([ws, d]) => { dailyRef.current = d; setWords(ws); setDaily(d); setLoadedFor(member.id) })
       .catch((e) => showToast(e.message))
       .finally(() => setLoading(false))
   }, [member?.id, showToast])
@@ -94,6 +95,15 @@ export default function App() {
     enrichedOnce.current = member.id
     runEnrich(words)
   }, [member, loadedFor, words, runEnrich])
+
+  // 화면을 닫거나 다른 앱으로 갈 때 줄 서 있던 저장을 바로 보냄
+  useEffect(() => {
+    const flush = () => flushQueued()
+    const onVis = () => { if (document.visibilityState === 'hidden') flushQueued() }
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onVis)
+    return () => { window.removeEventListener('pagehide', flush); document.removeEventListener('visibilitychange', onVis) }
+  }, [])
 
   const patchWord = useCallback(async (id, patch) => {
     setWords((ws) => ws.map((w) => (w.id === id ? { ...w, ...patch } : w)))
@@ -130,23 +140,58 @@ export default function App() {
     return m
   }, [member])
 
+  // 오늘 기록(맞힌 수·추천·오늘의 단어·오늘 푼 단어)은 한곳에서 순서대로 저장 — 연달아 바뀌어도 앞 값을 덮어쓰지 않게
+  const updateDaily = useCallback((fn) => {
+    if (!member) return null
+    const day = ymd()
+    const cur = dailyRef.current
+    const base = cur && cur.day === day && cur.member_id === member.id ? cur : { member_id: member.id, day, done: 0, recs: null, set_ids: [], seen_ids: [] }
+    const change = fn({ ...base, set_ids: base.set_ids || [], seen_ids: base.seen_ids || [] })
+    if (!change || !Object.keys(change).length) return base
+    const next = { ...base, ...change }
+    dailyRef.current = next
+    setDaily(next)
+    enqueue('daily:' + member.id, () => db.upsertDaily(next)).catch(() => { /* 다음 저장 때 같이 감 */ })
+    return next
+  }, [member])
+
   // 정답 하나마다 오늘 기록 +1, 하루 첫 학습이면 연속 학습일 갱신
   const bumpDaily = useCallback(async () => {
     if (!member) return
     const day = ymd()
-    const done = (daily?.day === day ? daily.done : 0) + 1
-    const row = { member_id: member.id, day, done, recs: daily?.day === day ? daily.recs : null }
-    setDaily(row)
-    if (done === member.daily_goal) { setTimeout(fanfare, 700); showToast('🎉 오늘 목표 달성!') }
-    try { await db.upsertDaily(row) } catch { /* 다음 정답 때 다시 저장 */ }
+    const next = updateDaily((d) => ({ done: (d.done || 0) + 1 }))
+    if (next && next.done === member.daily_goal) { setTimeout(fanfare, 700); showToast('🎉 오늘 목표 달성!') }
     const s = nextStreak(member, day)
     if (s) { try { await updateMember(s) } catch { /* */ } }
-  }, [member, daily, updateMember, showToast])
+  }, [member, updateMember, showToast, updateDaily])
+
+  // 오늘 한 번이라도 푼 단어(오늘 복습에 자동으로 들어감)
+  const markSeen = useCallback((id) => {
+    updateDaily((d) => (d.seen_ids.includes(id) ? null : { seen_ids: [...d.seen_ids, id] }))
+  }, [updateDaily])
+
+  // 오늘의 단어: 하루 목표 개수만큼 고정해 두고 그날은 이 단어들만 반복
+  const todayIds = useCallback(() => {
+    const d = dailyRef.current
+    const saved = d && d.day === ymd() ? d.set_ids || [] : []
+    return resolveTodaySet(words, saved, member?.daily_goal || 5)
+  }, [words, member])
+  const ensureTodaySet = useCallback(() => {
+    const ids = todayIds()
+    updateDaily((d) => (JSON.stringify(d.set_ids) === JSON.stringify(ids) ? null : { set_ids: ids }))
+    return ids
+  }, [todayIds, updateDaily])
+  const extendTodaySet = useCallback((n) => {
+    const cur = todayIds()
+    const ids = [...cur, ...nextCandidates(words, cur).slice(0, n).map((w) => w.id)]
+    updateDaily(() => ({ set_ids: ids }))
+    return ids
+  }, [todayIds, words, updateDaily])
 
   const value = useMemo(() => ({
-    session, setSession, members, setMembers, member, patchMemberLocal: (patch) => { setMember((m) => (m ? { ...m, ...patch } : m)); setMembers((ms) => ms.map((x) => (member && x.id === member.id ? { ...x, ...patch } : x))) }, setMember: (m) => { if (member && member.has_pin && member.id !== m?.id) db.forgetMemberToken(member.id); db.saveMemberId(m?.id || null); setMember(m); setWords([]); setDaily(null); enrichedOnce.current = null; if (m) navTo('/') },
-    openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, showToast, aiState, runEnrich,
-  }), [session, members, member, words, loading, loadedFor, daily, patchWord, addWords, removeWord, updateMember, bumpDaily, showToast, aiState, runEnrich])
+    session, setSession, members, setMembers, member, patchMemberLocal: (patch) => { setMember((m) => (m ? { ...m, ...patch } : m)); setMembers((ms) => ms.map((x) => (member && x.id === member.id ? { ...x, ...patch } : x))) }, setMember: (m) => { if (member && member.has_pin && member.id !== m?.id) db.forgetMemberToken(member.id); db.saveMemberId(m?.id || null); setMember(m); setWords([]); dailyRef.current = null; setDaily(null); enrichedOnce.current = null; if (m) navTo('/') },
+    openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, showToast, aiState, runEnrich,
+  }), [session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, showToast, aiState, runEnrich])
 
   const wrongCount = words.filter((w) => (w.wrong_modes || []).length).length
   const fullScreen = /^\/(quiz|expand|add|level-test)/.test(loc.pathname)

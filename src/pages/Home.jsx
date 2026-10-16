@@ -4,11 +4,11 @@ import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
 import { dailyPick, levelLabel } from '../lib/levels.js'
 import { meaningsFor } from '../lib/enrich.js'
-import { expandStage, isDue, statusOf, ymd } from '../lib/study.js'
-import { Blob, Ring, Speak, GoalStepper } from '../components/ui.jsx'
+import { expandStage, reviewCount, statusOf, ymd, liveStreak } from '../lib/study.js'
+import { Blob, Ring, Speak, GoalStepper, FitWord } from '../components/ui.jsx'
 
 export default function Home() {
-  const { member, words, daily, setDaily, addWords, showToast, aiState, ready, openProfile, updateMember, patchMemberLocal } = useApp()
+  const { member, words, daily, updateDaily, addWords, showToast, aiState, ready, openProfile, updateMember, patchMemberLocal } = useApp()
   const [goalEdit, setGoalEdit] = useState(false)
   const goalTimer = useRef()
   const goal = member.daily_goal
@@ -28,7 +28,7 @@ export default function Home() {
     for (const w of words) c[statusOf(w)]++
     return c
   }, [words])
-  const due = words.filter((w) => isDue(w, today)).length
+  const due = reviewCount(words, daily?.day === today ? daily.seen_ids : [], today)
   const expandTodo = words.filter((w) => expandStage(w) === 'synant' && w.enriched).length
   const done = daily?.day === today ? daily.done : 0
 
@@ -57,9 +57,7 @@ export default function Home() {
       setRecBusy(false)
       // 뜻을 못 불러왔으면(AI 미연결) 저장하지 않아 다음에 다시 시도
       if (items.some((x) => !x.meaning)) return
-      const row = { member_id: member.id, day: today, done, recs: items }
-      setDaily(row)
-      try { await db.upsertDaily(row) } catch { /* */ }
+      updateDaily(() => ({ recs: items }))
     })()
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -86,7 +84,7 @@ export default function Home() {
           <h1 className="h-title text-2xl">안녕, {member.name}!</h1>
         </div>
         <div className="rounded-2xl bg-paper px-3 py-2 text-center border-2 border-line">
-          <div className="font-jua text-xl text-tang">🔥 {member.streak || 0}</div>
+          <div className="font-jua text-xl text-tang">🔥 {liveStreak(member)}</div>
           <div className="text-[11px] text-soft">연속 학습일</div>
         </div>
       </div>
@@ -95,7 +93,7 @@ export default function Home() {
         <Ring value={Math.min(done, member.daily_goal)} max={member.daily_goal} />
         <div className="flex-1">
           <p className="font-jua text-lg text-slate-deep">{done >= member.daily_goal ? '오늘 목표 달성! 🎉' : '오늘의 목표'}</p>
-          <p className="text-sm text-soft">문제 {member.daily_goal}개 맞히기 · 지금 {done}개</p>
+          <p className="text-sm text-soft"><span className="block">문제 {member.daily_goal}개 맞히기</span><span className="block">지금 {done}개 맞혔어요</span></p>
         </div>
         <div className="flex flex-col items-end gap-1">
           <Link to="/study" className="btn-main px-4 py-2 text-base">학습</Link>
@@ -124,7 +122,7 @@ export default function Home() {
           {due > 0 && (
             <Link to="/quiz/review" className="card flex items-center gap-2 p-3">
               <span className="text-2xl">⏰</span>
-              <span><b className="font-jua text-slate-deep">복습 {due}개</b><br /><span className="text-xs text-soft">잊기 전에 한 번 더</span></span>
+              <span><b className="font-jua text-slate-deep">복습 {due}개</b><br /><span className="text-xs text-soft">오늘 푼 단어 한 번 더</span></span>
             </Link>
           )}
           {expandTodo > 0 && (
@@ -157,8 +155,8 @@ export default function Home() {
               <li key={r.word} className="flex items-center gap-2 py-2.5">
                 <Speak text={r.word} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <p className="break-words font-title text-lg font-semibold leading-tight text-ink [overflow-wrap:anywhere]">{r.word}</p>
-                  <p className="truncate text-sm text-soft">{r.meaning || (recBusy ? '뜻 불러오는 중…' : '뜻은 AI 연결 후 표시돼요')}{r.why ? ` · ${r.why}` : ''}</p>
+                  <FitWord as="p" text={r.word} max={18} min={12} className="font-title font-semibold leading-tight text-ink" />
+                  <p className="text-sm text-soft">{r.meaning || (recBusy ? '뜻 불러오는 중…' : '뜻은 AI 연결 후 표시돼요')}{r.why ? ` · ${r.why}` : ''}</p>
                 </div>
                 <button disabled={has} onClick={() => add([r])} className={`chip ${has ? '' : 'border-sage text-sage'}`}>{has ? '담음' : '＋ 담기'}</button>
               </li>

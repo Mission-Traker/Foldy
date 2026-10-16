@@ -41,7 +41,7 @@ export default function Me() {
         <Blob i={member.avatar} size={64} />
         <div className="flex-1">
           <p className="font-jua text-xl text-slate-deep">{member.name}</p>
-          <p className="text-sm text-soft">단어 {words.length}개 · ○ {done}개 · 최고 연속 {member.best_streak}일</p>
+          <p className="flex flex-wrap gap-x-2 text-sm text-soft"><span className="whitespace-nowrap">단어 {words.length}개</span><span className="whitespace-nowrap">○ {done}개</span><span className="whitespace-nowrap">최고 연속 {member.best_streak}일</span></p>
         </div>
         <button className="chip" onClick={() => setMember(null)}>바꾸기</button>
       </div>

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import { expandStage, sortWords, statusOf, cleanEntry, MODE_FIELD } from '../lib/study.js'
-import { Empty, Header, Speak, fmtDate, fitWord } from '../components/ui.jsx'
+import { Empty, Header, Speak, fmtDate, FitWord } from '../components/ui.jsx'
 import { speak } from '../lib/speech.js'
 
 const SORTS = [['seq', '번호'], ['date', '날짜'], ['abc', 'ABC']]
@@ -101,8 +101,8 @@ function Row({ w, hide, peek, onPeek, onEdit }) {
       <div className="flex items-stretch gap-2 py-2.5 pr-1">
         <span className="w-6 shrink-0 self-center pl-1 text-right font-title text-xs text-soft">{w.seq}</span>
         <div className="relative flex min-w-0 flex-[1.5] items-center gap-1">
-          <button onClick={() => (coverWord ? onPeek() : speak(w.word))} className="relative min-w-0 text-left">
-            <span className={`block break-words font-title font-semibold leading-tight text-ink [overflow-wrap:anywhere] ${fitWord(w.word)}`}>{w.word}</span>
+          <button onClick={() => (coverWord ? onPeek() : speak(w.word))} className="relative min-w-0 flex-1 text-left">
+            <FitWord text={w.word} max={19} min={11} className="font-title font-semibold leading-tight text-ink" />
             {coverWord && <span className="absolute inset-0 rounded-xl bg-[repeating-linear-gradient(0deg,#FFFBF4,#FFFBF4_9px,#EFE5D3_10px)] border-2 border-line" />}
           </button>
           <Speak text={w.word} size="sm" className="!h-7 !w-7 !text-xs" label="발음 듣기" />
@@ -189,7 +189,7 @@ export default function Wordbook() {
     <div>
       <Header title="단어장" right={<Link to="/add" className="btn-tang px-4 py-2 text-base">＋ 추가</Link>} />
 
-      <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
+      <div className="mb-2 flex flex-wrap gap-1.5 pb-1">
         {[['all', '전체'], ['x', '미학습'], ['t', '△ 학습 중'], ['o', '○ 완료']].map(([k, l]) => (
           <button key={k} onClick={() => setParams(k === 'all' ? {} : { f: k })} className={`chip shrink-0 ${filter === k ? 'chip-on' : ''}`}>
             {l} <span className="opacity-70">{counts[k]}</span>
@@ -218,7 +218,7 @@ export default function Wordbook() {
           <span className="text-2xl">🎯</span>
           <span className="flex-1 text-sm">
             <b className="font-jua text-slate-deep">○를 기다리는 단어 {counts.x + counts.t}개</b>
-            <span className="block text-xs text-soft">뜻·철자·발음을 모두 맞히면 ○ 완료!</span>
+            <span className="block text-xs text-soft">세 가지 퀴즈를 다 맞히면 ○</span>
           </span>
           <span className="rounded-full bg-tang px-3 py-1.5 font-jua text-sm text-white">지금 끝내기</span>
         </Link>

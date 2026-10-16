@@ -18,13 +18,19 @@ let session = load(TOKEN_KEY) // { token, family_id, name, login_id }
 let activeMember = load(MEMBER_KEY)
 let client = make()
 
+// 저장(POST·PATCH·DELETE)은 keepalive로 — 앱을 바로 닫거나 새로고침해도 요청이 끝까지 감(64KB 이하)
+function keepFetch(input, init = {}) {
+  const m = (init.method || 'GET').toUpperCase()
+  const small = !init.body || (typeof init.body === 'string' && init.body.length < 60000)
+  return fetch(input, m !== 'GET' && m !== 'HEAD' && small ? { ...init, keepalive: true } : init)
+}
 function memberTokens() { return load(MTOK_KEY) || {} }
 function make() {
   const headers = {}
   if (session?.token) headers['x-foldy-token'] = session.token
   const mt = activeMember && memberTokens()[activeMember]
   if (mt) headers['x-foldy-member'] = mt
-  return createClient(URL, KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { headers } })
+  return createClient(URL, KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { headers, fetch: keepFetch } })
 }
 export const hasMemberToken = (id) => !!memberTokens()[id]
 function saveMemberToken(id, token) {

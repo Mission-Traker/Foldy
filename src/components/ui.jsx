@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { STATUS_MARK } from '../lib/study.js'
 import { speak } from '../lib/speech.js'
@@ -84,7 +85,7 @@ export function Header({ title, back, right, noProfile }) {
         <button onClick={() => (typeof back === 'string' ? nav(back) : nav(-1))} aria-label="뒤로"
           className="flex h-10 w-10 items-center justify-center rounded-full bg-paper border-2 border-line text-slate-deep font-jua">←</button>
       )}
-      <h1 className="h-title flex-1 truncate text-2xl">{title}</h1>
+      <h1 className="h-title min-w-0 flex-1 text-2xl leading-tight">{title}</h1>
       {right}
       {!noProfile && <ProfileButton />}
     </div>
@@ -205,6 +206,26 @@ export function Reaction({ kind, k }) {
 export function fitWord(word, sizes = ['text-[19px]', 'text-[16px]', 'text-[14px]', 'text-[12.5px]']) {
   const n = String(word || '').length
   return n <= 9 ? sizes[0] : n <= 12 ? sizes[1] : n <= 16 ? sizes[2] : sizes[sizes.length - 1]
+}
+
+// 영어 단어를 절대 중간에서 자르지 않고, 칸에 들어갈 때까지 글자를 줄여서 보여줌(띄어쓰기 있는 구는 띄어쓰기에서만 줄바꿈)
+export function FitWord({ text, max = 19, min = 11, className = '', as: Tag = 'span' }) {
+  const ref = useRef(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const fit = () => {
+      let size = max
+      el.style.fontSize = size + 'px'
+      while (size > min && el.scrollWidth > el.clientWidth + 0.5) { size -= 1; el.style.fontSize = size + 'px' }
+    }
+    fit()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(fit) : null
+    if (ro && el.parentElement) ro.observe(el.parentElement)
+    if (document.fonts?.ready) document.fonts.ready.then(fit).catch(() => {})
+    return () => ro?.disconnect()
+  }, [text, max, min])
+  return <Tag ref={ref} className={`block max-w-full ${className}`} style={{ fontSize: max, overflowWrap: 'normal', wordBreak: 'normal' }}>{text}</Tag>
 }
 
 // 하루 목표 개수 정하기(1~50)

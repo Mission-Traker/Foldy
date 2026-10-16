@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as db from '../lib/db.js'
 import { speak, speakTTS } from '../lib/speech.js'
+import { FitWord } from './ui.jsx'
 
 // '더 정확한 발음 들어보기' — 표준 발음(보통·천천히), 발음기호, 강세, 요령
 export default function PronSheet({ word, heard, score, onClose }) {
@@ -27,10 +28,10 @@ export default function PronSheet({ word, heard, score, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30" onClick={onClose}>
       <div className="safe-b w-full max-w-md rounded-t-3xl bg-paper p-5" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-3 flex items-start justify-between">
-          <div>
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
             <p className="font-jua text-sm text-soft">표준 발음 (미국식)</p>
-            <h3 className={`break-words font-title font-bold leading-tight text-ink [overflow-wrap:anywhere] ${word.length > 12 ? "text-3xl" : "text-4xl"}`}>{word}</h3>
+            <FitWord as="h3" text={word} max={36} min={18} className="font-title font-bold leading-tight text-ink" />
             {info?.ipa && <p className="font-title text-lg text-slate">{info.ipa}</p>}
           </div>
           <button onClick={onClose} aria-label="닫기" className="text-2xl text-soft">×</button>
