@@ -52,8 +52,23 @@ function freeConf() {
 export function hasFree() { return !!freeConf() }
 export function hasFreeVision() { return !!freeConf()?.vision }
 
-async function freeChat({ system, text, maxTokens, image, mediaType }) {
+// 무료 등급은 붐비면 503·429가 잦음 → 잠깐 쉬었다가 같은 모델로 한 번, 그래도 안 되면 가벼운 모델(Gemini)로 한 번 더
+const GEMINI_BACKUP = process.env.GEMINI_BACKUP_MODEL || 'gemini-flash-lite-latest'
+async function freeChat(opts) {
   const c = freeConf()
+  const models = [c.model, c.model]
+  if (c.base === GEMINI_BASE && GEMINI_BACKUP !== c.model) models.push(GEMINI_BACKUP)
+  let last
+  for (let i = 0; i < models.length; i++) {
+    try { return await freeChatOnce(c, models[i], opts) } catch (e) {
+      last = e
+      if (!e.busy) throw e
+      if (i < models.length - 1) await new Promise((r) => setTimeout(r, i === 0 ? 700 : 200))
+    }
+  }
+  throw new Error('무료 AI가 지금 붐벼요. 조금 뒤 다시 해 주세요')
+}
+async function freeChatOnce(c, model, { system, text, maxTokens, image, mediaType }) {
   const base = c.base.replace(/\/+$/, '')
   const user = image
     ? [{ type: 'image_url', image_url: { url: `data:${mediaType || 'image/jpeg'};base64,${image}` } }, { type: 'text', text }]
@@ -62,7 +77,7 @@ async function freeChat({ system, text, maxTokens, image, mediaType }) {
     method: 'POST',
     headers: { Authorization: `Bearer ${c.key}`, 'content-type': 'application/json' },
     body: JSON.stringify({
-      model: c.model,
+      model,
       max_tokens: maxTokens,
       messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
     }),
@@ -72,7 +87,11 @@ async function freeChat({ system, text, maxTokens, image, mediaType }) {
   let data = {}
   try { data = JSON.parse(raw) } catch { /* 본문이 JSON이 아님 */ }
   if (Array.isArray(data)) data = data[0] || {}
-  if (!r.ok) throw new Error(data?.error?.message || `무료 LLM ${r.status}${raw ? ': ' + raw.slice(0, 160) : ''}`)
+  if (!r.ok) {
+    const e = new Error(data?.error?.message || `무료 LLM ${r.status}${raw ? ': ' + raw.slice(0, 160) : ''}`)
+    e.busy = r.status === 429 || r.status === 503 || r.status === 500
+    throw e
+  }
   const out = data?.choices?.[0]?.message?.content
   if (!out) throw new Error('무료 LLM 응답이 비었어요')
   return out

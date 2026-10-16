@@ -35,7 +35,7 @@ describe('AI 서버 경로 보호', () => {
     process.env.ANTHROPIC_API_KEY = 'test'
     const claudeText = '```json\n[{"word":"happy","meaning":"행복한","accepted":["기쁜","즐거운"],"syn":{"word":"glad","meaning":"기쁜"},"ant":{"word":"sad","meaning":"슬픈"},"example":{"en":"I am happy.","ko":"나는 행복해.","scene":"😊🎈"}}]\n```'
     vi.stubGlobal('fetch', vi.fn(async (url) => url.includes('anthropic')
-      ? { ok: true, json: async () => ({ content: [{ type: 'text', text: claudeText }] }) }
+      ? { ok: true, json: async () => ({ content: [{ type: 'text', text: claudeText }] }), text: async () => JSON.stringify(({ content: [{ type: 'text', text: claudeText }] })) }
       : fam(url, true)))
     const { default: h } = await import('../api/enrich.js')
     const res = mockRes(); await h(req({ words: [{ word: 'happy', meaning: '행복한' }], level: 'e1' }), res)
@@ -48,7 +48,7 @@ describe('AI 서버 경로 보호', () => {
   it('사진 읽기: 알파벳으로 시작하지 않는 줄은 버림', async () => {
     process.env.ANTHROPIC_API_KEY = 'test'
     vi.stubGlobal('fetch', vi.fn(async (url) => url.includes('anthropic')
-      ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '[{"word":"apple","meaning":"사과"},{"word":"12","meaning":"x"}]' }] }) }
+      ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '[{"word":"apple","meaning":"사과"},{"word":"12","meaning":"x"}]' }] }), text: async () => JSON.stringify(({ content: [{ type: 'text', text: '[{"word":"apple","meaning":"사과"},{"word":"12","meaning":"x"}]' }] })) }
       : fam(url, true)))
     const { default: h } = await import('../api/extract.js')
     const res = mockRes(); await h(req({ image: 'AAAA', mediaType: 'image/jpeg' }), res)
@@ -66,7 +66,7 @@ describe('AI 서버 경로 보호', () => {
     process.env.FREE_LLM_API_KEY = 'f'
     const calls = []
     vi.stubGlobal('fetch', vi.fn(async (url) => { calls.push(url); return url.includes('free.example')
-      ? { ok: true, json: async () => ({ choices: [{ message: { content: '{"ok":true,"reason":"같은 뜻"}' } }] }) }
+      ? { ok: true, json: async () => ({ choices: [{ message: { content: '{"ok":true,"reason":"같은 뜻"}' } }] }), text: async () => JSON.stringify(({ choices: [{ message: { content: '{"ok":true,"reason":"같은 뜻"}' } }] })) }
       : { ok: true, json: async () => 'family-uuid' } }))
     const { default: h } = await import('../api/judge.js')
     const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '기분 좋은' }), res)
@@ -79,8 +79,8 @@ describe('AI 서버 경로 보호', () => {
     process.env.ANTHROPIC_API_KEY = 'test'
     const calls = []
     vi.stubGlobal('fetch', vi.fn(async (url) => { calls.push(url); return url.includes('free.example')
-      ? { ok: true, json: async () => ({ choices: [{ message: { content: '죄송해요 모르겠어요' } }] }) }
-      : url.includes('anthropic') ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '{"ok":false}' }] }) }
+      ? { ok: true, json: async () => ({ choices: [{ message: { content: '죄송해요 모르겠어요' } }] }), text: async () => JSON.stringify(({ choices: [{ message: { content: '죄송해요 모르겠어요' } }] })) }
+      : url.includes('anthropic') ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '{"ok":false}' }] }), text: async () => JSON.stringify(({ content: [{ type: 'text', text: '{"ok":false}' }] })) }
       : fam(url, false) }))
     const { default: h } = await import('../api/judge.js')
     const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '자동차' }), res)
@@ -103,8 +103,8 @@ describe('AI 서버 경로 보호', () => {
     process.env.ANTHROPIC_API_KEY = 'test'
     const calls = []
     vi.stubGlobal('fetch', vi.fn(async (url) => { calls.push(url); return url.includes('anthropic')
-      ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '{"ok":false,"reason":"다른 뜻"}' }] }) }
-      : url.includes('free.example') ? { ok: true, json: async () => ({ choices: [{ message: { content: '{"ok":true}' } }] }) }
+      ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '{"ok":false,"reason":"다른 뜻"}' }] }), text: async () => JSON.stringify(({ content: [{ type: 'text', text: '{"ok":false,"reason":"다른 뜻"}' }] })) }
+      : url.includes('free.example') ? { ok: true, json: async () => ({ choices: [{ message: { content: '{"ok":true}' } }] }), text: async () => JSON.stringify(({ choices: [{ message: { content: '{"ok":true}' } }] })) }
       : fam(url, true) }))
     const { default: h } = await import('../api/judge.js')
     const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '자동차' }), res)
@@ -128,7 +128,7 @@ describe('AI 서버 경로 보호', () => {
     process.env.ANTHROPIC_API_KEY = 'test'
     let n = 0
     vi.stubGlobal('fetch', vi.fn(async (url) => url.includes('anthropic')
-      ? { ok: true, json: async () => ({ content: [{ type: 'text', text: ++n === 1 ? '{"ok":tru' : '{"ok":true,"reason":"맞음"}' }] }) }
+      ? { ok: true, json: async () => ({ content: [{ type: 'text', text: ++n === 1 ? '{"ok":tru' : '{"ok":true,"reason":"맞음"}' }] }), text: async () => JSON.stringify(({ content: [{ type: 'text', text: ++n === 1 ? '{"ok":tru' : '{"ok":true,"reason":"맞음"}' }] })) }
       : fam(url, true)))
     const { default: h } = await import('../api/judge.js')
     const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '기쁜' }), res)
@@ -151,7 +151,7 @@ describe('무료 AI(Gemini)·하루 한도', () => {
     process.env.GEMINI_API_KEY = 'g'
     const calls = []
     vi.stubGlobal('fetch', vi.fn(async (url, opt) => { calls.push({ url, body: opt?.body }); return url.includes('generativelanguage')
-      ? { ok: true, json: async () => ({ choices: [{ message: { content: '[{"word":"apple","meaning":"사과"}]' } }] }) }
+      ? { ok: true, json: async () => ({ choices: [{ message: { content: '[{"word":"apple","meaning":"사과"}]' } }] }), text: async () => JSON.stringify(({ choices: [{ message: { content: '[{"word":"apple","meaning":"사과"}]' } }] })) }
       : { ok: true, json: async () => 'family-uuid' } }))
     const { default: h } = await import('../api/extract.js')
     const res = mockRes(); await h(req({ image: 'AAAA', mediaType: 'image/png' }), res)
@@ -164,9 +164,9 @@ describe('무료 AI(Gemini)·하루 한도', () => {
     process.env.GEMINI_API_KEY = 'g'
     process.env.ANTHROPIC_API_KEY = 'test'
     vi.stubGlobal('fetch', vi.fn(async (url) => url.includes('generativelanguage')
-      ? { ok: true, json: async () => ({ choices: [{ message: { content: '{"ok":true,"reason":"무료"}' } }] }) }
+      ? { ok: true, json: async () => ({ choices: [{ message: { content: '{"ok":true,"reason":"무료"}' } }] }), text: async () => JSON.stringify(({ choices: [{ message: { content: '{"ok":true,"reason":"무료"}' } }] })) }
       : url.includes('foldy_ai_take') ? { ok: true, json: async () => false }
-      : url.includes('anthropic') ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '{"ok":false}' }] }) }
+      : url.includes('anthropic') ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '{"ok":false}' }] }), text: async () => JSON.stringify(({ content: [{ type: 'text', text: '{"ok":false}' }] })) }
       : fam(url, true)))
     const { default: h } = await import('../api/judge.js')
     const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '기분 좋은' }), res)
@@ -176,9 +176,9 @@ describe('무료 AI(Gemini)·하루 한도', () => {
     process.env.GEMINI_API_KEY = 'g'
     process.env.ANTHROPIC_API_KEY = 'test'
     vi.stubGlobal('fetch', vi.fn(async (url) => url.includes('generativelanguage')
-      ? { ok: false, status: 429, json: async () => ({ error: { message: 'quota' } }) }
+      ? { ok: false, status: 429, json: async () => ({ error: { message: 'quota' } }), text: async () => JSON.stringify(({ error: { message: 'quota' } })) }
       : url.includes('foldy_ai_take') ? { ok: true, json: async () => false }
-      : url.includes('anthropic') ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '{"ok":true}' }] }) }
+      : url.includes('anthropic') ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '{"ok":true}' }] }), text: async () => JSON.stringify(({ content: [{ type: 'text', text: '{"ok":true}' }] })) }
       : fam(url, true)))
     const { default: h } = await import('../api/judge.js')
     const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '기분 좋은' }), res)
