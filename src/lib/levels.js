@@ -50,3 +50,28 @@ export function recommendLevel(results) {
   }
   return 'L10'
 }
+
+// 레벨업 게이지: 지금 레벨보다 쉬운 단계의 단어는 빼고, 퀴즈를 하나 통과할 때마다 1점(한→영·영→한·발음 = 단어당 최대 3점)
+// 다음 레벨까지 필요한 점수 = 단어 N개를 ○로 만든 만큼(Lv.01~03은 30개, 그 위는 40개)
+const LOWER = {}
+function lowerSet(id) {
+  if (LOWER[id]) return LOWER[id]
+  const idx = LEVELS.findIndex((l) => l.id === id)
+  const s = new Set()
+  for (const l of LEVELS.slice(0, Math.max(0, idx))) for (const w of LEVEL_WORDS[l.id] || []) s.add(w.toLowerCase())
+  return (LOWER[id] = s)
+}
+export const levelUpWords = (id) => (['L1', 'L2', 'L3'].includes(normLevel(id)) ? 30 : 40)
+export function levelProgress(words, levelId) {
+  const id = normLevel(levelId)
+  const idx = LEVELS.findIndex((l) => l.id === id)
+  const next = LEVELS[idx + 1] || null
+  const low = lowerSet(id)
+  let xp = 0
+  for (const w of words || []) {
+    if (low.has(String(w.word || '').toLowerCase())) continue
+    xp += (w.ko_ok ? 1 : 0) + (w.en_ok ? 1 : 0) + (w.sp_ok ? 1 : 0)
+  }
+  const need = levelUpWords(id) * 3
+  return { id, label: levelLabel(id), next: next?.id || null, nextLabel: next?.label || null, xp: Math.min(xp, need), need, full: !!next && xp >= need, total: xp }
+}

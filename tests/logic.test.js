@@ -357,3 +357,23 @@ describe('발음기호', () => {
     expect(all.filter((w) => ipaFromMap(w, map)).length / all.length).toBeGreaterThan(0.98)
   })
 })
+
+import { levelProgress } from '../src/lib/levels.js'
+describe('레벨업 게이지', () => {
+  const w = (word, k, e, s) => ({ word, ko_ok: k, en_ok: e, sp_ok: s })
+  it('퀴즈 하나 통과마다 1점, 단어당 최대 3점', () => {
+    const p = levelProgress([w('zzword', true, true, false), w('qqword', true, true, true)], 'L4')
+    expect(p.xp).toBe(5); expect(p.need).toBe(120); expect(p.nextLabel).toBe('Lv.05'); expect(p.full).toBe(false)
+  })
+  it('지금 레벨보다 쉬운 단어는 세지 않음', () => {
+    const easy = JSON.parse(readFileSync(new URL('../src/data/levels.json', import.meta.url))).L1[0]
+    expect(levelProgress([w(easy, true, true, true)], 'L4').xp).toBe(0)
+    expect(levelProgress([w(easy, true, true, true)], 'L1').xp).toBe(3)
+  })
+  it('다 채우면 레벨업 가능, Lv.10은 다음 레벨 없음', () => {
+    const many = Array.from({ length: 30 }, (_, i) => w('xx' + i, true, true, true))
+    expect(levelProgress(many, 'L1').full).toBe(true)
+    expect(levelProgress(many, 'L10').next).toBe(null)
+    expect(levelProgress(many, 'm').label).toBe('Lv.04')
+  })
+})

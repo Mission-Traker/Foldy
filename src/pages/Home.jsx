@@ -6,6 +6,7 @@ import { dailyPick, levelLabel } from '../lib/levels.js'
 import { meaningsFor } from '../lib/enrich.js'
 import { expandStage, reviewCount, statusOf, ymd, liveStreak } from '../lib/study.js'
 import { Blob, Ring, Speak, GoalStepper, FitWord } from '../components/ui.jsx'
+import LevelBar from '../components/LevelBar.jsx'
 
 export default function Home() {
   const { member, words, daily, updateDaily, addWords, showToast, aiState, ready, openProfile, updateMember, patchMemberLocal } = useApp()
@@ -75,13 +76,12 @@ export default function Home() {
 
   return (
     <div className="pt-[max(env(safe-area-inset-top),16px)]">
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-2 flex items-center gap-3">
         <button onClick={openProfile} aria-label="내 프로필 수정" className="relative active:scale-95">
           <Blob i={member.avatar} size={60} className="bob" />
           <span className="absolute -bottom-1 -right-1 rounded-full bg-paper px-1 text-[11px] border border-line">✎</span>
         </button>
         <div className="flex-1">
-          <p className="text-sm text-soft">{levelLabel(member.level)}</p>
           <h1 className="h-title text-2xl">안녕, {member.name}!</h1>
         </div>
         <div className="rounded-2xl bg-paper px-3 py-2 text-center border-2 border-line">
@@ -89,6 +89,7 @@ export default function Home() {
           <div className="text-[11px] text-soft">연속 학습일</div>
         </div>
       </div>
+      {ready && <LevelBar member={member} words={words} onLevelUp={async (lv) => { await updateMember({ level: lv }); showToast('🎉 레벨업! 이제 더 어려운 단어가 추천돼요') }} />}
 
       <div className="card mb-4 flex items-center gap-4 p-4">
         <Ring value={Math.min(done, member.daily_goal)} max={member.daily_goal} />
