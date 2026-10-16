@@ -341,3 +341,19 @@ describe('브라우저 판별(발음 퀴즈는 아이폰에선 사파리)', asyn
     expect(B.pronHereOK(true)).toBe(false)
   })
 })
+
+import { ipaFromMap } from '../src/lib/ipa.js'
+import { readFileSync } from 'fs'
+describe('발음기호', () => {
+  const map = JSON.parse(readFileSync(new URL('../public/ipa-v1.json', import.meta.url)))
+  it('기본 단어', () => expect(ipaFromMap('Happy', map)).toBe('/ˈhæpi/'))
+  it('r·l은 일반 글자로', () => expect(ipaFromMap('library', map)).toBe('/ˈlaɪbrɛˌri/'))
+  it('영국식 철자도 찾음', () => expect(ipaFromMap('organise', map)).toBe(ipaFromMap('organize', map)))
+  it('구는 낱말마다 이어 붙임', () => expect(ipaFromMap('look after', map)).toMatch(/^\/\S+ \S+\/$/))
+  it('없으면 빈 값', () => expect(ipaFromMap('zzqqx', map)).toBe(''))
+  it('기본 어휘 대부분에 발음기호가 있음', () => {
+    const lv = JSON.parse(readFileSync(new URL('../src/data/levels.json', import.meta.url)))
+    const all = Object.values(lv).flat()
+    expect(all.filter((w) => ipaFromMap(w, map)).length / all.length).toBeGreaterThan(0.98)
+  })
+})

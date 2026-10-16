@@ -75,3 +75,6 @@ input, button, textarea, select { font: inherit; }
 @keyframes introrise { from { transform: translateY(14px); opacity: 0 } to { transform: none; opacity: 1 } }
 .intro-arrow { animation: introrise .4s ease both; }
 @media (prefers-reduced-motion: reduce) { .intro-ic, .intro-rise, .intro-arrow { animation: none !important; } }
+
+/* 발음기호: IPA 글자가 있는 글꼴을 먼저 */
+.ipa { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Noto Sans', 'Segoe UI', 'Lucida Sans Unicode', 'Arial Unicode MS', 'Apple SD Gothic Neo', sans-serif; letter-spacing: 0.01em; }

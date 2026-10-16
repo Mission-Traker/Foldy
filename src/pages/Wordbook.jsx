@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import { expandStage, sortWords, statusOf, cleanEntry, MODE_FIELD } from '../lib/study.js'
 import { Empty, Header, Speak, fmtDate, FitWord } from '../components/ui.jsx'
 import { speak } from '../lib/speech.js'
+import * as db from '../lib/db.js'
+import { loadIpa, ipaFromMap, ipaCached, ipaSave } from '../lib/ipa.js'
 
 const SORTS = [['seq', '번호'], ['date', '날짜'], ['abc', 'ABC']]
 const HIDES = [['meaning', '뜻 가리기'], ['word', '영어 가리기'], ['none', '모두 보기']]
@@ -91,7 +93,7 @@ function RowMenu({ w, onEdit, onClose }) {
   )
 }
 
-function Row({ w, hide, peek, onPeek, onEdit, inToday, onSend }) {
+function Row({ w, hide, peek, onPeek, onEdit, inToday, onSend, ipa }) {
   const s = statusOf(w)
   const [menu, setMenu] = useState(false)
   const coverWord = hide === 'word' && !peek
@@ -100,12 +102,15 @@ function Row({ w, hide, peek, onPeek, onEdit, inToday, onSend }) {
     <li className="relative border-b-2 border-dashed border-line last:border-0">
       <div className="flex items-stretch gap-2 py-2.5 pr-1">
         <span className="w-6 shrink-0 self-center pl-1 text-right font-title text-xs text-soft">{w.seq}</span>
-        <div className="relative flex min-w-0 flex-[1.5] items-center gap-1">
+        <div className="relative flex min-w-0 flex-[1.5] flex-col justify-center">
+          <div className="flex min-w-0 items-center gap-1">
           <button onClick={() => (coverWord ? onPeek() : speak(w.word))} className="relative min-w-0 flex-1 text-left">
             <FitWord text={w.word} max={19} min={11} className="font-title font-semibold leading-tight text-ink" />
             {coverWord && <span className="absolute inset-0 rounded-xl bg-[repeating-linear-gradient(0deg,#FFFBF4,#FFFBF4_9px,#EFE5D3_10px)] border-2 border-line" />}
           </button>
           <Speak text={w.word} size="sm" className="!h-7 !w-7 !text-xs" label="발음 듣기" />
+          </div>
+          {ipa && <FitWord text={ipa} max={12} min={8} className={`ipa mt-0.5 leading-tight text-soft ${hide === 'word' && !peek ? 'invisible' : ''}`} />}
         </div>
         <button onClick={onPeek} className="relative min-w-[84px] flex-1 overflow-hidden rounded-xl text-left" aria-label="뜻 보기">
           <span className={`flex h-full items-center px-2 leading-tight text-slate-deep ${w.meaning.length > 5 ? "text-[13px]" : "text-[15px]"}`}>{w.meaning}</span>
@@ -176,6 +181,23 @@ export default function Wordbook() {
   const [q, setQ] = useState('')
   const [edit, setEdit] = useState(null)
   const filter = params.get('f') || 'all'
+  // 발음기호: 앱 안 목록 → 없으면 AI로 한 번(이 기기에 저장)
+  const [ipaMap, setIpaMap] = useState(null)
+  const [ipaExtra, setIpaExtra] = useState({})
+  useEffect(() => { let on = true; loadIpa().then((m) => on && setIpaMap(m)); return () => { on = false } }, [])
+  const ipaOf = (w) => { const a = ipaFromMap(w.word, ipaMap); if (a) return a; return ipaExtra[w.word.toLowerCase()] ?? ipaCached(w.word) ?? '' }
+  useEffect(() => {
+    if (!ipaMap || !ready) return
+    const need = [...new Set(words.map((w) => w.word).filter((x) => !ipaFromMap(x, ipaMap) && ipaCached(x) === null))].slice(0, 30)
+    if (!need.length) return
+    let on = true
+    db.ai('ipa', { words: need }).then((r) => {
+      const got = r.ipa || {}
+      for (const x of need) ipaSave(x, got[x.toLowerCase()] || '')
+      if (on) setIpaExtra((e) => ({ ...e, ...got }))
+    }).catch(() => { /* 인터넷·AI가 안 되면 발음기호 없이 */ })
+    return () => { on = false }
+  }, [ipaMap, ready, words])
 
   const list = useMemo(() => {
     let ws = words
@@ -249,7 +271,7 @@ export default function Wordbook() {
           </div>
           <ul>
             {list.map((w) => (
-              <Row key={w.id} w={w} hide={hide} peek={peek.has(w.id)} onPeek={() => togglePeek(w.id)} onEdit={() => setEdit(w)} inToday={todaySet.has(w.id)} onSend={() => send(w)} />
+              <Row key={w.id} w={w} hide={hide} peek={peek.has(w.id)} onPeek={() => togglePeek(w.id)} onEdit={() => setEdit(w)} inToday={todaySet.has(w.id)} onSend={() => send(w)} ipa={ipaOf(w)} />
             ))}
           </ul>
         </div>
