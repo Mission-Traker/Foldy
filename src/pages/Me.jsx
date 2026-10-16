@@ -8,6 +8,7 @@ import { Blob, Header, GoalStepper } from '../components/ui.jsx'
 import { MemberForm } from './Profiles.jsx'
 import { soundOn, setSoundOn, correct } from '../lib/sfx.js'
 import MicPicker from '../components/MicPicker.jsx'
+import MyFeedback from '../components/MyFeedback.jsx'
 
 export default function Me() {
   const { member, members, setMember, updateMember, patchMemberLocal, words, session, setSession, showToast, setMembers, aiState } = useApp()
@@ -106,6 +107,8 @@ export default function Me() {
         {adding ? <MemberForm onDone={() => setAdding(false)} onCancel={() => setAdding(false)} /> : <button className="btn-ghost w-full" onClick={() => setAdding(true)}>＋ 가족 추가</button>}
         <p className="mt-2 text-[11px] text-soft">가족 아이디: <b>{session?.login_id}</b> — 다른 기기에서도 이 아이디로 들어오면 같은 단어장이 보여요.</p>
       </section>
+
+      <MyFeedback memberName={member.name} />
 
       {aiState === 'nokey' && <p className="mb-3 text-center text-xs text-coral">AI 키(ANTHROPIC_API_KEY)가 아직 연결되지 않았어요.</p>}
       <button className="btn-ghost w-full" onClick={async () => { await db.logout(); setSession(null); setMember(null) }}>로그아웃</button>

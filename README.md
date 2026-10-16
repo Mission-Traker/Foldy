@@ -32,6 +32,8 @@
 - **○ 판정: 세 가지 퀴즈를 모두 맞혀야 ○**
 - 학습 화면: 모두 맞힌 퀴즈는 초록 ✓, 진행 막대 / 🎯 ○ 만들기 도전(✕·△ 단어의 못 맞힌 퀴즈만 모아서)
 - 효과음(타자·정답 차임·오답·팡파르, 끄기 가능)과 정답·오답 캐릭터 애니메이션·색종이
+- 🛠 앱 수정요청(내 정보): 유형(버그·화면·불편·기능·기타)·화면 칩 + 내용(2,000자) → 우리 가족이 보낸 요청 목록에서 상태(접수됨·고치는 중·의견 보류·고쳤어요)와 답장 확인, 새 답장은 '새 소식'으로 표시. 멘토링대학교 수정요청 구조를 그대로 가져옴
+- 수정요청함(`/#/admin`, 관리자 가족만): 상태 필터·신규 배지, 확인→수정진행·의견보류·수정완료, 빠른 답장·답장 고치기, 삭제. 관리자 가족은 DB `foldy_admins`(현재 bang9family)
 
 **2차**
 - 레벨 6단계 + 레벨 진단(레벨별 5단어 중 4개 이상 알면 다음 단계)
@@ -48,6 +50,7 @@
 |---|---|
 | 화면 | React 18 + Vite 5 + Tailwind 3, HashRouter, 390px 모바일 우선 |
 | 데이터 | Supabase `modu-publish` 프로젝트의 `foldy_` 표 6개 (글로자 표와 분리) |
+| 수정요청 | `foldy_feedback`(상태·답장은 관리자만 바꿈, 가족·상태는 서버 트리거가 정함) · `foldy_admins` · RPC `foldy_is_admin`·`foldy_feedback_seen` |
 | 로그인 | `foldy_signup`/`foldy_login` 함수 → 세션 토큰을 `x-foldy-token` 헤더로 보내고, 모든 표는 RLS로 가족 단위 격리 |
 | AI | Vercel 서버 함수 `api/*.js`에서만 Claude API 호출(키는 브라우저에 노출 안 됨). 같은 단어의 AI 결과는 `foldy_cache`에 저장해 재사용 |
 | 발음 | 기본 어휘 3,000개는 오픈소스 Kokoro 음성(af_heart)으로 미리 만든 아나운서 음성 파일(`public/audio/*.mp3`), 그 밖은 기기에서 가장 좋은 영어 음성 자동 선택. 인식은 브라우저 음성 인식 — 모두 무료 |
@@ -91,6 +94,8 @@ npm test                                   # 단위 테스트 97개(채점·상�
 npm run build && npx vite preview --port 4173 &
 BASE=http://localhost:4173 node tests/e2e.mjs   # 브라우저 자동 점검 52개(390px)
 BASE=http://localhost:4173 node tests/e2e-retry.mjs  # '한 번 더' 검수 7개(느린 인터넷 흉내)
+PHASE=a FID=e2e_fbxx node tests/e2e-feedback.mjs   # 수정요청 접수 10개 → SQL로 그 가족을 foldy_admins에 넣고
+PHASE=b FID=e2e_fbxx node tests/e2e-feedback.mjs   # 관리자 처리·답장 11개 (끝나면 foldy_admins에서 다시 빼기)
 ```
 e2e는 실제 DB에 `e2e_`로 시작하는 테스트 가족을 만듭니다.
 
@@ -102,7 +107,7 @@ src/lib/        grading 채점 · study 상태·복습·정렬·입력검증 · 
 src/pages/      Auth Profiles Home Wordbook AddWords Study Quiz WrongNote Expand Me LevelTest
 src/components/ ui.jsx (캐릭터 블롭, ○△✕ 표시, 하단 메뉴 등)
 src/data/       levels.json (기본 어휘 3,000개 레벨 분류)
-supabase/       001_init.sql, 002_login_lock.sql, 003_member_pin.sql (모두 적용 완료)
+supabase/       001_init.sql, 002_login_lock.sql, 003_member_pin.sql, 004_feedback.sql (모두 적용 완료)
 tests/          logic·api 단위 테스트, e2e.mjs 브라우저 점검
 ```
 

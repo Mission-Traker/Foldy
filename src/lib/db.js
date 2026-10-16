@@ -190,3 +190,26 @@ export async function ai(path, body) {
   }
   return data
 }
+
+// 앱 수정요청 (멘토링대학교 수정요청함 구조)
+export const FEEDBACK_STATUSES = ['신규', '확인완료', '의견보류', '수정진행', '수정완료']
+export async function isAdmin() {
+  const { data, error } = await client.rpc('foldy_is_admin')
+  return !error && !!data
+}
+export const addFeedback = (row) => q(client.from('foldy_feedback').insert(row).select().single())
+export const listFeedback = () => q(client.from('foldy_feedback').select('*').order('created_at', { ascending: false }))
+export async function myFeedback() {
+  return q(client.from('foldy_feedback').select('*').eq('family_id', session?.family_id).order('created_at', { ascending: false }))
+}
+export async function updateFeedback(id, patch) {
+  const rows = await q(client.from('foldy_feedback').update(patch).eq('id', id).select())
+  if (!rows.length) throw new Error('관리자만 할 수 있어요')
+  return rows[0]
+}
+export async function deleteFeedback(id) {
+  const rows = await q(client.from('foldy_feedback').delete().eq('id', id).select('id'))
+  if (!rows.length) throw new Error('관리자만 할 수 있어요')
+}
+export const markFeedbackSeen = () => client.rpc('foldy_feedback_seen').then(() => {}, () => {})
+export const feedbackUnseen = (f) => !!f.status_changed_at && (!f.user_seen_at || new Date(f.user_seen_at) < new Date(f.status_changed_at))

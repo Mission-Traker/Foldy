@@ -17,6 +17,7 @@ import Expand from './pages/Expand.jsx'
 import Me from './pages/Me.jsx'
 import LevelTest from './pages/LevelTest.jsx'
 import Family from './pages/Family.jsx'
+import Admin from './pages/Admin.jsx'
 import ProfileSheet from './components/ProfileSheet.jsx'
 
 const Ctx = createContext(null)
@@ -168,6 +169,7 @@ export default function App() {
             <Route path="/me" element={<Me />} />
             <Route path="/level-test" element={<LevelTest />} />
             <Route path="/family" element={<Family />} />
+            <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}
