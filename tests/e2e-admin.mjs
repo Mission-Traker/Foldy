@@ -67,7 +67,7 @@ try {
     check('유료 AI 켜고 끄기 → 서버에 반영', (await flip()) === !before)
     check('다시 누르면 원래대로', (await flip()) === before)
     await page.getByRole('button', { name: '수정요청', exact: true }).click()
-    check('수정요청 탭', await seen('수정요청이 없어요'))
+    check('수정요청 탭', await page.getByRole('button', { name: /^전체 \d+/ }).waitFor({ timeout: 8000 }).then(() => true, () => false))
     await page.getByRole('button', { name: '랜딩', exact: true }).click()
     check('랜딩 탭: 카톡 미리보기', await seen('카톡으로 보냈을 때 미리보기'))
     const img = page.getByAltText('링크 미리보기 그림')

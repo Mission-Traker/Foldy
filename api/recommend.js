@@ -8,8 +8,8 @@ export default async function handler(req, res) {
   try {
     const { recent, owned, level, count } = await readBody(req)
     const n = Math.max(1, Math.min(10, parseInt(count, 10) || 5))
-    const recentList = (Array.isArray(recent) ? recent : []).map(String).slice(0, 30)
-    const ownedList = (Array.isArray(owned) ? owned : []).map((x) => String(x).toLowerCase()).slice(0, 2000)
+    const recentList = (Array.isArray(recent) ? recent : []).map((x) => String(x).slice(0, 60)).slice(0, 30)
+    const ownedList = (Array.isArray(owned) ? owned : []).map((x) => String(x).toLowerCase().slice(0, 60)).slice(0, 2000)
     const { text } = await textLLM({ req,
       check: canParse,
       maxTokens: 800,
@@ -22,6 +22,7 @@ export default async function handler(req, res) {
     const ownedSet = new Set(ownedList)
     const arr = parseJson(text)
     const items = (Array.isArray(arr) ? arr : [])
+      .filter((x) => x && typeof x === 'object')
       .map((x) => ({ word: String(x.word || '').trim(), meaning: String(x.meaning || '').trim(), why: String(x.why || '') }))
       .filter((x) => /^[A-Za-z][A-Za-z '\-]*$/.test(x.word) && !ownedSet.has(x.word.toLowerCase()))
       .slice(0, n)

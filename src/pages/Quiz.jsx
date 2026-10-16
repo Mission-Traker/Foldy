@@ -300,7 +300,7 @@ export default function Quiz() {
               {listening ? '듣고 있어요…' : res?.retry ? '🎤 다시 말하기' : '🎤 누르고 말하기'}
             </button>
             {!canListen() && <p className="text-center text-xs text-coral">이 브라우저는 음성 인식이 안 돼요. 크롬(안드로이드)이나 사파리(아이폰)에서 열어 주세요.</p>}
-            <button onClick={() => record(false)} className="btn-ghost w-full">잘 모르겠어요</button>
+            <button onClick={() => record(false)} disabled={listening} className="btn-ghost w-full">잘 모르겠어요</button>
             <details className="text-sm">
               <summary className="cursor-pointer py-1 text-center text-soft">🎙 마이크 바꾸기</summary>
               <div className="mt-2"><MicPicker compact /></div>

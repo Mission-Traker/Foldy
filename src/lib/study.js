@@ -346,11 +346,11 @@ export function examPlan(exam, words, today = ymd()) {
 // 이름(닉네임)은 한 달에 한 번: 마지막으로 바꾼 날 + 1달(같은 날짜, 그달에 없으면 말일) — 서버 트리거와 같은 규칙
 export function nameNextChange(changedAt) {
   if (!changedAt) return null
+  // 서버(UTC)의 '+ 1 month'와 같은 계산: 다음 달 같은 날짜, 그 달에 없으면 말일
   const d = new Date(changedAt)
-  const day = d.getDate()
-  const n = new Date(d.getFullYear(), d.getMonth() + 1, 1, d.getHours(), d.getMinutes(), d.getSeconds())
-  n.setDate(Math.min(day, new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate()))
-  return n
+  const y = d.getUTCFullYear(), mo = d.getUTCMonth() + 1
+  const last = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate()
+  return new Date(Date.UTC(y, mo, Math.min(d.getUTCDate(), last), d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds()))
 }
 export function nameLocked(changedAt, now = new Date()) {
   const n = nameNextChange(changedAt)

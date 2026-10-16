@@ -71,13 +71,16 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, member.id, today, recGoal])
 
+  const [adding, setAdding] = useState(false)
   async function add(list) {
+    if (adding) return
     const ok = list.filter((r) => r.meaning && !owned.has(r.word.toLowerCase()))
     if (!ok.length) return showToast(list.some((r) => !r.meaning) ? '뜻을 불러온 뒤에 담을 수 있어요' : '이미 단어장에 있어요')
+    setAdding(true)
     try {
       const { added } = await addWords(ok.map((r) => ({ word: r.word, meaning: r.meaning })), 'recommend')
       showToast(`${added.length}개를 단어장에 담았어요`)
-    } catch (e) { showToast(e.message) }
+    } catch (e) { showToast(e.message) } finally { setAdding(false) }
   }
 
   const goalMet = done >= member.daily_goal
@@ -140,7 +143,7 @@ export default function Home() {
       <section className="rounded-3xl border border-line bg-paper p-4">
         <div className="mb-1 flex items-center justify-between">
           <h2 className="font-jua text-lg text-slate-deep">오늘의 추천 단어</h2>
-          {recs?.length > 0 && <button className="chip" onClick={() => add(recs)}>모두 담기</button>}
+          {recs?.length > 0 && <button className="chip" disabled={adding} onClick={() => add(recs)}>모두 담기</button>}
         </div>
         <p className="mb-3 text-xs text-soft">
           {recs?.some((r) => r.related) ? '내가 외운 단어와 이어지는 단어예요' : `교육부 기본 어휘 ${levelLabel(member.level)}에서 골랐어요`}

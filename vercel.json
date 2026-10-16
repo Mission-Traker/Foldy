@@ -26,6 +26,12 @@
     },
     "api/lookup.js": {
       "maxDuration": 20
+    },
+    "api/ipa.js": {
+      "maxDuration": 30
+    },
+    "api/story.js": {
+      "maxDuration": 60
     }
   },
   "headers": [

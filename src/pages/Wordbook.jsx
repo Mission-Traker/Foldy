@@ -133,15 +133,19 @@ function Row({ w, hide, peek, onPeek, onEdit, inToday, onSend, ipa }) {
 }
 
 function EditSheet({ w, onClose }) {
-  const { patchWord, removeWord, showToast } = useApp()
+  const { patchWord, removeWord, showToast, runEnrich } = useApp()
   const [word, setWord] = useState(w.word)
   const [meaning, setMeaning] = useState(w.meaning)
   async function save() {
     const c = cleanEntry({ word, meaning })
     if (c.errors.length) return showToast(c.errors[0])
     const patch = { word: c.word, meaning: c.meaning }
-    if (c.word.toLowerCase() !== w.word.toLowerCase() || c.meaning !== w.meaning) Object.assign(patch, { enriched: false, accepted: [] })
+    const spelling = c.word.toLowerCase() !== w.word.toLowerCase()
+    if (spelling || c.meaning !== w.meaning) Object.assign(patch, { enriched: false, accepted: [] })
+    // 철자를 바꾸면 다른 단어가 된 것이므로 학습 기록·유의어·예문을 처음부터
+    if (spelling) Object.assign(patch, { attempted: false, ko_ok: false, en_ok: false, sp_ok: false, syn_ok: false, ant_ok: false, syn: null, ant: null, example: null, review_step: 0, next_review: null, wrong_modes: [], wrong_step: 0, wrong_next: null })
     await patchWord(w.id, patch)
+    if (patch.enriched === false) runEnrich([{ ...w, ...patch }])
     onClose()
   }
   async function del() {

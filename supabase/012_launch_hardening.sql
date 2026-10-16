@@ -1,0 +1,11 @@
+-- 2026-10-17 출시 전 점검(실제 적용: 마이그레이션 foldy_launch_hardening, foldy_member_level_base, foldy_trigger_fn_hardening, foldy_fk_indexes)
+-- ① foldy_families: anon/authenticated의 select·insert·update 권한 회수(비밀번호·복구코드 해시 비공개, 앱은 이 표를 직접 읽지 않음)
+-- ② foldy_cache: family_id 추가(기본 foldy_family(), 가족이 지워지면 함께 지움), PK(word) → unique(word, family_id) nulls not distinct,
+--    크기 제한(data 8000바이트, word 60자). 읽기 = 예전 공용 행(family_id null) + 내 가족 + 관리자 가족, 쓰기 = 내 가족 행만
+-- ③ foldy_feedback: 관리자 판정을 foldy_is_admin()(가족) → foldy_admin_ok()(관리자 구성원)로
+-- ④ foldy_signup: 같은 IP 한 시간 40개·전체 한 시간 300개까지(SIGNUP_BUSY), IP 기록은 foldy_login_fails('su:<ip>')
+-- ⑤ foldy_ai_take: 무료 AI 전체 합계 하루 한도(글 5000·사진 500)
+-- ⑥ foldy_change_password: 바꾸면 지금 기기 말고 다른 로그인은 끊음
+-- ⑦ foldy_set_pin: 바꾸거나 없애면 그 구성원의 잠금 해제(다른 기기)도 끊음
+-- ⑧ foldy_members.level_base: 레벨이 바뀐 순간의 경험치(다음 레벨업은 그 뒤부터 셈)
+-- ⑨ 트리거 전용 함수 실행 권한 회수, foldy_feedback_bu·foldy_challenges_bu search_path 고정, 외래키 인덱스

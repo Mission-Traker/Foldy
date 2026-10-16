@@ -17,6 +17,7 @@ export default async function handler(req, res) {
   try {
     const { words, nick, likes, level } = await readBody(req)
     const list = (Array.isArray(words) ? words : [])
+      .filter((w) => w && typeof w === 'object')
       .map((w) => ({ word: clean(w.word, 60), meaning: clean(w.meaning, 120) }))
       .filter((w) => w.word)
       .slice(0, 10)

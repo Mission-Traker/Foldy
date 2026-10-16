@@ -8,6 +8,7 @@ export default async function handler(req, res) {
   try {
     const { words, level } = await readBody(req)
     const list = (Array.isArray(words) ? words : [])
+      .filter((w) => w && typeof w === 'object')
       .map((w) => ({ word: String(w.word || '').slice(0, 60), meaning: String(w.meaning || '').slice(0, 120) }))
       .filter((w) => w.word)
       .slice(0, 15)
@@ -27,7 +28,7 @@ export default async function handler(req, res) {
       text: JSON.stringify(list),
     })
     const arr = parseJson(text)
-    const out = (Array.isArray(arr) ? arr : []).map((x) => ({
+    const out = (Array.isArray(arr) ? arr : []).filter((x) => x && typeof x === 'object').map((x) => ({
       word: String(x.word || ''),
       meaning: String(x.meaning || '').slice(0, 120),
       accepted: (Array.isArray(x.accepted) ? x.accepted : []).map(String).slice(0, 10),

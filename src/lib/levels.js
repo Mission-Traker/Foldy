@@ -62,7 +62,8 @@ function lowerSet(id) {
   return (LOWER[id] = s)
 }
 export const levelUpWords = (id) => (['L1', 'L2', 'L3'].includes(normLevel(id)) ? 30 : 40)
-export function levelProgress(words, levelId) {
+// base: 이 레벨이 된 순간의 경험치(그 전에 쌓인 것은 다음 레벨업에 세지 않음)
+export function levelProgress(words, levelId, base = 0) {
   const id = normLevel(levelId)
   const idx = LEVELS.findIndex((l) => l.id === id)
   const next = LEVELS[idx + 1] || null
@@ -72,6 +73,8 @@ export function levelProgress(words, levelId) {
     if (low.has(String(w.word || '').toLowerCase())) continue
     xp += (w.ko_ok ? 1 : 0) + (w.en_ok ? 1 : 0) + (w.sp_ok ? 1 : 0)
   }
+  const total = xp
+  xp = Math.max(0, xp - (Number(base) || 0))
   const need = levelUpWords(id) * 3
-  return { id, label: levelLabel(id), next: next?.id || null, nextLabel: next?.label || null, xp: Math.min(xp, need), need, full: !!next && xp >= need, total: xp }
+  return { id, label: levelLabel(id), next: next?.id || null, nextLabel: next?.label || null, xp: Math.min(xp, need), need, full: !!next && xp >= need, total }
 }

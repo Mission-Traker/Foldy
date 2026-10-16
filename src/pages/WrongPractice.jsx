@@ -39,10 +39,15 @@ export default function WrongPractice() {
   useEffect(() => { loadIpa().then(setIpaMap) }, [])
   useEffect(() => {
     if (!ready || session) return
-    const list = wrongDueList(words, ymd()).slice(0, all ? 30 : WRONG_DAILY).map((w) => ({ ...w }))
+    // 발음 인식이 안 되는 기기: 발음만 틀린 단어는 빼고(그 단어들이 자리를 차지해 다른 단어를 못 보는 일이 없게)
+    const due = wrongDueList(words, ymd())
+    const answerable = due.filter((w) => pronOK || w.wrong_modes.some((m) => m !== 'sp'))
+    const list = answerable.slice(0, all ? 30 : WRONG_DAILY).map((w) => ({ ...w }))
     const q3 = []
     for (const w of list) for (const m of w.wrong_modes) if (m !== 'sp' || pronOK) q3.push({ id: w.id, mode: m })
-    setSession({ list, q3, skipped: list.filter((w) => !q3.some((x) => x.id === w.id)) })
+    // 발음 문제를 여기서 못 푼 단어는 기록을 바꾸지 않음(졸업도 하지 않음) — 사파리·크롬에서 마저
+    const partial = new Set(list.filter((w) => w.wrong_modes.some((m) => m === 'sp') && !pronOK).map((w) => w.id))
+    setSession({ list, q3, partial, skipped: due.filter((w) => !answerable.includes(w)).length + partial.size })
     answers.current = {}; setResults({}); setStage(0); setI(0)
   }, [ready, batch]) // eslint-disable-line
 
@@ -52,9 +57,10 @@ export default function WrongPractice() {
     return (
       <div>
         <Header noProfile title="다시 익히기" back="/wrong" />
-        <Empty title="오늘 다시 볼 단어가 없어요" desc="오답노트에 단어가 들어오거나 다시 볼 날이 되면 여기서 만나요" i={1}>
+        <Empty title={skipped ? '여기서는 발음 문제만 남았어요' : '오늘 다시 볼 단어가 없어요'} desc={skipped ? '발음은 마이크 인식이 되는 브라우저에서 풀어요' : '오답노트에 단어가 들어오거나 다시 볼 날이 되면 여기서 만나요'} i={1}>
           <Link to="/wrong" className="btn-main mt-2">오답노트로</Link>
         </Empty>
+        {skipped > 0 && <div className="mt-4"><PronHandoff memberId={member?.id} showToast={showToast} /></div>}
       </div>
     )
   }
@@ -70,6 +76,7 @@ export default function WrongPractice() {
     if (arr.length < q3.filter((x) => x.id === id).length) return
     const w = list.find((x) => x.id === id)
     const all = arr.every(Boolean)
+    if (session.partial.has(id)) { setResults((r) => ({ ...r, [id]: { ok: all, partial: true } })); return }
     const patch = applyWrongResult(w, all, ymd())
     setResults((r) => ({ ...r, [id]: { ok: all, patch } }))
     try { await patchWord(id, patch) } catch (e) { showToast(e.message) }
@@ -106,7 +113,9 @@ export default function WrongPractice() {
   }
 
   // 끝 화면
-  const more = wrongDueList(words, ymd()).filter((w) => !list.some((x) => x.id === w.id) || results[w.id]?.ok === false)
+  const more = wrongDueList(words, ymd())
+    .filter((w) => pronOK || w.wrong_modes.some((m) => m !== 'sp'))
+    .filter((w) => !list.some((x) => x.id === w.id) || (results[w.id]?.ok === false && !results[w.id]?.partial))
   const grads = list.filter((w) => results[w.id]?.patch?.wrong_grad)
   return (
     <div>
@@ -123,7 +132,7 @@ export default function WrongPractice() {
           return (
             <li key={w.id} className="flex items-center gap-3 py-3">
               <b className="min-w-0 flex-1 truncate font-title text-lg">{w.word}</b>
-              {!r ? <span className="text-xs text-soft">발음은 {isIOS() ? '사파리' : '크롬'}에서</span>
+              {!r || r.partial ? <span className="text-xs text-soft">발음은 {isIOS() ? '사파리' : '크롬'}에서 마저</span>
                 : p.wrong_grad ? <span className="font-jua text-sm text-sage">🎓 졸업 · 캐릭터가 2번 더 먹어요</span>
                   : r.ok ? <span className="flex items-center gap-2 text-xs text-soft"><Dots n={p.wrong_step} />{mdLabel(p.wrong_next)}에 다시</span>
                     : <span className="text-xs text-coral">처음부터 · 오늘 다시 할 수 있어요</span>}
@@ -131,7 +140,7 @@ export default function WrongPractice() {
           )
         })}
       </ul>
-      {skipped.length > 0 && <PronHandoff memberId={member?.id} showToast={showToast} />}
+      {skipped > 0 && <PronHandoff memberId={member?.id} showToast={showToast} />}
       <div className="flex flex-col gap-2">
         {more.length > 0 && <button className="btn-main" onClick={() => { setSession(null); setBatch((b) => b + 1) }}>다시 볼 단어 {Math.min(more.length, all ? 30 : WRONG_DAILY)}개 더 하기</button>}
         <button className={more.length ? 'btn-ghost' : 'btn-main'} onClick={() => nav('/wrong')}>오답노트로</button>
@@ -254,7 +263,7 @@ function AnswerCard({ w, mode, onAnswer, onNext, showToast }) {
       ) : mode === 'sp' ? (
         <div className="space-y-2">
           <button onClick={mic} disabled={listening} className={`btn-coral w-full py-5 text-xl ${listening ? 'animate-pulse' : ''}`}>{listening ? '듣고 있어요…' : res?.retry ? '🎤 다시 말하기' : '🎤 누르고 말하기'}</button>
-          <button onClick={() => done(false)} className="btn-ghost w-full">잘 모르겠어요</button>
+          <button onClick={() => done(false)} disabled={listening} className="btn-ghost w-full">잘 모르겠어요</button>
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-2">

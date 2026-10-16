@@ -50,14 +50,13 @@ export default function LevelTest() {
       <p className="mb-4 text-sm text-soft">{levelLabel(group.level)} 단어예요 · 5개 중 4개 이상 알면 다음 단계로</p>
       <div className="grid grid-cols-1 gap-2">
         {group.words.map((w) => (
-          <button key={w} onClick={() => toggle(w)}
-            className={`flex items-center justify-between rounded-2xl border-2 px-4 py-3 text-left ${known[w] ? 'border-sage bg-sage/15' : 'border-line bg-paper'}`}>
-            <span className="font-title text-2xl font-semibold">{w}</span>
-            <span className="flex items-center gap-2">
-              <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); speak(w) }} className="text-lg">🔊</span>
-              <span className={`font-jua ${known[w] ? 'text-sage' : 'text-soft'}`}>{known[w] ? '알아요 ✓' : '몰라요'}</span>
-            </span>
-          </button>
+          <div key={w} className={`flex items-center rounded-2xl border-2 ${known[w] ? 'border-sage bg-sage/15' : 'border-line bg-paper'}`}>
+            <button type="button" onClick={() => toggle(w)} aria-pressed={!!known[w]} className="flex min-w-0 flex-1 items-center justify-between gap-2 px-4 py-3 text-left">
+              <span className="font-title text-2xl font-semibold">{w}</span>
+              <span className={`shrink-0 font-jua ${known[w] ? 'text-sage' : 'text-soft'}`}>{known[w] ? '알아요 ✓' : '몰라요'}</span>
+            </button>
+            <button type="button" onClick={() => speak(w)} aria-label={`${w} 듣기`} className="mr-2 h-10 w-10 shrink-0 rounded-full text-lg active:bg-cream">🔊</button>
+          </div>
         ))}
       </div>
       <button className="btn-main mt-5 w-full" onClick={next}>다음</button>

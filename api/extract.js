@@ -26,6 +26,7 @@ export default async function handler(req, res) {
       arr = [...String(text).matchAll(/\{\s*"word"\s*:\s*"([^"]*)"\s*,\s*"meaning"\s*:\s*"([^"]*)"\s*\}/g)].map((m) => ({ word: m[1], meaning: m[2] }))
     }
     const words = (Array.isArray(arr) ? arr : [])
+      .filter((x) => x && typeof x === 'object')
       .map((x) => ({ word: String(x.word || '').trim().slice(0, 60), meaning: String(x.meaning || '').trim().slice(0, 120) }))
       .filter((x) => /^[A-Za-z]/.test(x.word))
       .slice(0, 200)

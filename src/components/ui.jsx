@@ -93,7 +93,7 @@ export function Header({ title, back, right, noProfile }) {
   return (
     <div className="sticky top-0 z-20 -mx-4 mb-3 flex items-center gap-2 bg-cream/95 px-4 pb-2 pt-[max(env(safe-area-inset-top),12px)] backdrop-blur">
       {back && (
-        <button onClick={() => (typeof back === 'function' ? back() : typeof back === 'string' ? nav(back) : nav(-1))} aria-label="뒤로"
+        <button onClick={() => (typeof back === 'function' ? back() : typeof back === 'string' ? nav(back) : window.history.state?.idx > 0 ? nav(-1) : nav('/'))} aria-label="뒤로"
           className="flex h-10 w-10 items-center justify-center rounded-full bg-paper border-2 border-line text-slate-deep font-jua">←</button>
       )}
       <h1 className="h-title min-w-0 flex-1 text-2xl leading-tight">{title}</h1>

@@ -5,7 +5,7 @@ const KEY = import.meta.env.VITE_SUPABASE_KEY || 'sb_publishable_kMgYoZQrs5LRk-z
 const TOKEN_KEY = 'foldy.session'
 const MEMBER_KEY = 'foldy.member'
 const MTOK_KEY = 'foldy.memberTokens' // 구성원별 잠금 해제 토큰
-const MEMBER_COLS = 'id,family_id,name,avatar,level,daily_goal,streak,best_streak,last_study,created_at,has_pin,story,pet,name_changed_at'
+const MEMBER_COLS = 'id,family_id,name,avatar,level,daily_goal,streak,best_streak,last_study,created_at,has_pin,story,pet,name_changed_at,level_base'
 
 function store(k, v) {
   try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)) } catch { /* 저장 불가 환경 */ }
@@ -48,6 +48,7 @@ export const saveMemberId = (id) => { store(MEMBER_KEY, id); activeMember = id; 
 
 const ERR = {
   not_admin: '관리자만 할 수 있어요',
+  SIGNUP_BUSY: '지금 가입이 많아요. 잠시 뒤 다시 해 주세요',
   LOGIN_TAKEN: '이미 쓰고 있는 아이디예요',
   LOGIN_FAILED: '아이디 또는 비밀번호가 맞지 않아요',
   PASSWORD_SHORT: '비밀번호는 4자 이상이에요',
@@ -184,12 +185,16 @@ export const upsertDaily = (row) => q(client.from('foldy_daily').upsert(row).sel
 // 공유 AI 캐시(같은 단어는 한 번만 AI 호출)
 export async function getCache(words) {
   if (!words.length) return {}
-  const rows = await q(client.from('foldy_cache').select('word,data').in('word', words.map((w) => w.toLowerCase())))
+  const rows = await q(client.from('foldy_cache').select('word,data,family_id').in('word', words.map((w) => w.toLowerCase())))
+  // 같은 단어가 여러 줄이면 우리 가족이 만든 것을 먼저
+  const mine = session?.family_id
+  rows.sort((a, b) => (a.family_id === mine) - (b.family_id === mine))
   return Object.fromEntries(rows.map((r) => [r.word, r.data]))
 }
 export async function putCache(items) {
   if (!items.length) return
-  await client.from('foldy_cache').upsert(items.map((it) => ({ word: it.word.toLowerCase(), data: it })))
+  if (!session?.family_id) return
+  await client.from('foldy_cache').upsert(items.map((it) => ({ word: it.word.toLowerCase().slice(0, 60), family_id: session.family_id, data: it })), { onConflict: 'word,family_id' })
 }
 
 // 서버 AI 호출

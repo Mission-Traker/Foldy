@@ -5,6 +5,7 @@ import { enrichPending, personalize, storyOn } from './lib/enrich.js'
 import { enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, ymd, gnawDays, pickGnawWords, reviewCount, wrongDue } from './lib/study.js'
 import { BottomNav, Confetti, Toast } from './components/ui.jsx'
 import { fanfare } from './lib/sfx.js'
+import { levelProgress, normLevel } from './lib/levels.js'
 import { cacheGet, cacheSet, isNetErr, outboxAdd, outboxFlush, outboxSize } from './lib/offline.js'
 import Auth from './pages/Auth.jsx'
 import Profiles from './pages/Profiles.jsx'
@@ -102,10 +103,14 @@ export default function App() {
   }, [session, showToast])
 
   // 구성원 선택 시 단어·오늘 기록 불러오기
+  const [loadError, setLoadError] = useState('')
+  const [loadTry, setLoadTry] = useState(0)
   useEffect(() => {
     if (!member) return
     setLoading(true)
+    setLoadError('')
     const id = member.id
+    let alive = true // 그사이 다른 구성원으로 바뀌면 늦게 온 결과는 버림
     Promise.all([db.listWords(id), db.getDaily(id, ymd())])
       .catch((e) => {
         // 인터넷이 없으면 이 기기에 저장해 둔 단어로 공부(푼 답은 연결되면 보냄)
@@ -115,10 +120,18 @@ export default function App() {
         showToast('오프라인이에요 · 저장해 둔 단어로 공부해요')
         return [ws, d && d.day === ymd() ? d : null]
       })
-      .then(([ws, d]) => { dailyRef.current = d; setWords(ws); setDaily(d); setLoadedFor(id) })
-      .catch((e) => showToast(e.message))
-      .finally(() => setLoading(false))
-  }, [member?.id, showToast])
+      .then(([ws, d]) => { if (!alive) return; dailyRef.current = d; setWords(ws); setDaily(d); setLoadedFor(id) })
+      .catch((e) => { if (alive) setLoadError(e.message || '단어를 불러오지 못했어요') })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [member?.id, loadTry])
+
+  // 로그아웃하면 이전 가족의 구성원·단어를 화면에서 비움
+  useEffect(() => {
+    if (session) return
+    setMembers([]); setMember(null); setMembersReady(false); setWords([]); setDaily(null); setLoadedFor(null)
+    dailyRef.current = null
+  }, [session])
 
   const runEnrich = useCallback(async (list) => {
     if (!member) return
@@ -196,11 +209,11 @@ export default function App() {
 
   const addWords = useCallback(async (entries, source) => {
     const { added, skipped } = await db.addWords(member.id, entries, source)
-    const merged = [...words, ...added]
-    setWords(merged)
+    // 연달아 담아도 앞에 담은 단어가 사라지지 않게(최신 목록에 덧붙임)
+    setWords((ws) => [...ws, ...added.filter((a) => !ws.some((w) => w.id === a.id))])
     runEnrich(added)
     return { added, skipped }
-  }, [member, words, runEnrich])
+  }, [member, runEnrich])
 
   const removeWord = useCallback(async (id) => {
     await db.deleteWord(id)
@@ -208,11 +221,13 @@ export default function App() {
   }, [])
 
   const updateMember = useCallback(async (patch) => {
+    // 레벨이 바뀌면 그 순간의 경험치를 기준점으로(새 레벨 게이지는 0부터)
+    if (patch.level && normLevel(patch.level) !== normLevel(member.level)) patch = { ...patch, level_base: levelProgress(words, patch.level).total }
     const m = await db.updateMember(member.id, patch)
     setMember(m)
     setMembers((ms) => ms.map((x) => (x.id === m.id ? m : x)))
     return m
-  }, [member])
+  }, [member, words])
 
   // 오늘 기록(맞힌 수·추천·오늘의 단어·오늘 푼 단어)은 한곳에서 순서대로 저장 — 연달아 바뀌어도 앞 값을 덮어쓰지 않게
   const updateDaily = useCallback((fn) => {
@@ -280,7 +295,7 @@ export default function App() {
   }, [member, words])
 
   const value = useMemo(() => ({
-    session, setSession, members, setMembers, member, patchMemberLocal: (patch) => { setMember((m) => (m ? { ...m, ...patch } : m)); setMembers((ms) => ms.map((x) => (member && x.id === member.id ? { ...x, ...patch } : x))) }, setMember: (m) => { if (member && member.has_pin && member.id !== m?.id) db.forgetMemberToken(member.id); db.saveMemberId(m?.id || null); setMember(m); setWords([]); dailyRef.current = null; setDaily(null); enrichedOnce.current = null; if (m) navTo('/') },
+    session, setSession, members, setMembers, member, patchMemberLocal: (patch) => { setMember((m) => (m ? { ...m, ...patch } : m)); setMembers((ms) => ms.map((x) => (member && x.id === member.id ? { ...x, ...patch } : x))) }, setMember: (m) => { if (member && member.has_pin && member.id !== m?.id) db.forgetMemberToken(member.id); db.saveMemberId(m?.id || null); setMember(m); setWords([]); setLoadedFor(null); setLoadTry((n) => n + 1); dailyRef.current = null; setDaily(null); enrichedOnce.current = null; if (m) navTo('/') },
     openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich,
   }), [session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich])
 
@@ -326,6 +341,13 @@ export default function App() {
           <div className="flex min-h-screen items-center justify-center text-soft" aria-busy="true">불러오는 중…</div>
         ) : !member ? (
           <Profiles />
+        ) : loadError && loadedFor !== member.id ? (
+          <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-center">
+            <p className="font-jua text-xl text-slate-deep">단어를 불러오지 못했어요</p>
+            <p className="text-sm text-soft">{loadError}</p>
+            <button className="btn-main" onClick={() => setLoadTry((n) => n + 1)}>다시 시도</button>
+            <button className="text-sm text-soft underline" onClick={() => { db.saveMemberId(null); setMember(null) }}>프로필 다시 고르기</button>
+          </div>
         ) : (
           <Routes>
             <Route path="/" element={<Home />} />

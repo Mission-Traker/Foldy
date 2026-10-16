@@ -54,13 +54,18 @@ export function hasFreeVision() { return !!freeConf()?.vision }
 
 // 무료 등급은 붐비면 503·429가 잦음 → 잠깐 쉬었다가 같은 모델로 한 번, 그래도 안 되면 가벼운 모델(Gemini)로 한 번 더
 const GEMINI_BACKUP = process.env.GEMINI_BACKUP_MODEL || 'gemini-flash-lite-latest'
+// 함수가 Vercel 제한 시간에 잘리기 전에 끝내도록: 남은 시간 안에서만 기다리고, 모자라면 다시 시도하지 않음
+const MAX_DURATION = { extract: 60, enrich: 60, story: 60, recommend: 30, judge: 30, pron: 30, ipa: 30, lookup: 20 }
+function remaining(req) { return req?.foldyDeadline ? req.foldyDeadline - Date.now() : 40000 }
 async function freeChat(opts) {
   const c = freeConf()
   const models = [c.model, c.model]
   if (c.base === GEMINI_BASE && GEMINI_BACKUP !== c.model) models.push(GEMINI_BACKUP)
   let last
   for (let i = 0; i < models.length; i++) {
-    try { return await freeChatOnce(c, models[i], opts) } catch (e) {
+    const left = remaining(opts.req)
+    if (i > 0 && left < 6000) break
+    try { return await freeChatOnce(c, models[i], { ...opts, timeout: Math.max(3000, Math.min(opts.image ? 55000 : 40000, left - 1500)) }) } catch (e) {
       last = e
       if (!e.busy) throw e
       if (i < models.length - 1) await new Promise((r) => setTimeout(r, i === 0 ? 700 : 200))
@@ -68,7 +73,7 @@ async function freeChat(opts) {
   }
   throw new Error('무료 AI가 지금 붐벼요. 조금 뒤 다시 해 주세요')
 }
-async function freeChatOnce(c, model, { system, text, maxTokens, image, mediaType }) {
+async function freeChatOnce(c, model, { system, text, maxTokens, image, mediaType, timeout }) {
   const base = c.base.replace(/\/+$/, '')
   const user = image
     ? [{ type: 'image_url', image_url: { url: `data:${mediaType || 'image/jpeg'};base64,${image}` } }, { type: 'text', text }]
@@ -81,14 +86,16 @@ async function freeChatOnce(c, model, { system, text, maxTokens, image, mediaTyp
       max_tokens: maxTokens,
       messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
     }),
-    signal: AbortSignal.timeout(image ? 55000 : 40000),
+    signal: AbortSignal.timeout(timeout || (image ? 55000 : 40000)),
   })
   const raw = await r.text().catch(() => '')
   let data = {}
   try { data = JSON.parse(raw) } catch { /* 본문이 JSON이 아님 */ }
   if (Array.isArray(data)) data = data[0] || {}
   if (!r.ok) {
-    const e = new Error(data?.error?.message || `무료 LLM ${r.status}${raw ? ': ' + raw.slice(0, 160) : ''}`)
+    // 자세한 내용은 서버 기록에만(사용자 화면에는 짧게)
+    console.error('[free-llm]', r.status, model, raw.slice(0, 300))
+    const e = new Error(`무료 AI 응답 오류(${r.status})`)
     e.busy = r.status === 429 || r.status === 503 || r.status === 500
     throw e
   }
@@ -129,13 +136,14 @@ async function takeQuota(req, kind) {
       headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json', 'x-foldy-token': token },
       body: JSON.stringify({ p_kind: kind, p_limit: LIMITS[kind] }),
     })
-    if (!r.ok) return true // 한도 확인이 안 되면 막지 않음
+    // 한도 확인이 안 되면: 유료(Claude)는 막고, 무료는 막지 않음
+    if (!r.ok) return kind.startsWith('free_')
     return (await r.json()) !== false
-  } catch { return true }
+  } catch { return kind.startsWith('free_') }
 }
 async function paidClaude(req, kind, opts) {
   if (!(await takeQuota(req, kind))) throw new LimitError()
-  return claude(opts)
+  return claude({ ...opts, req })
 }
 
 // 글자만 다루는 작업: 무료 LLM을 먼저 쓰고, 실패하면 Claude로 대신함
@@ -152,7 +160,7 @@ export async function textLLM({ system, text, maxTokens = 2000, check = () => tr
       var claudeErr = e
     }
     let out
-    try { out = await freeChat({ system, text, maxTokens }) } catch (e) { throw claudeErr || e }
+    try { out = await freeChat({ req, system, text, maxTokens }) } catch (e) { throw claudeErr || e }
     if (!check(out)) throw new Error('AI 응답 형식이 맞지 않아요. 다시 해 주세요')
     return { text: out, via: 'free' }
   }
@@ -160,7 +168,8 @@ export async function textLLM({ system, text, maxTokens = 2000, check = () => tr
   if (!hasFree()) throw new FreeOnlyError()
   if (!(await takeQuota(req, 'free_text'))) throw new LimitError()
   for (let i = 0; i < 2; i++) {
-    const out = await freeChat({ system: i ? system + '\n\n반드시 요청한 형식만 정확히 출력하라.' : system, text, maxTokens })
+    if (i > 0 && remaining(req) < 6000) break
+    const out = await freeChat({ req, system: i ? system + '\n\n반드시 요청한 형식만 정확히 출력하라.' : system, text, maxTokens })
     if (check(out)) return { text: out, via: 'free' }
   }
   throw new Error('AI 응답 형식이 맞지 않아요. 다시 해 주세요')
@@ -181,13 +190,13 @@ export async function visionLLM({ system, text, image, mediaType, maxTokens = 80
       var claudeErr = e
     }
     let out
-    try { out = await freeChat({ system, text, maxTokens, image, mediaType }) } catch (e) { throw claudeErr || e }
+    try { out = await freeChat({ req, system, text, maxTokens, image, mediaType }) } catch (e) { throw claudeErr || e }
     if (!check(out)) throw new Error('사진을 읽지 못했어요. 다시 해 주세요')
     return { text: out, via: 'free' }
   }
   if (!hasFreeVision()) throw new FreeOnlyError()
   if (!(await takeQuota(req, 'free_vision'))) throw new LimitError()
-  const out = await freeChat({ system, text, maxTokens, image, mediaType })
+  const out = await freeChat({ req, system, text, maxTokens, image, mediaType })
   if (!check(out)) throw new Error('무료 AI가 사진을 읽지 못했어요. 다시 해 주세요')
   return { text: out, via: 'free' }
 }
@@ -196,7 +205,7 @@ export function canParse(t) {
   try { parseJson(t); return true } catch { return false }
 }
 
-export async function claude({ model, system, content, maxTokens = 2000 }) {
+export async function claude({ model, system, content, maxTokens = 2000, req }) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -205,14 +214,13 @@ export async function claude({ model, system, content, maxTokens = 2000 }) {
       'content-type': 'application/json',
     },
     body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content }] }),
+    signal: AbortSignal.timeout(Math.max(3000, Math.min(55000, remaining(req) - 1500))),
   })
   const data = await r.json().catch(() => ({}))
   if (!r.ok) {
-    const msg = data?.error?.message || `Claude API ${r.status}`
-    if (/credit balance/i.test(msg)) throw new Error('Claude API 크레딧이 부족해요 (Claude Console → Billing에서 충전)')
-    if (r.status === 401) throw new Error('Claude API 키가 맞지 않아요 (Vercel 환경변수 확인)')
+    console.error('[claude]', r.status, data?.error?.message || '')
     if (r.status === 429 || r.status === 529) throw new Error('AI가 잠시 바빠요. 조금 뒤 다시 해 주세요')
-    throw new Error(msg)
+    throw new Error(`AI 응답 오류(${r.status})`)
   }
   return (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('')
 }
@@ -230,6 +238,8 @@ export function parseJson(text) {
 // needVision: 사진 읽기 — Claude나 사진이 되는 무료 AI가 있어야 함
 export async function guard(req, res, { needVision = false } = {}) {
   if (req.method !== 'POST') { send(res, 405, { error: 'POST만 가능해요' }); return false }
+  const name = String(req.url || '').split('?')[0].split('/').pop()
+  req.foldyDeadline = Date.now() + ((MAX_DURATION[name] || 30) - 3) * 1000
   const fam = await requireFamily(req)
   if (!fam) { send(res, 401, { error: '로그인이 필요해요' }); return false }
   req.foldyPaid = await isPaidFamily(req)

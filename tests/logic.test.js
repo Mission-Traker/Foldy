@@ -507,12 +507,12 @@ describe('오답노트 3단계 다시 익히기 + 날짜 간격 졸업', () => {
 describe('이름은 한 달에 한 번', () => {
   it('처음엔 바꿀 수 있음', () => expect(nameLocked(null)).toBeNull())
   it('바꾼 뒤 한 달 동안 잠김', () => {
-    const at = new Date(2026, 9, 16, 21, 0).toISOString()
-    expect(nameLocked(at, new Date(2026, 10, 15, 23, 0))).not.toBeNull()
-    expect(nameLocked(at, new Date(2026, 10, 16, 21, 1))).toBeNull()
+    const at = new Date(Date.UTC(2026, 9, 16, 12, 0)).toISOString()
+    expect(nameLocked(at, new Date(Date.UTC(2026, 10, 16, 11, 59)))).not.toBeNull()
+    expect(nameLocked(at, new Date(Date.UTC(2026, 10, 16, 12, 1)))).toBeNull()
   })
   it('말일은 다음 달 말일로', () => {
-    const n = nameNextChange(new Date(2026, 0, 31, 9).toISOString())
-    expect([n.getMonth(), n.getDate()]).toEqual([1, 28])
+    const n = nameNextChange(new Date(Date.UTC(2026, 0, 31, 9)).toISOString())
+    expect([n.getUTCMonth(), n.getUTCDate()]).toEqual([1, 28])
   })
 })

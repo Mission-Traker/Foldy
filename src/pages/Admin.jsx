@@ -99,7 +99,7 @@ function Families() {
   // 늦게 온 이전 응답(테스트 포함 전 목록)이 새 목록을 덮지 않게
   const load = useCallback(() => {
     const n = ++seq.current
-    db.adminFamilies(tests).then((r) => { if (n === seq.current) setRows(r) }).catch((e) => setMsg(e.message))
+    db.adminFamilies(tests).then((r) => { if (n === seq.current) setRows(r) }).catch((e) => { setMsg(e.message); setRows([]) })
   }, [tests])
   useEffect(() => { setRows(null); load() }, [load])
   async function togglePaid(f) {
@@ -112,7 +112,7 @@ function Families() {
     try { const n = await db.adminCleanupTests(); setMsg(`테스트 가족 ${n}개를 지웠어요`); load() } catch (e) { setMsg(e.message) }
   }
   const t = q.trim().toLowerCase()
-  const shown = (rows || []).filter((f) => !t || f.name.toLowerCase().includes(t) || f.login_id.includes(t))
+  const shown = (rows || []).filter((f) => !t || String(f.name || '').toLowerCase().includes(t) || String(f.login_id || '').includes(t))
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">
@@ -218,8 +218,8 @@ function FeedbackInbox() {
     // '확인완료'는 바로 '수정진행'(처리 대기열)으로 — 멘토링대학교와 같은 규칙
     const eff = p.status === '확인완료' ? { ...p, status: '수정진행' } : p
     setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, ...eff } : x)))
-    try { const saved = await db.updateFeedback(r.id, eff); setRows((prev) => prev.map((x) => (x.id === r.id ? saved : x))) }
-    catch (e) { setMsg(e.message); load() }
+    try { const saved = await db.updateFeedback(r.id, eff); setRows((prev) => prev.map((x) => (x.id === r.id ? saved : x))); return true }
+    catch (e) { setMsg(e.message); load(); return false }
   }
   async function remove(r) {
     if (!confirm('이 수정요청을 지울까요?')) return
@@ -257,8 +257,8 @@ function Row({ r, onPatch, onRemove }) {
   async function send() {
     const t = draft.trim()
     if (!t) return
-    await onPatch(r, { reply: t.slice(0, 2000) })
-    setDraft(''); setEditing(false)
+    // 저장에 실패하면 쓴 답장을 지우지 않음
+    if (await onPatch(r, { reply: t.slice(0, 2000) })) { setDraft(''); setEditing(false) }
   }
 
   return (

@@ -14,8 +14,8 @@ export default async function handler(req, res) {
         '전혀 다른 뜻이거나 반대 뜻이면 오답. JSON만 출력: {"ok":true|false,"reason":"한 문장"}',
       text: JSON.stringify({ word: String(word).slice(0, 60), 교재뜻: String(meaning || '').slice(0, 120), 학생답: String(answer).slice(0, 60) }),
     })
-    const r = parseJson(text)
-    send(res, 200, { ok: !!r.ok, reason: String(r.reason || '') })
+    const r = parseJson(text) || {}
+    send(res, 200, { ok: r.ok === true, reason: String(r.reason || '').slice(0, 200) })
   } catch (e) {
     send(res, e.code === 'LIMIT' ? 429 : 500, { error: e.code === 'LIMIT' ? e.message : 'AI 채점을 하지 못했어요: ' + e.message, code: e.code })
   }

@@ -15,7 +15,8 @@ export default async function handler(req, res) {
         '모르는 것은 빈 문자열. JSON 객체만 출력: {"webcam":"/ˈwɛbˌkæm/"}',
       text: JSON.stringify(list),
     })
-    const r = parseJson(text) || {}
+    let r = parseJson(text) || {}
+    if (typeof r !== 'object' || Array.isArray(r)) r = {}
     const out = {}
     for (const w of list) {
       const v = String(r[w] ?? r[w.toLowerCase()] ?? '').trim().slice(0, 60)

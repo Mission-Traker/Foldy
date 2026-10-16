@@ -4,7 +4,7 @@ import { fanfare } from '../lib/sfx.js'
 
 // 게임 같은 레벨업 게이지 — 프로필 바로 밑. 퀴즈를 통과할 때마다 차오르고, 다 차면 레벨업 버튼
 export default function LevelBar({ member, words, onLevelUp }) {
-  const p = levelProgress(words, member.level)
+  const p = levelProgress(words, member.level, member.level_base)
   const pct = p.next ? Math.round((p.xp / p.need) * 100) : 100
   const key = `foldy.xp.${member.id}.${p.id}`
   const [shown, setShown] = useState(() => { try { const v = Number(localStorage.getItem(key)); return Number.isFinite(v) && v <= p.xp ? v : p.xp } catch { return p.xp } })
