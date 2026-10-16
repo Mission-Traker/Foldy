@@ -564,3 +564,29 @@ describe('새 날 오늘의 단어', async () => {
     expect(set).toHaveLength(10)
   })
 })
+
+describe('AI 없이: 내장 어휘 데이터·연관 추천', async () => {
+  const { loadVocab, vocabEnrich, vocabPron } = await import('../src/lib/vocab.js')
+  const { relatedPick } = await import('../src/lib/levels.js')
+  const map = await loadVocab()
+  it('기본 어휘 2,898개가 모두 들어 있음', () => { expect(map.size).toBe(2898) })
+  it('유의어·반의어·예문·허용 답안(교재 뜻 포함)', () => {
+    const d = vocabEnrich(map, 'Happy', '행복한, 기쁜')
+    expect(d.syn.word).toBeTruthy(); expect(d.example.en.toLowerCase()).toContain('happy')
+    expect(d.accepted).toContain('행복한'); expect(d.accepted).toContain('기쁜')
+    expect(vocabEnrich(map, 'zzqword', '')).toBe(null)
+  })
+  it('발음 요령: 음절·강세·한글 흉내, 잘못 들린 말이면 조언', () => {
+    const p = vocabPron(map, 'library', 'lie bury', '/ˈlaɪˌbrɛri/')
+    expect(p.syllables.join('').toLowerCase()).toBe('library')
+    expect(p.syllables[p.stress]).toBe(p.syllables[p.stress].toUpperCase())
+    expect(p.ko).toMatch(/[가-힣]/); expect(p.mistake).toContain('lie bury')
+    expect(vocabPron(map, 'library', 'library').mistake).toBe('')
+  })
+  it('연관 추천: 가진 단어는 빼고, 최근 단어 주변(같은 주제)에서', () => {
+    const r = relatedPick(['cat', 'red'], new Set(['cat', 'red', 'dog']), 'seed', 5)
+    expect(r).toHaveLength(5)
+    expect(r.some((x) => x.word === 'dog')).toBe(false)
+    expect(new Set(r.map((x) => x.from)).size).toBe(2)
+  })
+})

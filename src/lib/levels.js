@@ -34,6 +34,35 @@ export function dailyPick(levelId, ownedLower, seedStr, n = 5) {
   return shuffle(pool, seeded(seedStr)).slice(0, n)
 }
 
+// 내 최근 단어와 연관된 추천(AI 없이): 기본 어휘 목록은 주제별로 묶여 있어서, 목록에서 바로 옆에 있는 단어가 같은 주제
+// recent: 최근 단어(최신 먼저) → [{ word, from }]
+export function relatedPick(recent, ownedLower, seedStr, n = 5, span = 6) {
+  const all = Object.values(LEVEL_WORDS).flat()
+  const pos = new Map(all.map((w, i) => [w.toLowerCase(), i]))
+  const rand = seeded(seedStr)
+  const lists = []
+  for (const r of recent) {
+    const i = pos.get(String(r).toLowerCase())
+    if (i == null) continue
+    const near = []
+    for (let d = 1; d <= span; d++) for (const j of [i - d, i + d]) if (j >= 0 && j < all.length) near.push(all[j])
+    lists.push({ from: r, near: shuffle(near, rand) })
+  }
+  const out = []
+  const used = new Set(ownedLower)
+  // 최근 단어마다 하나씩 돌아가며 골라 여러 주제가 섞이게
+  for (let round = 0; out.length < n && round < span * 2; round++) {
+    for (const l of lists) {
+      if (out.length >= n) break
+      const w = l.near.find((x) => !used.has(x.toLowerCase()))
+      if (!w) continue
+      used.add(w.toLowerCase())
+      out.push({ word: w, from: l.from })
+    }
+  }
+  return out
+}
+
 // 레벨 진단용 샘플(레벨마다 5개)
 export function levelTestSet(seedStr) {
   const rand = seeded(seedStr)

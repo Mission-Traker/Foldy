@@ -1,9 +1,6 @@
-// 서버 전용 도우미 — Claude API 키는 여기(서버)에서만 사용합니다.
+// 서버 전용 도우미 — 무료 AI(Gemini) 키는 여기(서버)에서만 사용합니다. 유료 AI는 쓰지 않아요.
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gilpvbwpbioihvjbldpm.supabase.co'
 const SUPABASE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_kMgYoZQrs5LRk-zrUshxOA_wZz1keiW'
-
-export const MODEL_VISION = process.env.FOLDY_MODEL_VISION || 'claude-sonnet-5-5'
-export const MODEL_TEXT = process.env.FOLDY_MODEL_TEXT || 'claude-haiku-5-5'
 
 export function send(res, status, body) {
   res.statusCode = status
@@ -35,10 +32,6 @@ export async function requireFamily(req) {
   return typeof id === 'string' ? id : null
 }
 
-export function hasKey() {
-  return !!process.env.ANTHROPIC_API_KEY
-}
-
 // 무료 LLM(OpenAI 호환 주소). GEMINI_API_KEY 하나만 넣으면 구글 Gemini 무료 등급을 씀(글자·사진 모두)
 // 직접 지정: FREE_LLM_BASE_URL + FREE_LLM_API_KEY (+ FREE_LLM_MODEL, 사진도 되면 FREE_LLM_VISION=1)
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai'
@@ -55,7 +48,7 @@ export function hasFreeVision() { return !!freeConf()?.vision }
 // 무료 등급은 붐비면 503·429가 잦음 → 잠깐 쉬었다가 같은 모델로 한 번, 그래도 안 되면 가벼운 모델(Gemini)로 한 번 더
 const GEMINI_BACKUP = process.env.GEMINI_BACKUP_MODEL || 'gemini-flash-lite-latest'
 // 함수가 Vercel 제한 시간에 잘리기 전에 끝내도록: 남은 시간 안에서만 기다리고, 모자라면 다시 시도하지 않음
-const MAX_DURATION = { extract: 60, enrich: 60, story: 60, recommend: 30, judge: 30, pron: 30, ipa: 30, lookup: 20 }
+const MAX_DURATION = { extract: 60, enrich: 60, story: 60, judge: 30, pron: 30, ipa: 30, lookup: 20 }
 function remaining(req) { return req?.foldyDeadline ? req.foldyDeadline - Date.now() : 40000 }
 async function freeChat(opts) {
   const c = freeConf()
@@ -111,25 +104,9 @@ async function freeChatOnce(c, model, { system, text, maxTokens, image, mediaTyp
   return out
 }
 
-// 유료 AI(Claude)는 관리자가 정한 가족(foldy_families.ai_paid)만 — 다른 가족은 무료 AI만 씀
-async function isPaidFamily(req) {
-  const token = req?.headers?.['x-foldy-token']
-  if (!token) return false
-  try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/foldy_ai_paid`, {
-      method: 'POST',
-      headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json', 'x-foldy-token': token },
-      body: '{}',
-    })
-    return r.ok && (await r.json()) === true
-  } catch { return false }
-}
-const usesClaude = (req) => !!req?.foldyPaid && hasKey()
-
-// 유료 가족의 하루 Claude 사용 한도
+// 하루 한도: 무료 AI는 모든 가족이 같은 무료 한도를 나눠 쓰므로, 한 가족이 다 써 버리지 않게 가족당 하루 한도를 둠
+// (기본 어휘 3,000개는 앱에 넣어 둔 데이터를 쓰므로 AI를 부르는 일은 그 밖의 단어뿐)
 export const LIMITS = {
-  text: Number(process.env.FOLDY_DAILY_TEXT || 150), vision: Number(process.env.FOLDY_DAILY_VISION || 20),
-  // 무료 AI는 모든 가족이 같은 무료 한도를 나눠 쓰므로, 한 가족이 다 써 버리지 않게 하루 한도를 둠
   free_text: Number(process.env.FOLDY_FREE_TEXT || 200), free_vision: Number(process.env.FOLDY_FREE_VISION || 15),
 }
 export class FreeOnlyError extends Error { constructor() { super('AI 기능을 준비하고 있어요. 조금만 기다려 주세요'); this.code = 'NO_KEY' } }
@@ -143,35 +120,14 @@ async function takeQuota(req, kind) {
       headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json', 'x-foldy-token': token },
       body: JSON.stringify({ p_kind: kind, p_limit: LIMITS[kind] }),
     })
-    // 한도 확인이 안 되면: 유료(Claude)는 막고, 무료는 막지 않음
-    if (!r.ok) return kind.startsWith('free_')
+    // 한도 확인이 안 되면 막지 않음(무료라서)
+    if (!r.ok) return true
     return (await r.json()) !== false
-  } catch { return kind.startsWith('free_') }
-}
-async function paidClaude(req, kind, opts) {
-  if (!(await takeQuota(req, kind))) throw new LimitError()
-  return claude({ ...opts, req })
+  } catch { return true }
 }
 
-// 글자만 다루는 작업: 무료 LLM을 먼저 쓰고, 실패하면 Claude로 대신함
-// check(text)가 false면(형식이 깨진 응답) 역시 Claude로 다시 시도
+// 글자만 다루는 작업: 무료 AI만(가족당 하루 한도 안에서). 형식이 깨지면 한 번 더
 export async function textLLM({ system, text, maxTokens = 2000, check = () => true, req }) {
-  if (usesClaude(req)) {
-    // 유료 가족: Claude 먼저(품질), 한도·오류면 무료 AI로
-    try {
-      let out = await paidClaude(req, 'text', { model: MODEL_TEXT, system, content: [{ type: 'text', text }], maxTokens })
-      if (!check(out)) out = await paidClaude(req, 'text', { model: MODEL_TEXT, system: system + '\n\n반드시 요청한 형식만 정확히 출력하라. 문자열 안의 큰따옴표는 쓰지 말고 작은따옴표를 써라.', content: [{ type: 'text', text }], maxTokens })
-      if (check(out)) return { text: out, via: 'claude' }
-    } catch (e) {
-      if (!hasFree()) throw e
-      var claudeErr = e
-    }
-    let out
-    try { out = await freeChat({ req, system, text, maxTokens }) } catch (e) { throw claudeErr || e }
-    if (!check(out)) throw new Error('AI 응답 형식이 맞지 않아요. 다시 해 주세요')
-    return { text: out, via: 'free' }
-  }
-  // 그 밖의 가족: 무료 AI만(가족당 하루 한도 안에서)
   if (!hasFree()) throw new FreeOnlyError()
   if (!(await takeQuota(req, 'free_text'))) throw new LimitError()
   for (let i = 0; i < 2; i++) {
@@ -182,25 +138,8 @@ export async function textLLM({ system, text, maxTokens = 2000, check = () => tr
   throw new Error('AI 응답 형식이 맞지 않아요. 다시 해 주세요')
 }
 
-// 사진 읽기: 사진도 되는 무료 AI(Gemini 등)를 먼저, 안 되면 Claude
+// 사진 읽기: 사진도 되는 무료 AI(Gemini)로. 안 되면 화면에서 기기 안 글자 인식(Tesseract)으로 대신함
 export async function visionLLM({ system, text, image, mediaType, maxTokens = 8000, check = () => true, req }) {
-  const claudeVision = () => paidClaude(req, 'vision', {
-    model: MODEL_VISION, maxTokens, system,
-    content: [{ type: 'image', source: { type: 'base64', media_type: mediaType, data: image } }, { type: 'text', text }],
-  })
-  if (usesClaude(req)) {
-    try {
-      const out = await claudeVision()
-      if (check(out)) return { text: out, via: 'claude' }
-    } catch (e) {
-      if (!hasFreeVision()) throw e
-      var claudeErr = e
-    }
-    let out
-    try { out = await freeChat({ req, system, text, maxTokens, image, mediaType }) } catch (e) { throw claudeErr || e }
-    if (!check(out)) throw new Error('사진을 읽지 못했어요. 다시 해 주세요')
-    return { text: out, via: 'free' }
-  }
   if (!hasFreeVision()) throw new FreeOnlyError()
   if (!(await takeQuota(req, 'free_vision'))) throw new LimitError()
   const out = await freeChat({ req, system, text, maxTokens, image, mediaType })
@@ -210,30 +149,6 @@ export async function visionLLM({ system, text, image, mediaType, maxTokens = 80
 
 export function canParse(t) {
   try { parseJson(t); return true } catch { return false }
-}
-
-export async function claude({ model, system, content, maxTokens = 2000, req }) {
-  let r
-  try { r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content }] }),
-    signal: AbortSignal.timeout(Math.max(3000, Math.min(55000, remaining(req) - 1500))),
-  }) } catch (e) {
-    console.error('[claude]', e?.name || '', e?.message || '')
-    throw new Error('AI가 잠시 바빠요. 조금 뒤 다시 해 주세요')
-  }
-  const data = await r.json().catch(() => ({}))
-  if (!r.ok) {
-    console.error('[claude]', r.status, data?.error?.message || '')
-    if (r.status === 429 || r.status === 529) throw new Error('AI가 잠시 바빠요. 조금 뒤 다시 해 주세요')
-    throw new Error(`AI 응답 오류(${r.status})`)
-  }
-  return (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('')
 }
 
 // 응답에서 JSON만 꺼내기
@@ -246,16 +161,14 @@ export function parseJson(text) {
 }
 
 // 공통 진입: 메서드·로그인·키 확인
-// needVision: 사진 읽기 — Claude나 사진이 되는 무료 AI가 있어야 함
+// needVision: 사진 읽기 — 사진이 되는 무료 AI가 있어야 함
 export async function guard(req, res, { needVision = false } = {}) {
   if (req.method !== 'POST') { send(res, 405, { error: 'POST만 가능해요' }); return false }
   const name = String(req.url || '').split('?')[0].split('/').pop()
   req.foldyDeadline = Date.now() + ((MAX_DURATION[name] || 30) - 3) * 1000
   const fam = await requireFamily(req)
   if (!fam) { send(res, 401, { error: '로그인이 필요해요' }); return false }
-  req.foldyPaid = await isPaidFamily(req)
-  const free = needVision ? hasFreeVision() : hasFree()
-  const ok = free || (req.foldyPaid && hasKey())
+  const ok = needVision ? hasFreeVision() : hasFree()
   if (!ok) { send(res, 503, { error: 'AI 기능을 준비하고 있어요', code: 'NO_KEY' }); return false }
   return true
 }

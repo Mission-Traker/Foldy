@@ -236,7 +236,6 @@ async function rpcOrThrow(fn, args) {
 }
 export const adminOverview = () => rpcOrThrow('foldy_admin_overview')
 export const adminFamilies = (tests = false) => rpcOrThrow('foldy_admin_families', { p_tests: tests })
-export const adminSetPaid = (familyId, paid) => rpcOrThrow('foldy_admin_set_paid', { p_family: familyId, p_paid: paid })
 export const adminCleanupTests = () => rpcOrThrow('foldy_admin_cleanup_tests')
 // 관리자 본인(가족 중 관리자로 정한 한 사람)인지 — 수정요청 알림·수정요청함 링크는 이 사람에게만
 export async function isAdminMember(memberId) {

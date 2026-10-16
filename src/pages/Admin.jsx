@@ -7,7 +7,7 @@ import * as db from '../lib/db.js'
 import { Header } from '../components/ui.jsx'
 import { FeedbackHead, ReplyBubble } from '../components/Feedback.jsx'
 
-// 관리자 페이지: 한눈에(통계) · 가족(유료 AI 켜기·테스트 가족 정리) · 수정요청함 · 랜딩 미리보기
+// 관리자 페이지: 한눈에(통계) · 가족(현황·테스트 가족 정리) · 수정요청함 · 랜딩 미리보기
 // 관리자 › 수정요청함 — 멘토링대학교 수정요청함과 같은 구조(상태 필터 · 확인/보류/완료 · 답장 · 삭제)
 const QUICK = ['좋은 의견이에요, 반영할게요 🙏', '확인했어요. 지금은 고칠 필요가 없어 보여요.', '이미 되는 기능이에요! 사용법을 알려 드릴게요.']
 const ACTIONS = [['✅ 확인·고치는 중', '확인완료'], ['의견 보류', '의견보류'], ['✔ 고쳤어요', '수정완료']]
@@ -44,7 +44,7 @@ export default function Admin() {
 }
 
 const TABS = [['home', '한눈에'], ['families', '가족'], ['feedback', '수정요청'], ['landing', '랜딩']]
-const AI_LABEL = { text: 'Claude 글', vision: 'Claude 사진', free_text: '무료 글', free_vision: '무료 사진' }
+const AI_LABEL = { free_text: '무료 AI 글', free_vision: '무료 AI 사진' }
 const dayLabel = (d) => { if (!d) return '기록 없음'; const [, m, dd] = String(d).slice(0, 10).split('-').map(Number); return `${m}/${dd}` }
 
 function Stat({ label, value, sub }) {
@@ -82,7 +82,7 @@ function Overview({ go }) {
         <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
           {Object.keys(AI_LABEL).map((k) => <li key={k} className="flex justify-between"><span className="text-soft">{AI_LABEL[k]}</span><b className="font-jua text-slate-deep">{ai[k] || 0}</b></li>)}
         </ul>
-        <p className="mt-2 text-[11px] text-soft">무료 AI는 가족당 하루 글 200회·사진 15장, Claude는 유료 가족만 하루 글 150회·사진 20장까지예요.</p>
+        <p className="mt-2 text-[11px] text-soft">유료 AI는 쓰지 않아요. 기본 어휘 2,898개는 앱에 넣어 둔 데이터로 처리하고, 그 밖의 단어만 무료 AI(가족당 하루 글 200회·사진 15장)를 써요.</p>
       </section>
       <p className="text-center text-[11px] text-soft">테스트 가족(아이디 e2e_…) {o.tests}개는 숫자에서 뺐어요.</p>
     </div>
@@ -102,10 +102,6 @@ function Families() {
     db.adminFamilies(tests).then((r) => { if (n === seq.current) setRows(r) }).catch((e) => { setMsg(e.message); setRows([]) })
   }, [tests])
   useEffect(() => { setRows(null); load() }, [load])
-  async function togglePaid(f) {
-    setRows((rs) => rs.map((x) => (x.id === f.id ? { ...x, ai_paid: !f.ai_paid } : x)))
-    try { await db.adminSetPaid(f.id, !f.ai_paid); setMsg(`${f.name}: ${!f.ai_paid ? '유료 AI(Claude) 켬' : '무료 AI만'}`) } catch (e) { setMsg(e.message); load() }
-  }
   async function cleanup() {
     if (!arm) { setArm(true); setTimeout(() => setArm(false), 4000); return }
     setArm(false)
@@ -129,10 +125,6 @@ function Families() {
               <li key={f.id} className="py-3">
                 <div className="flex items-center gap-2">
                   <b className="min-w-0 flex-1 truncate font-jua text-slate-deep">{f.name}{f.mine && <span className="ml-1 text-xs text-sage">· 우리 가족</span>}</b>
-                  <button onClick={() => togglePaid(f)} aria-pressed={f.ai_paid}
-                    className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 font-jua text-xs ${f.ai_paid ? 'bg-slate-deep text-white' : 'border border-line text-soft'}`}>
-                    {f.ai_paid ? '유료 AI 켜짐' : '무료 AI'}
-                  </button>
                 </div>
                 <p className="mt-0.5 flex flex-wrap gap-x-1.5 text-xs text-soft">
                   {[f.login_id, `가입 ${dayLabel(f.created_at)}`, `구성원 ${f.members}`, `단어 ${f.words}`, `마지막 학습 ${dayLabel(f.last_study)}`, used ? `오늘 AI ${used}회` : null]
@@ -144,7 +136,6 @@ function Families() {
           {!shown.length && <li className="py-6 text-center text-sm text-soft">찾는 가족이 없어요</li>}
         </ul>
       )}
-      <p className="mt-3 text-[11px] text-soft">‘유료 AI’를 켠 가족은 Claude를 먼저 쓰고, 나머지는 무료 AI(Gemini)만 써요.</p>
       <button onClick={cleanup} className={`mt-4 w-full rounded-full border py-2.5 font-jua text-sm ${arm ? 'border-coral text-coral' : 'border-line text-soft'}`}>
         {arm ? '한 번 더 누르면 테스트 가족을 지워요' : '🧹 자동 테스트가 만든 가족 지우기'}
       </button>

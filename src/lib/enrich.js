@@ -1,10 +1,19 @@
 // 단어에 AI 정보(허용 답안·유의어·반의어·예문)를 붙이는 작업
 import { getCache, putCache, ai, updateWord } from './db.js'
+import { loadVocab, vocabEnrich } from './vocab.js'
 
+// 순서: ① 앱에 넣어 둔 기본 어휘 데이터(무료·즉시) → ② 공용 캐시 → ③ 그래도 없는 단어만 무료 AI(결과는 캐시에 저장해 다음부터 재사용)
 export async function enrichPending(words, level) {
   const pending = words.filter((w) => !w.enriched).slice(0, 30)
   if (!pending.length) return { updated: [], error: null }
-  const cache = await getCache(pending.map((w) => w.word))
+  const map = await loadVocab()
+  const cache = {}
+  for (const w of pending) {
+    const d = vocabEnrich(map, w.word, w.meaning)
+    if (d) cache[w.word.toLowerCase()] = d
+  }
+  const rest = pending.filter((w) => !cache[w.word.toLowerCase()])
+  if (rest.length) Object.assign(cache, await getCache(rest.map((w) => w.word)).catch(() => ({})))
   const misses = pending.filter((w) => !cache[w.word.toLowerCase()])
   let error = null
   for (let i = 0; i < misses.length; i += 15) {

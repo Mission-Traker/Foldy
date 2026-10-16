@@ -50,11 +50,11 @@
 
 **2차**
 - 레벨 Lv.01~Lv.10 + 레벨 진단(레벨별 5단어 중 4개 이상 알면 다음 단계)
-  - 기준: 2022 개정 영어과 교육과정 [별표 3] 기본 어휘 3,000개를 자주 쓰는 순서로 Lv.01~09(초등 권장 800 → Lv.01~03, 중·고 공통 1,200 → Lv.04~06, 나머지 → Lv.07~09), Lv.10은 그 밖의 실전 단어(AI 추천). 예전 값(e1·m 등)도 그대로 읽음
+  - 기준: 2022 개정 영어과 교육과정 [별표 3] 기본 어휘 3,000개를 자주 쓰는 순서로 Lv.01~09(초등 권장 800 → Lv.01~03, 중·고 공통 1,200 → Lv.04~06, 나머지 → Lv.07~09), Lv.10은 그 밖의 실전 단어. 예전 값(e1·m 등)도 그대로 읽음
 - 레벨업 게이지(홈 프로필 밑): 퀴즈 하나 통과 = 1 XP(지금 레벨보다 쉬운 단어는 제외), 다음 레벨까지 ○ 단어 30개(Lv.01~03)·40개. 다 차면 '레벨업!' 버튼
 - 단어장 발음기호(IPA): ipa-dict(MIT) 9,081단어 내장, 없는 단어는 AI로 한 번 받아 기기에 저장
 - 단어장 ➜ 버튼: 그 단어를 오늘 학습할 단어에 더함
-- 오늘의 추천 단어 5개: 처음엔 레벨 목록에서 날짜별로 고정 선택, 내 단어가 20개 이상이면 내 단어와 연관된 단어를 AI가 추천
+- 오늘의 추천 단어 5개: 처음엔 레벨 목록에서 날짜별로 고정 선택, 내 단어가 20개 이상이면 내 단어와 같은 주제의 단어(AI 없이)
 - 확장 학습: ○ 단어 → 유의어·반의어 퀴즈(영어·한글·발음 듣기/연습) → 둘 다 맞히면 예문(영어+한글+문장 읽기+장면 이모지)이 단어장에 열림
 - 복습: ○ 단어를 1·3·7·30·60일 뒤 재출제, 틀리면 △로 내려감
 - 😱 갉아먹기 장면: 이틀 이상 쉬었거나 학습 알림으로 들어오면 하루 한 번, 캐릭터들이 단어 3개를 갉아먹는 연출 → '복습하고 되찾기'. 단어장 내용은 바뀌지 않음
@@ -67,7 +67,7 @@
 
 ## 관리자 페이지 (`/#/admin`)
 - 관리자 구성원(`foldy_admins.member_id`, 지금은 bang9family의 '윤씨대장')에게만 내 정보 맨 위에 '🛠 관리자 페이지'가 보임. 서버 함수(`foldy_admin_*`)도 같은 사람만 허용 — 그 구성원에 숫자 비밀번호를 걸면 그 비밀번호로 연 기기에서만
-- 탭 4개: 한눈에(가족·구성원·단어 수, 오늘·7일 공부한 가족, 오늘 AI 사용, 처리할 수정요청) · 가족(검색, 유료 AI 켜고 끄기, 자동 테스트 가족 지우기) · 수정요청함 · 랜딩(소개 슬라이드, 첫 화면 미리보기 — 가입·로그인은 막힘, 카톡 링크 미리보기)
+- 탭 4개: 한눈에(가족·구성원·단어 수, 오늘·7일 공부한 가족, 오늘 AI 사용, 처리할 수정요청) · 가족(검색, 가족별 현황, 자동 테스트 가족 지우기) · 수정요청함 · 랜딩(소개 슬라이드, 첫 화면 미리보기 — 가입·로그인은 막힘, 카톡 링크 미리보기)
 
 ## 디자인 원칙 (강조는 한 곳만)
 - 가장 크게 강조하는 것은 홈의 **오늘의 학습 카드**(진행 링 + 학습 시작 버튼) 하나뿐이다. 진한 남색 배경을 쓰는 곳도 여기뿐.
@@ -84,7 +84,7 @@
 | 데이터 | Supabase `modu-publish` 프로젝트의 `foldy_` 표 6개 (글로자 표와 분리) |
 | 수정요청 | `foldy_feedback`(상태·답장은 관리자만 바꿈, 가족·상태는 서버 트리거가 정함) · `foldy_admins` · RPC `foldy_is_admin`·`foldy_feedback_seen` |
 | 로그인 | `foldy_signup`/`foldy_login` 함수 → 세션 토큰을 `x-foldy-token` 헤더로 보내고, 모든 표는 RLS로 가족 단위 격리 |
-| AI | Vercel 서버 함수 `api/*.js`에서만 Claude API 호출(키는 브라우저에 노출 안 됨). 같은 단어의 AI 결과는 `foldy_cache`에 저장해 재사용 |
+| AI | 기본 어휘는 앱 내장 데이터(`src/data/vocab.json`). 그 밖만 Vercel 서버 함수 `api/*.js`에서 무료 Gemini 호출(키는 브라우저에 노출 안 됨). 같은 단어의 AI 결과는 `foldy_cache`에 저장해 재사용 |
 | 발음 | 기본 어휘 3,000개는 오픈소스 Kokoro 음성(af_heart)으로 미리 만든 아나운서 음성 파일(`public/audio/*.mp3`), 그 밖은 기기에서 가장 좋은 영어 음성 자동 선택. 인식은 브라우저 음성 인식 — 모두 무료 |
 | 사전 | `src/data/dict.json` 9,121단어 영-한 뜻(기본 어휘 + 생활·교과 어휘, 자동완성·추천 단어 뜻). 없으면 `api/lookup` AI 검색 |
 | 배포 | GitHub `Mission-Traker/Foldy` → Vercel 자동 배포 |
@@ -102,24 +102,21 @@
 - ✨ 나만의 예문(내 정보): 켜고 별명·좋아하는 것(3개까지)을 적으면 새 단어 예문에 내가 주인공으로 나옴, '최근 10개 다시 만들기'. 별명·좋아하는 것만 AI에 보내고 공용 캐시에는 넣지 않음
 - 🐣 캐릭터 키우기(홈): 퀴즈를 하나 통과할 때마다 캐릭터가 단어를 먹고 자람(아기 → 꼬마 15 → 어린이 45 → 청소년 90 → 어른 180 → 전설 300). 단계마다 리본·안경·모자·목도리·왕관이 생기고 켜고 끌 수 있음 — 가족 화면에도 그대로 보임
 
-## AI 사용 범위
-- Claude(유료)는 `foldy_families.ai_paid = true`인 가족만(지금은 bang9family). 다른 가족은 무료 AI(Gemini)만 씀 — 사용자가 스스로 바꿀 수 없음. 무료 AI는 가족당 하루 글 200회·사진 15장(`FOLDY_FREE_TEXT`·`FOLDY_FREE_VISION`)
-- 켜기: `update foldy_families set ai_paid = true where login_id = '아이디';`
+## AI 사용 범위 (유료 AI 없음)
+- 유료 AI(Claude)는 쓰지 않아요. 코드에서도 지웠어요.
+- **기본 어휘 2,898개(Lv.01~09)는 앱에 넣어 둔 데이터**(`src/data/vocab.json`)로 처리 — 허용 답안·유의어·반의어·예문(영·한·장면)·한글 발음 흉내·음절 강세·발음 요령. AI 호출 0회, 즉시(한 번 받은 뒤엔 오프라인에서도). 데이터는 개발 때 한 번 만들고 `scripts/gen/check.mjs`로 형식 검사
+- 오늘의 추천(내 단어와 연관)도 AI 없이: 기본 어휘 목록이 주제별로 묶여 있어, 내 최근 단어 바로 옆 단어를 고름(`relatedPick`)
+- 그 밖의 단어(교재에만 있는 단어·구), 사진 읽기, 뜻 재채점, 나만의 예문, 사전에 없는 단어 검색, 발음기호만 무료 AI(Gemini) — 결과는 `foldy_cache`에 저장해 같은 단어는 다시 묻지 않음. 가족당 하루 글 200회·사진 15장(`FOLDY_FREE_TEXT`·`FOLDY_FREE_VISION`)
+- 사진 읽기가 안 되면(한도·붐빔) 기기 안 글자 인식(Tesseract)으로 대신
 
 ## 환경 변수 (Vercel)
 
 | 이름 | 필수 | 설명 |
 |---|---|---|
-| `GEMINI_API_KEY` | 필수(무료) | 구글 Gemini 무료 키(aistudio.google.com) — 일반 가족의 모든 AI 기능. 기본 모델 `gemini-flash-latest`(붐비면 재시도 후 `gemini-flash-lite-latest`), `GEMINI_MODEL`·`GEMINI_BACKUP_MODEL`로 바꿀 수 있음 |
-| `FOLDY_DAILY_TEXT` / `FOLDY_DAILY_VISION` | 선택 | 가족별 하루 Claude 사용 한도(기본 150 / 사진 20). 넘으면 '오늘 AI 사용량을 다 썼어요' |
-| `ANTHROPIC_API_KEY` | 유료 가족용 | ai_paid 가족만 Claude를 먼저 씀(한도·오류면 무료 AI로) |
-| `FOLDY_MODEL_VISION` | 선택 | 사진 읽기 모델(기본 `claude-sonnet-5-5`) |
-| `FOLDY_MODEL_TEXT` | 선택 | 글자 작업의 Claude 모델(기본 `claude-haiku-5-5`) |
-| `FREE_LLM_BASE_URL` | 선택 | 무료 LLM의 OpenAI 호환 주소(예: `https://…/v1`). 넣으면 유의어·예문·채점·추천을 무료 LLM이 먼저 처리하고, 실패하거나 형식이 깨지면 Claude가 대신함 |
-| `FREE_LLM_API_KEY` | 선택 | 위 주소의 API 키 |
-| `FREE_LLM_MODEL` | 선택 | 모델 이름(기본 `auto`) |
+| `GEMINI_API_KEY` | 필수(무료) | 구글 Gemini 무료 키(aistudio.google.com). 기본 모델 `gemini-flash-latest`(붐비면 재시도 후 `gemini-flash-lite-latest`), `GEMINI_MODEL`·`GEMINI_BACKUP_MODEL`로 바꿀 수 있음 |
+| `FREE_LLM_BASE_URL` / `FREE_LLM_API_KEY` / `FREE_LLM_MODEL` | 선택 | Gemini 대신 다른 무료 OpenAI 호환 주소를 쓸 때 |
 
-사진 읽기는 Gemini(무료)가 먼저, 안 되면 Claude가 합니다.
+`ANTHROPIC_API_KEY`·`FOLDY_MODEL_*`·`FOLDY_DAILY_*`는 더 이상 쓰지 않아요(Vercel에서 지워도 됩니다).
 ※ 맥에서 돌리는 FreeLLMAPI(`localhost:3001`)는 Vercel 서버가 접근할 수 없습니다. 인터넷에서 닿는 주소(배포한 FreeLLMAPI, OpenRouter·Groq 등 무료 키)를 넣어야 합니다.
 
 Supabase 주소·공개 키는 코드에 기본값이 들어 있습니다(공개용 키, RLS로 보호).
@@ -129,13 +126,13 @@ Supabase 주소·공개 키는 코드에 기본값이 들어 있습니다(공개
 ```bash
 npm install
 npm run dev          # 화면만 (AI 경로 /api 는 동작 안 함)
-npx vercel dev       # AI 경로까지 (Vercel CLI 로그인 + ANTHROPIC_API_KEY 필요)
+npx vercel dev       # AI 경로까지 (Vercel CLI 로그인 + GEMINI_API_KEY 필요)
 ```
 
 ## 테스트
 
 ```bash
-npm test                                   # 단위 테스트 150개(채점·상태·복습·정렬·레벨·게이지·발음기호·갉아먹기·주간 순위·시험 분량·캐릭터·AI 범위)
+npm test                                   # 단위 테스트 152개(채점·상태·복습·정렬·레벨·게이지·발음기호·갉아먹기·주간 순위·시험 분량·캐릭터·AI 범위)
 npm run build && npx vite preview --port 4173 &
 BASE=http://localhost:4173 node tests/e2e.mjs   # 브라우저 자동 점검 52개(390px)
 BASE=http://localhost:4173 node tests/e2e-retry.mjs  # '한 번 더'·오늘의 단어 반복·오늘 복습 13개(느린 인터넷 흉내)
@@ -145,9 +142,9 @@ BASE=http://localhost:4173 node tests/linebreak.mjs    # 줄바꿈 점검(360·3
 BASE=http://localhost:4173 node tests/e2e-send.mjs     # 레벨 표기·➜ 보내기·발음기호·새로고침 깜빡임·게이지 18개
 BASE=http://localhost:4173 node tests/e2e-gnaw.mjs     # 갉아먹기 장면 12개(단어장 훼손 없음 확인)
 BASE=http://localhost:4173 node tests/e2e-handoff.mjs  # 카톡 → 사파리 자동 채점 이어받기 4개
-BASE=http://localhost:4173 node tests/e2e-pron.mjs     # 소개 건너뛰기·비밀번호 8자·내 목소리로 확인 발음 9개
+BASE=http://localhost:4173 node tests/e2e-pron.mjs     # 소개 건너뛰기·비밀번호 8자·내 목소리로 확인 발음·AI 없이 발음 요령·예문 11개
 PHASE=a FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 아니면 잠김 5개 → SQL로 그 가족 구성원을 foldy_admins에 넣고
-PHASE=b FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 페이지 4개 탭·유료 AI·랜딩 미리보기·숫자 비밀번호 17개
+PHASE=b FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 페이지 4개 탭·유료 AI 없음·랜딩 미리보기·숫자 비밀번호 17개
 BASE=http://localhost:4173 node tests/e2e-streak.mjs   # 연속 학습일 9개
 BASE=http://localhost:4173 node tests/e2e-today.mjs    # 오늘의 단어 수·날짜 바뀜·➜ 보내기 7개
 BASE=http://localhost:4173 node tests/e2e-pinlock.mjs  # 다른 기기에서 숫자 비밀번호를 걸면 다시 묻기 5개
@@ -161,8 +158,8 @@ e2e는 실제 DB에 `e2e_`로 시작하는 테스트 가족을 만듭니다.
 ## 파일 구조
 
 ```
-api/            Vercel 서버 함수 (_lib 공통, extract 사진읽기, enrich 유의어·예문, judge 재채점, recommend 연관추천, pron 발음요령, lookup 단어검색, ipa 발음기호, story 나만의 예문)
-src/lib/        grading 채점 · study 상태·복습·정렬·입력검증·주간 순위·시험 분량·갉아먹기 · levels 레벨·게이지 · pet 캐릭터 · ipa 발음기호 · db Supabase · enrich AI정보·나만의 예문 · speech 발음
+api/            Vercel 서버 함수 (_lib 공통, extract 사진읽기, enrich 유의어·예문, judge 재채점, pron 발음요령(내장 데이터 밖 단어), lookup 단어검색, ipa 발음기호, story 나만의 예문)
+src/lib/        grading 채점 · study 상태·복습·정렬·입력검증·주간 순위·시험 분량·갉아먹기 · levels 레벨·게이지 · pet 캐릭터 · ipa 발음기호 · db Supabase · vocab 내장 학습 데이터 · enrich 학습 정보(내장→캐시→무료 AI)·나만의 예문 · speech 발음
 src/pages/      Auth Profiles Home Wordbook AddWords Study Quiz WrongNote Expand Me LevelTest Family Challenge Exam Admin
 src/components/ ui.jsx (캐릭터 블롭, ○△✕ 표시, 하단 메뉴 등)
 src/data/       levels.json (기본 어휘 3,000개 레벨 분류)

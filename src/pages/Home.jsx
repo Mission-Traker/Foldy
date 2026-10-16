@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../App.jsx'
-import * as db from '../lib/db.js'
-import { dailyPick, levelLabel } from '../lib/levels.js'
+import { dailyPick, levelLabel, relatedPick } from '../lib/levels.js'
 import { meaningsFor } from '../lib/enrich.js'
 import { expandStage, reviewCount, statusOf, ymd, liveStreak, wrongDueList, WRONG_DAILY } from '../lib/study.js'
 import { Blob, Ring, Speak, GoalStepper, FitWord } from '../components/ui.jsx'
@@ -49,11 +48,11 @@ export default function Home() {
       setRecBusy(true)
       let items = []
       if (words.length >= 20) {
-        try {
-          const recent = [...words].sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 30).map((w) => w.word)
-          const r = await db.ai('recommend', { recent, owned: [...owned], level: member.level, count: Math.min(recGoal, 10) })
-          items = r.items.map((x) => ({ ...x, related: true }))
-        } catch { /* 레벨 목록으로 대체 */ }
+        // AI 없이: 기본 어휘 목록에서 내 최근 단어와 같은 주제(목록에서 가까운 단어)
+        const recent = [...words].sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 30).map((w) => w.word)
+        const rel = relatedPick(recent, owned, `${member.id}-${today}`, Math.min(recGoal, 10))
+        const ms = await meaningsFor(rel.map((x) => x.word), member.level)
+        items = rel.map((x, i) => ({ word: x.word, meaning: ms[i].meaning, why: `‘${x.from}’ 주제`, related: true })).filter((x) => x.meaning)
       }
       if (items.length < recGoal) {
         const have = new Set([...owned, ...items.map((x) => x.word.toLowerCase())])

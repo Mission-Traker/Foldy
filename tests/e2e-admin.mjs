@@ -1,7 +1,7 @@
 // 관리자 페이지 점검. 2단계로 실행:
 //  PHASE=a FID=e2e_adxxx node tests/e2e-admin.mjs  → 가족 만들기 + 관리자가 아니면 잠김(화면·서버)
 //  (SQL로 그 가족의 '윤씨대장' 구성원을 foldy_admins에 넣기)
-//  PHASE=b FID=e2e_adxxx node tests/e2e-admin.mjs  → 관리자 페이지 4개 탭 · 유료 AI 켜고 끄기 · 랜딩 미리보기 · 숫자 비밀번호 잠금
+//  PHASE=b FID=e2e_adxxx node tests/e2e-admin.mjs  → 관리자 페이지 4개 탭 · 유료 AI 없음 · 랜딩 미리보기 · 숫자 비밀번호 잠금
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
 let pw
@@ -56,16 +56,13 @@ try {
     check('관리자: 내 정보 맨 위에 관리자 페이지', await link.waitFor({ timeout: 8000 }).then(() => true, () => false))
     await link.click()
     check('한눈에: 오늘 공부한 가족', await seen('오늘 공부한 가족'))
-    check('한눈에: AI 사용', await seen('오늘 AI 사용'))
+    check('한눈에: AI 사용(무료만)', await seen('오늘 AI 사용') && await seen('유료 AI는 쓰지 않아요'))
     await shot('home')
     await page.getByRole('button', { name: '가족', exact: true }).click()
     const mine = page.locator('li').filter({ hasText: '우리 가족' })
     check('가족 탭: 테스트 포함하면 우리 가족 보임', await page.getByRole('button', { name: '테스트 포함' }).click().then(() => mine.waitFor({ timeout: 8000 })).then(() => true, () => false))
     await shot('families')
-    const before = (await rpc('foldy_ai_paid')).data === true
-    const flip = async () => { await mine.getByRole('button', { name: /무료 AI|유료 AI 켜짐/ }).click(); await page.waitForTimeout(1500); return (await rpc('foldy_ai_paid')).data === true }
-    check('유료 AI 켜고 끄기 → 서버에 반영', (await flip()) === !before)
-    check('다시 누르면 원래대로', (await flip()) === before)
+    check('유료 AI 버튼 없음(무료로만 운영)', !(await page.getByRole('button', { name: /유료 AI/ }).count()))
     await page.getByRole('button', { name: '수정요청', exact: true }).click()
     check('수정요청 탭', await page.getByRole('button', { name: /^전체 \d+/ }).waitFor({ timeout: 8000 }).then(() => true, () => false))
     await page.getByRole('button', { name: '랜딩', exact: true }).click()

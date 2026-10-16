@@ -47,6 +47,10 @@ try {
   await page.goto(BASE + '/#/quiz/sp')
   await page.getByRole('button', { name: '🎙 눌러서 따라 말하기' }).waitFor({ timeout: 8000 })
   check('사파리로 보내지 않고 바로 발음 문제', !(await page.getByText('발음 퀴즈는').count()))
+  // 더 정확한 발음: AI 없이 앱에 넣어 둔 발음 요령(이 테스트 서버엔 AI가 없음)
+  await page.getByRole('button', { name: '🎧 더 정확한 발음 들어보기' }).click()
+  check('발음 요령이 AI 없이 바로(한글 흉내·강세·요령)', await page.getByText('한글로 흉내 내면').waitFor({ timeout: 5000 }).then(() => true, () => false) && (await page.getByText('👄').count()) > 0)
+  await page.getByRole('button', { name: '닫기' }).click()
   await page.getByRole('button', { name: '🎙 눌러서 따라 말하기' }).click()
   await page.getByRole('button', { name: '✓ 비슷해요' }).waitFor({ timeout: 8000 })
   check('3초 녹음 → 내 목소리·정답 비교 버튼', await page.getByRole('button', { name: '▶ 내 목소리' }).isVisible())
@@ -54,6 +58,21 @@ try {
   check('비슷해요 → 정답 처리', await page.getByText('정답!').first().isVisible({ timeout: 3000 }).catch(() => false))
   await page.getByRole('button', { name: '🎙 눌러서 따라 말하기' }).waitFor({ timeout: 5000 })
   check('다음 문제로 넘어감', true)
+  // 유의어·반의어·예문도 AI 없이 채워짐 → 확장 학습 안내에 단어가 잡힘(○ 전이라 '○ 단어부터')
+  const enriched = await page.evaluate(async () => {
+    for (let i = 0; i < 20; i++) { const t = document.body.innerText; if (t) break; await new Promise((r) => setTimeout(r, 100)) }
+    return true
+  })
+  await page.goto(BASE + '/#/book')
+  await page.getByText('apple').first().waitFor({ timeout: 8000 })
+  const ex = await page.evaluate(async () => {
+    const tok = JSON.parse(localStorage.getItem('foldy.session') || 'null')?.token
+    const mtok = localStorage.getItem('foldy.memberTokens')
+    const r = await fetch('https://gilpvbwpbioihvjbldpm.supabase.co/rest/v1/foldy_words?select=word,enriched,syn,example', { headers: { apikey: 'sb_publishable_kMgYoZQrs5LRk-zrUshxOA_wZz1keiW', 'x-foldy-token': tok || '' } })
+    return r.json()
+  })
+  const apple = Array.isArray(ex) && ex.find((w) => w.word === 'apple')
+  check('AI 없이 유의어·예문 채움(apple)', !!(enriched && apple && apple.enriched && apple.example?.en), JSON.stringify(apple).slice(0, 120))
 } catch (e) { check('실행 중 오류', false, e.message.split('\n').slice(0, 3).join(' / ')); await page.screenshot({ path: '/tmp/claude-0/pr.png' }) }
 check('페이지 오류 없음', errors.length === 0, errors.join(' | '))
 await browser.close()

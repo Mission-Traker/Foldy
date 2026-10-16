@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as db from '../lib/db.js'
+import { loadVocab, vocabPron } from '../lib/vocab.js'
+import { loadIpa, ipaFromMap, ipaCached } from '../lib/ipa.js'
 import { speak, speakTTS } from '../lib/speech.js'
 import { FitWord } from './ui.jsx'
 
@@ -13,6 +15,10 @@ export default function PronSheet({ word, heard, score, onClose }) {
     const key = 'pron:' + word.toLowerCase()
     ;(async () => {
       try {
+        // 기본 어휘는 앱에 넣어 둔 발음 요령으로 바로(무료). 그 밖의 단어만 무료 AI
+        const [map, ipaMap] = await Promise.all([loadVocab(), loadIpa().catch(() => null)])
+        const local = vocabPron(map, word, heard, ipaFromMap(word, ipaMap) || ipaCached(word) || '')
+        if (local) { if (alive) setInfo(local); return }
         const cached = await db.getCache([key])
         if (cached[key] && !heard) { if (alive) setInfo(cached[key]); return }
         const r = await db.ai('pron', { word, heard })

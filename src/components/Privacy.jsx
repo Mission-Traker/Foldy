@@ -1,5 +1,5 @@
 // 개인정보 처리방침 — 개인정보 보호법 제30조의 표준 항목 순서
-export const PRIVACY_VERSION = '2026-10-16'
+export const PRIVACY_VERSION = '2026-10-17'
 
 const S = ({ n, t, children }) => (
   <section className="mb-5">
@@ -40,8 +40,7 @@ export function PrivacyText() {
         <L items={[
           'Supabase Inc. — 데이터베이스 보관(서버 위치: 대한민국 서울 리전)',
           'Vercel Inc.(미국) — 웹사이트·서버 기능 운영',
-          'Anthropic PBC(미국) — AI 기능: 단어·뜻·단어 사진만 전송(이름·아이디는 보내지 않음). 나만의 예문을 켠 경우 별명·좋아하는 것도 함께 전송',
-          'Google LLC(미국) — AI 기능(Gemini, 연결된 경우): 위와 같은 범위',
+          'Google LLC(미국) — 무료 AI 기능(Gemini): 앱에 넣어 둔 기본 어휘 밖의 단어·뜻·단어 사진만 전송(이름·아이디는 보내지 않음). 나만의 예문을 켠 경우 별명·좋아하는 것도 함께 전송',
           '웹 푸시 전달 서비스(Google, Apple, Mozilla 등) — 알림을 켠 경우 알림 문구 전달',
         ]} />
       </S>
