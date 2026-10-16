@@ -33,7 +33,7 @@ export default function MyFeedback({ memberName, memberId }) {
       <div className="mb-1 flex items-center justify-between">
         <h2 className="font-jua text-lg text-slate-deep">🛠 앱 수정요청</h2>
         {admin && (
-          <Link to="/admin" className="chip relative border-slate-deep text-slate-deep">
+          <Link to="/admin?tab=feedback" className="chip relative border-slate-deep text-slate-deep">
             수정요청함
             {newCount > 0 && <span className="absolute -right-1.5 -top-1.5 min-w-[18px] rounded-full bg-coral px-1 text-center text-[11px] leading-[18px] text-white">{newCount}</span>}
           </Link>

@@ -47,6 +47,7 @@ export const savedMemberId = () => load(MEMBER_KEY)
 export const saveMemberId = (id) => { store(MEMBER_KEY, id); activeMember = id; client = make() }
 
 const ERR = {
+  not_admin: '관리자만 할 수 있어요',
   LOGIN_TAKEN: '이미 쓰고 있는 아이디예요',
   LOGIN_FAILED: '아이디 또는 비밀번호가 맞지 않아요',
   PASSWORD_SHORT: '비밀번호는 4자 이상이에요',
@@ -213,6 +214,20 @@ export async function isAdmin() {
   const { data, error } = await client.rpc('foldy_is_admin')
   return !error && !!data
 }
+// 관리자 페이지(관리자 구성원만, 서버에서 다시 확인)
+export async function adminOk() {
+  const { data, error } = await client.rpc('foldy_admin_ok')
+  return !error && !!data
+}
+async function rpcOrThrow(fn, args) {
+  const { data, error } = await client.rpc(fn, args)
+  if (error) throw new Error(friendly(error))
+  return data
+}
+export const adminOverview = () => rpcOrThrow('foldy_admin_overview')
+export const adminFamilies = (tests = false) => rpcOrThrow('foldy_admin_families', { p_tests: tests })
+export const adminSetPaid = (familyId, paid) => rpcOrThrow('foldy_admin_set_paid', { p_family: familyId, p_paid: paid })
+export const adminCleanupTests = () => rpcOrThrow('foldy_admin_cleanup_tests')
 // 관리자 본인(가족 중 관리자로 정한 한 사람)인지 — 수정요청 알림·수정요청함 링크는 이 사람에게만
 export async function isAdminMember(memberId) {
   if (!memberId) return false

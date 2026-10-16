@@ -19,7 +19,7 @@ import Expand from './pages/Expand.jsx'
 import Me from './pages/Me.jsx'
 import LevelTest from './pages/LevelTest.jsx'
 import Family from './pages/Family.jsx'
-import Admin from './pages/Admin.jsx'
+import Admin, { LandingPreview } from './pages/Admin.jsx'
 import Intro, { introSeen } from './components/Intro.jsx'
 import GnawIntro from './components/GnawIntro.jsx'
 import Challenge from './pages/Challenge.jsx'
@@ -305,7 +305,7 @@ export default function App() {
     setGnaw({ days, words: picks.map((w) => ({ word: w.word, meaning: w.meaning })) })
   }, [member, membersReady, loadedFor, introOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fullScreen = /^\/(quiz|expand|add|level-test|exam\/new|wrong\/practice)/.test(loc.pathname)
+  const fullScreen = /^\/(quiz|expand|add|level-test|exam\/new|wrong\/practice|admin\/landing)/.test(loc.pathname)
 
   return (
     <Ctx.Provider value={value}>
@@ -338,6 +338,7 @@ export default function App() {
             <Route path="/level-test" element={<LevelTest />} />
             <Route path="/family" element={<Family />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/landing" element={<LandingPreview />} />
             <Route path="/challenge/:id" element={<Challenge />} />
             <Route path="/exam/:id" element={<Exam />} />
             <Route path="*" element={<Navigate to="/" replace />} />

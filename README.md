@@ -60,6 +60,10 @@
 - 😱 갉아먹기 장면: 이틀 이상 쉬었거나 학습 알림으로 들어오면 하루 한 번, 캐릭터들이 단어 3개를 갉아먹는 연출 → '복습하고 되찾기'. 단어장 내용은 바뀌지 않음
 - 연속 학습일(🔥, 하루라도 빠지면 0으로 표시), 하루 목표 기본 5개(홈 '✎ 목표 바꾸기'·내 정보에서 1~50개로 조절) — 목표 수만큼 오늘의 추천 단어가 나옴
 
+## 관리자 페이지 (`/#/admin`)
+- 관리자 구성원(`foldy_admins.member_id`, 지금은 bang9family의 '윤씨대장')에게만 내 정보 맨 위에 '🛠 관리자 페이지'가 보임. 서버 함수(`foldy_admin_*`)도 같은 사람만 허용 — 그 구성원에 숫자 비밀번호를 걸면 그 비밀번호로 연 기기에서만
+- 탭 4개: 한눈에(가족·구성원·단어 수, 오늘·7일 공부한 가족, 오늘 AI 사용, 처리할 수정요청) · 가족(검색, 유료 AI 켜고 끄기, 자동 테스트 가족 지우기) · 수정요청함 · 랜딩(소개 슬라이드, 첫 화면 미리보기 — 가입·로그인은 막힘, 카톡 링크 미리보기)
+
 ## 디자인 원칙 (강조는 한 곳만)
 - 가장 크게 강조하는 것은 홈의 **오늘의 학습 카드**(진행 링 + 학습 시작 버튼) 하나뿐이다. 진한 남색 배경을 쓰는 곳도 여기뿐.
 - 나머지(복습·확장·내 단어 바로가기, 알림, 추천 단어, 단어장 넛지, 학습 모드 카드)는 흰 배경 + 얇은 테두리의 조용한 줄로 둔다.
@@ -136,6 +140,8 @@ BASE=http://localhost:4173 node tests/linebreak.mjs    # 줄바꿈 점검(360·3
 BASE=http://localhost:4173 node tests/e2e-send.mjs     # 레벨 표기·➜ 보내기·발음기호·새로고침 깜빡임·게이지 18개
 BASE=http://localhost:4173 node tests/e2e-gnaw.mjs     # 갉아먹기 장면 12개(단어장 훼손 없음 확인)
 BASE=http://localhost:4173 node tests/e2e-handoff.mjs  # 카톡 → 사파리 발음 퀴즈 이어받기 4개
+PHASE=a FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 아니면 잠김 5개 → SQL로 그 가족 구성원을 foldy_admins에 넣고
+PHASE=b FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 페이지 4개 탭·유료 AI·랜딩 미리보기·숫자 비밀번호 17개
 BASE=http://localhost:4173 node tests/e2e-wrong.mjs    # 오답노트 다시 익히기·졸업·오늘 끼워 넣기·이름 한 달에 한 번 20개
 BASE=http://localhost:4173 node tests/e2e-family.mjs   # 가족 문제·순위·시험 대비·캐릭터·나만의 예문 24개
 PHASE=a FID=e2e_fbxx node tests/e2e-feedback.mjs   # 수정요청 접수 10개 → SQL로 그 가족을 foldy_admins에 넣고

@@ -5,7 +5,8 @@ import { Blob } from '../components/ui.jsx'
 import { PrivacySheet } from '../components/Privacy.jsx'
 import { RecoveryCodeCard } from '../components/Account.jsx'
 
-export default function Auth() {
+// preview: 관리자 페이지의 랜딩 미리보기 — 실제 가입·로그인은 하지 않음(지금 로그인이 풀리지 않게)
+export default function Auth({ preview = false }) {
   const { setSession } = useApp()
   const [tab, setTab] = useState('login')
   const [f, setF] = useState({ login: '', pw: '', name: '' })
@@ -25,6 +26,7 @@ export default function Auth() {
     if (f.pw.length < 4) return setErr('비밀번호는 4자 이상이에요')
     if (tab === 'signup' && !f.name.trim()) return setErr('가족 이름을 적어 주세요')
     if (tab === 'signup' && !agree) return setErr('개인정보 처리방침에 동의해 주세요')
+    if (preview) return setErr('미리보기에서는 실제로 가입·로그인되지 않아요')
     setBusy(true)
     try {
       const s = tab === 'login' ? await db.login(loginId, f.pw) : await db.signup(loginId, f.pw, f.name.trim().slice(0, 30))
@@ -49,7 +51,7 @@ export default function Auth() {
       </div>
     )
   }
-  if (tab === 'forgot') return <Forgot onBack={() => { setTab('login'); setErr('') }} />
+  if (tab === 'forgot') return <Forgot preview={preview} onBack={() => { setTab('login'); setErr('') }} />
 
   return (
     <div className="flex min-h-screen flex-col justify-center py-10">
@@ -106,7 +108,7 @@ export default function Auth() {
 }
 
 // 비밀번호 찾기: 가족 아이디 + 복구 코드 → 새 비밀번호
-function Forgot({ onBack }) {
+function Forgot({ onBack, preview }) {
   const [f, setF] = useState({ login: '', code: '', pw: '', pw2: '' })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -119,6 +121,7 @@ function Forgot({ onBack }) {
     if (f.code.replace(/[^0-9A-Za-z]/g, '').length !== 12) return setErr('복구 코드 12자리를 적어 주세요')
     if (f.pw.length < 4) return setErr('새 비밀번호는 4자 이상이에요')
     if (f.pw !== f.pw2) return setErr('새 비밀번호가 서로 달라요')
+    if (preview) return setErr('미리보기에서는 실제로 가입·로그인되지 않아요')
     setBusy(true)
     try { await db.resetPassword(f.login, f.code, f.pw); setDone(true) } catch (e2) { setErr(e2.message) } finally { setBusy(false) }
   }

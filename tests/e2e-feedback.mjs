@@ -50,7 +50,7 @@ try {
     await page.reload()
     check('새로고침 후에도 남아 있음', await seen('<b>사진</b> 올리면 느려요', 10000))
     await page.goto(BASE + '/#/admin')
-    check('관리자 아니면 수정요청함 잠김', await seen('관리자 가족만 볼 수 있어요'))
+    check('관리자 아니면 수정요청함 잠김', await seen('관리자만 볼 수 있어요'))
     await ctx.storageState({ path: STATE })
   } else {
     await page.goto(BASE + '/#/me')
@@ -78,7 +78,7 @@ try {
     check('내 정보: 답장', await seen('윤멘토님의 답장'))
     await page.reload()
     check('한 번 보면 새 소식 사라짐', await seen('고치는 중', 10000) && !(await page.getByText('● 새 소식').isVisible()))
-    await page.goto(BASE + '/#/admin')
+    await page.goto(BASE + '/#/admin?tab=feedback')
     await page.getByLabel('삭제').first().click()
     await page.waitForTimeout(1500)
     await page.reload()

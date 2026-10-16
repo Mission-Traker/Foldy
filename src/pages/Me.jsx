@@ -43,6 +43,13 @@ export default function Me() {
   return (
     <div>
       <Header title="내 정보" />
+      {admin && (
+        <Link to="/admin" className="mb-4 flex items-center gap-3 rounded-2xl border border-slate-deep/40 bg-paper px-4 py-3">
+          <span className="text-2xl">🛠</span>
+          <span className="min-w-0 flex-1"><b className="block font-jua text-slate-deep">관리자 페이지</b><span className="text-xs text-soft">앱 현황·가족·수정요청·랜딩 미리보기</span></span>
+          <span className="text-soft">›</span>
+        </Link>
+      )}
       <div className="card mb-4 flex items-center gap-4 p-4">
         <Blob i={member.avatar} size={64} />
         <div className="flex-1">
