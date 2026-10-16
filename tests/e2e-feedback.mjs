@@ -60,6 +60,7 @@ try {
     await page.getByRole('button', { name: '좋은 의견이에요, 반영할게요 🙏' }).click()
     await page.getByRole('button', { name: '💬 답장 보내기' }).click()
     check('답장 표시', await seen('💬 내 답장'))
+    await page.waitForTimeout(1500) // 저장 응답을 기다림
     await page.getByRole('button', { name: '수정완료 0' }).click()
     check('필터: 수정완료 0개 → 빈 안내', await seen('수정요청이 없어요'))
     await page.getByRole('button', { name: /^전체/ }).click()
