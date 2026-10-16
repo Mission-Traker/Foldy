@@ -64,7 +64,9 @@ function friendly(error) {
   for (const k of Object.keys(ERR)) if (m.includes(k)) return ERR[k]
   if (m.includes('login_id')) return '아이디는 영어 소문자·숫자·_ 로 3~30자예요'
   if (m.includes('Failed to fetch') || m.includes('offline')) return '인터넷 연결을 확인해 주세요'
-  return '문제가 생겼어요: ' + m
+  // 기술적인 원문은 화면에 보이지 않게(개발자 도구에만 남김)
+  try { console.error('[foldy]', m) } catch { /* */ }
+  return '잠깐 문제가 생겼어요. 잠시 뒤 다시 해 주세요'
 }
 
 function setSession(s) {
