@@ -172,7 +172,7 @@ function Landing() {
       <section className="rounded-2xl border border-line bg-paper p-4">
         <h2 className="mb-2 font-jua text-slate-deep">카톡으로 보냈을 때 미리보기</h2>
         <div className="overflow-hidden rounded-xl border border-line bg-white">
-          <img src={meta('og:image') || '/og.png'} alt="링크 미리보기 그림" className="block w-full" />
+          <img src="/og.png" alt="링크 미리보기 그림" className="block aspect-[1200/630] w-full bg-cream object-cover" />
           <div className="px-3 py-2">
             <p className="font-jua text-sm text-ink">{meta('og:title') || document.title}</p>
             <p className="text-xs text-soft">{meta('og:description')}</p>
