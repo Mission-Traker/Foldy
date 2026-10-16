@@ -262,3 +262,47 @@ export function pickGnawWords(words, today = ymd(), n = 3) {
   return [...shuffle(due, rand), ...shuffle(studied, rand), ...shuffle(rest, rand)].slice(0, n)
 }
 export const gnawEat = (word) => Math.max(1, Math.min(word.length - 2, Math.ceil(word.length * 0.45)))
+
+// ── 가족 주간 순위: 이번 주(월요일부터) 하루 목표를 얼마나 채웠나(레벨·목표가 달라도 공평하게 %)
+export function weekStart(today = ymd()) {
+  const [y, m, d] = today.split('-').map(Number)
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay() // 0=일
+  return addDays(today, -((dow + 6) % 7))
+}
+export function familyWeekRank(members, dailyRows, today = ymd()) {
+  const start = weekStart(today)
+  return members.map((m) => {
+    const created = String(m.created_at || '').slice(0, 10)
+    // 이번 주에 가입했으면 가입한 날부터
+    const from = created && created > start ? created : start
+    let days = 0
+    for (let d = from; d <= today; d = addDays(d, 1)) days++
+    const goal = Math.max(1, m.daily_goal || 5)
+    let sum = 0, studied = 0
+    for (const r of dailyRows) {
+      if (r.member_id !== m.id || r.day < from || r.day > today) continue
+      sum += Math.min(r.done || 0, goal)
+      if ((r.done || 0) > 0) studied++
+    }
+    const pct = days ? Math.round((sum / (goal * days)) * 100) : 0
+    return { m, pct, studied, days }
+  }).sort((a, b) => b.pct - a.pct || b.studied - a.studied)
+}
+
+// ── 시험 대비: 시험 날까지 남은 날로 나눈 오늘 분량(한→영·영→한을 둘 다 맞힌 단어 = 준비 끝)
+export const examReady = (w) => !!(w && w.ko_ok && w.en_ok)
+export function daysUntil(dateStr, today = ymd()) {
+  const t = (s) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d) }
+  return Math.round((t(dateStr) - t(today)) / 86400000)
+}
+export function examPlan(exam, words, today = ymd()) {
+  const byId = new Map(words.map((w) => [w.id, w]))
+  const list = (exam.word_ids || []).map((id) => byId.get(id)).filter(Boolean)
+  const ready = list.filter(examReady)
+  const left = list.filter((w) => !examReady(w)).sort((a, b) => (a.seq || 0) - (b.seq || 0))
+  const dday = daysUntil(exam.exam_date, today)
+  // 시험 당일은 남은 것 전부, 전날까지는 남은 날(오늘 포함)로 나눔
+  const slots = Math.max(1, dday)
+  const todayN = dday < 0 ? 0 : Math.ceil(left.length / slots)
+  return { total: list.length, ready: ready.length, left, today: left.slice(0, todayN), dday, missing: (exam.word_ids || []).length - list.length }
+}

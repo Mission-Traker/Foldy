@@ -144,7 +144,7 @@ for (const W of WIDTHS) {
   await page.getByText(/담았어요!/).waitFor()
   await page.goto(BASE + '/#/add')
   await audit(page, '단어 추가 · 사진')
-  for (const [path, name] of [['/', '홈'], ['/book', '단어장'], ['/study', '학습'], ['/wrong', '오답노트(빈)'], ['/me', '내 정보'], ['/family', '가족 학습현황'], ['/expand', '확장 학습'], ['/level-test', '레벨 진단']]) {
+  for (const [path, name] of [['/', '홈'], ['/book', '단어장'], ['/study', '학습'], ['/wrong', '오답노트(빈)'], ['/me', '내 정보'], ['/family', '가족 학습현황'], ['/expand', '확장 학습'], ['/level-test', '레벨 진단'], ['/exam/new', '시험 만들기']]) {
     await page.goto(BASE + '/#' + path)
     await audit(page, name)
   }

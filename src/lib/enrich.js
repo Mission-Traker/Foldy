@@ -52,3 +52,23 @@ export async function meaningsFor(wordList, level) {
   }
   return wordList.map((w) => ({ word: w, meaning: cache[w.toLowerCase()]?.meaning || '' }))
 }
+
+// 나만의 예문(별명·좋아하는 것) — 켠 사람만. 공용 캐시에는 넣지 않음(개인 내용이라)
+export function storyOn(member) {
+  const s = member?.story
+  return !!(s && s.on && String(s.nick || '').trim())
+}
+export async function personalize(words, member) {
+  if (!storyOn(member) || !words.length) return []
+  const s = member.story
+  const out = []
+  for (let i = 0; i < words.length; i += 10) {
+    const chunk = words.slice(i, i + 10)
+    const { items } = await ai('story', { words: chunk.map((w) => ({ word: w.word, meaning: w.meaning })), nick: s.nick, likes: s.likes || [], level: member.level })
+    for (const it of items) {
+      const w = chunk.find((x) => x.word.toLowerCase() === it.word.toLowerCase())
+      if (w) out.push(await updateWord(w.id, { example: it.example }))
+    }
+  }
+  return out
+}

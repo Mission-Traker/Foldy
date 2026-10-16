@@ -44,6 +44,7 @@ function Extras({ w }) {
         <div className="rounded-2xl border-2 border-mustard/40 bg-mustard/10 p-3">
           <div className="mb-1 flex items-center gap-2">
             <span className="text-2xl tracking-widest">{w.example.scene}</span>
+            {w.example.mine && <span className="rounded-full bg-tang/15 px-2 py-0.5 font-jua text-[11px] text-tang">✨ 내 예문</span>}
             <span className="flex-1" />
             <button onClick={() => speak(w.example.en, { rate: 0.8 })} className="chip border-mustard text-ink">▶ 문장 읽기</button>
           </div>

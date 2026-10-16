@@ -2,17 +2,22 @@ import { useEffect, useState } from 'react'
 import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
 import { levelLabel } from '../lib/levels.js'
-import { statusOf, ymd, liveStreak } from '../lib/study.js'
+import { statusOf, ymd, liveStreak, weekStart, familyWeekRank } from '../lib/study.js'
+import FamilyChallenge from '../components/FamilyChallenge.jsx'
 import { Blob, Header } from '../components/ui.jsx'
 
 // 가족 학습현황 — 보기 전용(다른 사람 단어장은 고칠 수 없음)
 export default function Family() {
   const { members, member, showToast } = useApp()
   const [data, setData] = useState(null)
+  const [week, setWeek] = useState(null)
 
   useEffect(() => {
     db.familyProgress().then(setData).catch((e) => showToast(e.message))
+    db.familyWeek(weekStart()).then(setWeek).catch(() => setWeek([]))
   }, [showToast])
+  const rank = week && members.length > 1 ? familyWeekRank(members, week) : null
+  const MEDAL = ['🥇', '🥈', '🥉']
 
   const today = ymd()
   const weekAgo = new Date(Date.now() - 6 * 864e5).toISOString()
@@ -30,6 +35,24 @@ export default function Family() {
     <div>
       <Header title="가족 학습현황" back />
       <p className="mb-3 text-sm text-soft">서로의 공부 현황을 볼 수 있어요. 다른 가족의 단어장은 고칠 수 없어요.</p>
+      {rank && (
+        <section className="card mb-4 p-4">
+          <h2 className="font-jua text-lg text-slate-deep">🏆 이번 주 가족 순위</h2>
+          <p className="mb-3 text-xs text-soft">월요일부터 하루 목표를 얼마나 채웠는지로 비교해요. 레벨·목표가 달라도 공평해요.</p>
+          <ol className="space-y-2">
+            {rank.map((r, i) => (
+              <li key={r.m.id} className="flex items-center gap-2">
+                <span className="w-6 text-center font-jua text-lg">{r.pct > 0 && i < 3 ? MEDAL[i] : i + 1}</span>
+                <Blob i={r.m.avatar} size={30} wear={r.m.pet?.wear} />
+                <span className="w-16 shrink-0 truncate font-jua text-slate-deep">{r.m.name}</span>
+                <span className="h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-line"><span className="block h-full rounded-full bg-tang" style={{ width: `${Math.min(100, r.pct)}%` }} /></span>
+                <span className="w-11 text-right font-title text-sm tabular-nums text-slate-deep">{r.pct}%</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+      <FamilyChallenge />
       {!data ? <p className="py-10 text-center text-soft">불러오는 중…</p> : (
         <div className="space-y-3">
           {rows.map(({ m, total, c, done, newWeek, studiedToday }) => {
@@ -37,7 +60,7 @@ export default function Family() {
             return (
               <div key={m.id} className={`card p-4 ${m.id === member.id ? 'ring-2 ring-slate' : ''}`}>
                 <div className="mb-2 flex items-center gap-3">
-                  <Blob i={m.avatar} size={48} />
+                  <Blob i={m.avatar} size={48} wear={m.pet?.wear} />
                   <div className="min-w-0 flex-1">
                     <p className="font-jua text-lg text-slate-deep">
                       <span className="whitespace-nowrap">{m.name}{m.id === member.id && <span className="ml-1 text-xs text-soft">(나)</span>}</span>

@@ -13,18 +13,33 @@ const SHAPES = [
   [[50, 54, 31], [36, 32, 17], [64, 32, 17], [78, 58, 12], [22, 58, 12]],
 ]
 
-export function Blob({ i = 0, size = 64, look = 'up', className = '' }) {
+// 캐릭터 꾸미기(공부해서 푼 것만) — 그림은 SVG로 캐릭터 위에 겹침
+function Wear({ items = [] }) {
+  const has = (k) => items.includes(k)
+  return (
+    <g aria-hidden="true">
+      {has('scarf') && <g><path d="M24 70 Q50 80 76 70 L76 78 Q50 88 24 78 Z" fill="#E3B23C" /><path d="M64 76 L70 94 L61 93 L57 79 Z" fill="#E3B23C" /><path d="M30 74 Q50 82 70 74" stroke="#C99A2A" strokeWidth="2" fill="none" /></g>}
+      {has('glasses') && <g fill="none" stroke="#2E2E3A" strokeWidth="2.6"><circle cx="40" cy="44" r="11.5" /><circle cx="60" cy="44" r="11.5" /><path d="M51.5 43 Q50 41 48.5 43" /></g>}
+      {has('cap') && <g><path d="M27 30 Q30 8 52 8 Q72 9 74 30 Z" fill="#4F6EA8" /><path d="M24 30 L82 30 Q90 31 92 35 L24 35 Z" fill="#3E5486" /><circle cx="51" cy="9" r="3" fill="#E9954B" /></g>}
+      {has('crown') && <g><path d="M30 26 L32 8 L42 18 L50 4 L58 18 L68 8 L70 26 Z" fill="#E3B23C" stroke="#C99A2A" strokeWidth="1.5" /><circle cx="50" cy="16" r="2.6" fill="#E08A7B" /><circle cx="38" cy="20" r="2" fill="#8DAE78" /><circle cx="62" cy="20" r="2" fill="#7E9AD0" /></g>}
+      {has('ribbon') && !has('crown') && !has('cap') && <g transform="translate(66 14) rotate(18)"><path d="M0 0 L-12 -8 L-12 8 Z" fill="#E08A7B" /><path d="M0 0 L12 -8 L12 8 Z" fill="#E08A7B" /><circle r="3.6" fill="#C96F60" /></g>}
+    </g>
+  )
+}
+
+export function Blob({ i = 0, size = 64, look = 'up', className = '', wear }) {
   const color = COLORS[i % COLORS.length]
   const shape = SHAPES[Math.floor(i / 1) % SHAPES.length]
   const dx = look === 'left' ? -3 : 3
   const dy = look === 'down' ? 3 : -3
   return (
-    <svg viewBox="0 0 100 100" width={size} height={size} className={className} aria-hidden="true">
+    <svg viewBox="0 0 100 100" width={size} height={size} className={className} aria-hidden="true" style={{ overflow: 'visible' }}>
       <g fill={color}>{shape.map(([cx, cy, r], k) => <circle key={k} cx={cx} cy={cy} r={r} />)}</g>
       <circle cx="40" cy="44" r="9" fill="#fff" />
       <circle cx="60" cy="44" r="9" fill="#fff" />
       <circle cx={40 + dx} cy={44 + dy} r="4.5" fill="#2E2E3A" />
       <circle cx={60 + dx} cy={44 + dy} r="4.5" fill="#2E2E3A" />
+      {Array.isArray(wear) && wear.length > 0 && <Wear items={wear} />}
     </svg>
   )
 }
@@ -82,7 +97,7 @@ export function Header({ title, back, right, noProfile }) {
   return (
     <div className="sticky top-0 z-20 -mx-4 mb-3 flex items-center gap-2 bg-cream/95 px-4 pb-2 pt-[max(env(safe-area-inset-top),12px)] backdrop-blur">
       {back && (
-        <button onClick={() => (typeof back === 'string' ? nav(back) : nav(-1))} aria-label="뒤로"
+        <button onClick={() => (typeof back === 'function' ? back() : typeof back === 'string' ? nav(back) : nav(-1))} aria-label="뒤로"
           className="flex h-10 w-10 items-center justify-center rounded-full bg-paper border-2 border-line text-slate-deep font-jua">←</button>
       )}
       <h1 className="h-title min-w-0 flex-1 text-2xl leading-tight">{title}</h1>

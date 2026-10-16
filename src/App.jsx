@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import * as db from './lib/db.js'
-import { enrichPending } from './lib/enrich.js'
+import { enrichPending, personalize, storyOn } from './lib/enrich.js'
 import { enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, ymd, gnawDays, pickGnawWords, reviewCount } from './lib/study.js'
 import { BottomNav, Confetti, Toast } from './components/ui.jsx'
 import { fanfare } from './lib/sfx.js'
@@ -21,6 +21,8 @@ import Family from './pages/Family.jsx'
 import Admin from './pages/Admin.jsx'
 import Intro, { introSeen } from './components/Intro.jsx'
 import GnawIntro from './components/GnawIntro.jsx'
+import Challenge from './pages/Challenge.jsx'
+import Exam from './pages/Exam.jsx'
 import InAppBanner from './components/InAppBanner.jsx'
 import ProfileSheet from './components/ProfileSheet.jsx'
 
@@ -126,6 +128,12 @@ export default function App() {
       const ENRICH = { accepted: 1, syn: 1, ant: 1, example: 1, enriched: 1 }
       if (updated.length) setWords((ws) => ws.map((w) => { const u = updated.find((x) => x.id === w.id); return u ? mergePatchResult(w, u, ENRICH) : w }))
       setAiState(error ? (error.code === 'NO_KEY' ? 'nokey' : 'error') : 'idle')
+      // 나만의 예문을 켰으면 새 단어 예문을 내 이야기로 바꿈(조용히, 실패해도 기본 예문 유지)
+      if (updated.length && storyOn(member)) {
+        personalize(updated, member).then((mine) => {
+          if (mine.length) setWords((ws) => ws.map((w) => { const u = mine.find((x) => x.id === w.id); return u ? mergePatchResult(w, u, { example: 1 }) : w }))
+        }).catch(() => {})
+      }
     } catch {
       setAiState('error')
     }
@@ -259,10 +267,19 @@ export default function App() {
     return true
   }, [todayIds, updateDaily])
 
+  // 최근 단어 예문을 내 이야기로 다시 만들기(내 정보에서)
+  const remakeStory = useCallback(async (n = 10) => {
+    if (!member || !storyOn(member)) return 0
+    const pick = [...words].filter((w) => w.enriched).sort((a, b) => (b.seq || 0) - (a.seq || 0)).slice(0, n)
+    const mine = await personalize(pick, member)
+    if (mine.length) setWords((ws) => ws.map((w) => { const u = mine.find((x) => x.id === w.id); return u ? mergePatchResult(w, u, { example: 1 }) : w }))
+    return mine.length
+  }, [member, words])
+
   const value = useMemo(() => ({
     session, setSession, members, setMembers, member, patchMemberLocal: (patch) => { setMember((m) => (m ? { ...m, ...patch } : m)); setMembers((ms) => ms.map((x) => (member && x.id === member.id ? { ...x, ...patch } : x))) }, setMember: (m) => { if (member && member.has_pin && member.id !== m?.id) db.forgetMemberToken(member.id); db.saveMemberId(m?.id || null); setMember(m); setWords([]); dailyRef.current = null; setDaily(null); enrichedOnce.current = null; if (m) navTo('/') },
-    openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, showToast, aiState, runEnrich,
-  }), [session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, showToast, aiState, runEnrich])
+    openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich,
+  }), [session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich])
 
   const wrongCount = words.filter((w) => (w.wrong_modes || []).length).length
   // 오래 쉬었다 들어오면(또는 학습 알림으로 들어오면) 하루 한 번 '갉아먹기' 장면 — 단어는 그대로
@@ -287,7 +304,7 @@ export default function App() {
     setGnaw({ days, words: picks.map((w) => ({ word: w.word, meaning: w.meaning })) })
   }, [member, membersReady, loadedFor, introOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fullScreen = /^\/(quiz|expand|add|level-test)/.test(loc.pathname)
+  const fullScreen = /^\/(quiz|expand|add|level-test|exam\/new)/.test(loc.pathname)
 
   return (
     <Ctx.Provider value={value}>
@@ -319,6 +336,8 @@ export default function App() {
             <Route path="/level-test" element={<LevelTest />} />
             <Route path="/family" element={<Family />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/challenge/:id" element={<Challenge />} />
+            <Route path="/exam/:id" element={<Exam />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}

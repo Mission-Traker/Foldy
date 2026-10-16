@@ -1,0 +1,9 @@
+-- 2026-10-16 (기록용 — 이미 적용됨: 마이그레이션 foldy_009 ~ foldy_013)
+-- 1) 가족끼리 단어 내기: foldy_challenges(가족 안에서만, 10문제까지, 받은 사람은 결과만 적음 — 트리거로 문제 내용 고정)
+--    문제 도착·결과 → foldy-push(kind challenge / challenge_done)로 알림
+-- 2) 시험 대비: foldy_exams(구성원별, 이름 30자, 범위 300개까지)
+-- 3) 나만의 예문: foldy_members.story {on, nick(10자), likes[3]} — 켠 사람만, 공용 캐시에는 안 넣음
+-- 4) 캐릭터 키우기: foldy_members.pet {got[], wear[]}
+-- 단어 출처에 'family'(가족 문제에서 담은 단어) 추가
+-- foldy_members 칸 권한: story·pet 읽기/고치기 허용, 넣기는 필요한 칸만(pin_hash·has_pin은 함수로만)
+-- 전체 SQL은 Supabase 마이그레이션 기록(foldy_009_family_challenge_exam_story_pet 등)에 있음

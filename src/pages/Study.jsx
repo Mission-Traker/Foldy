@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import * as db from '../lib/db.js'
 import { useApp } from '../App.jsx'
-import { expandStage, MODE_FIELD, resolveTodaySet, reviewCount, statusOf, ymd } from '../lib/study.js'
+import { examPlan, expandStage, MODE_FIELD, resolveTodaySet, reviewCount, statusOf, ymd } from '../lib/study.js'
 import { Empty, Header } from '../components/ui.jsx'
 import { canListen } from '../lib/speech.js'
 import { isIOS, pronHereOK } from '../lib/browser.js'
@@ -19,6 +21,8 @@ export default function Study() {
   const setIds = resolveTodaySet(words, isToday ? daily.set_ids : [], member?.daily_goal || 5)
   const setWords = setIds.map((id) => words.find((w) => w.id === id)).filter(Boolean)
   const expandTodo = words.filter((w) => expandStage(w) === 'synant' && w.enriched).length
+  const [exams, setExams] = useState([])
+  useEffect(() => { if (member) db.listExams(member.id).then(setExams).catch(() => {}) }, [member])
 
   if (!words.length) {
     return (
@@ -83,6 +87,30 @@ export default function Study() {
           <span className="flex-1"><b className="font-jua text-lg text-slate-deep">○ 만들기 도전</b><span className="block text-xs text-soft">오늘의 단어 중 못 맞힌 퀴즈만 한 번에</span></span>
           <span className="font-jua text-slate">시작 →</span>
         </Link>
+      )}
+
+      <div className="mb-2 mt-6 flex items-center justify-between">
+        <h2 className="font-jua text-lg text-slate-deep">📅 시험 대비</h2>
+        <Link to="/exam/new" className="chip border-tang text-tang">＋ 시험 만들기</Link>
+      </div>
+      {exams.length ? (
+        <div className="space-y-2">
+          {exams.map((e) => {
+            const p = examPlan(e, words)
+            return (
+              <Link key={e.id} to={`/exam/${e.id}`} className="card flex items-center gap-3 p-3">
+                <span className={`flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl font-title leading-none text-white ${p.dday < 0 ? 'bg-soft' : 'bg-coral'}`}>
+                  <span className="text-[10px]">D</span><span className="text-base font-bold">{p.dday < 0 ? '끝' : p.dday === 0 ? 'DAY' : `-${p.dday}`}</span>
+                </span>
+                <span className="min-w-0 flex-1"><b className="block truncate font-jua text-slate-deep">{e.title}</b>
+                  <span className="block text-xs text-soft">준비 {p.ready}/{p.total}{p.dday >= 0 && p.today.length ? ` · 오늘 ${p.today.length}개` : ''}</span></span>
+                <span className="text-soft">›</span>
+              </Link>
+            )
+          })}
+        </div>
+      ) : (
+        <p className="card p-4 text-sm text-soft">학교·학원 단어시험 날짜와 범위를 정하면 남은 날에 맞춰 하루 분량을 나눠 주고, 전날엔 철자 모의고사를 볼 수 있어요.</p>
       )}
 
       <h2 className="mb-2 mt-6 font-jua text-lg text-slate-deep">더 깊이</h2>

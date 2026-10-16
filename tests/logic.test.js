@@ -403,3 +403,59 @@ describe('갉아먹기 장면', () => {
     expect(gnawEat('library')).toBe(4); expect(gnawEat('cat')).toBe(1); expect(gnawEat('fortune')).toBe(4)
   })
 })
+
+import { weekStart, familyWeekRank, examPlan, daysUntil } from '../src/lib/study.js'
+describe('가족 주간 순위', () => {
+  it('월요일부터', () => {
+    expect(weekStart('2026-10-16')).toBe('2026-10-12') // 금 → 월
+    expect(weekStart('2026-10-12')).toBe('2026-10-12')
+    expect(weekStart('2026-10-18')).toBe('2026-10-12') // 일
+  })
+  it('목표가 달라도 %로 공평하게, 이번 주 가입자는 가입일부터', () => {
+    const ms = [
+      { id: 'a', daily_goal: 10, created_at: '2026-01-01T00:00:00Z' },
+      { id: 'b', daily_goal: 5, created_at: '2026-10-15T00:00:00Z' },
+    ]
+    const rows = [
+      { member_id: 'a', day: '2026-10-12', done: 10 }, { member_id: 'a', day: '2026-10-13', done: 30 },
+      { member_id: 'b', day: '2026-10-15', done: 5 }, { member_id: 'b', day: '2026-10-16', done: 5 },
+    ]
+    const r = familyWeekRank(ms, rows, '2026-10-16')
+    expect(r[0].m.id).toBe('b'); expect(r[0].pct).toBe(100)
+    expect(r[1].pct).toBe(40) // (10+10)/(10*5)
+  })
+})
+describe('시험 대비 분량', () => {
+  const ws = Array.from({ length: 10 }, (_, i) => ({ id: 'w' + i, seq: i, ko_ok: i < 2, en_ok: i < 2 }))
+  it('남은 날로 나눔(오늘 포함)', () => {
+    const p = examPlan({ exam_date: '2026-10-20', word_ids: ws.map((w) => w.id) }, ws, '2026-10-16')
+    expect(p.dday).toBe(4); expect(p.ready).toBe(2); expect(p.today.length).toBe(2) // 8개 ÷ 4일
+  })
+  it('시험 당일·전날은 남은 것 전부, 지나면 0', () => {
+    expect(examPlan({ exam_date: '2026-10-17', word_ids: ws.map((w) => w.id) }, ws, '2026-10-16').today.length).toBe(8)
+    expect(examPlan({ exam_date: '2026-10-16', word_ids: ws.map((w) => w.id) }, ws, '2026-10-16').today.length).toBe(8)
+    expect(examPlan({ exam_date: '2026-10-15', word_ids: ws.map((w) => w.id) }, ws, '2026-10-16').today.length).toBe(0)
+  })
+  it('지운 단어는 빼고 셈', () => {
+    expect(examPlan({ exam_date: '2026-10-20', word_ids: ['w0', 'gone'] }, ws, '2026-10-16')).toMatchObject({ total: 1, missing: 1 })
+    expect(daysUntil('2026-11-01', '2026-10-30')).toBe(2)
+  })
+})
+
+import { petState, wearing } from '../src/lib/pet.js'
+describe('캐릭터 키우기', () => {
+  const ws = (n) => Array.from({ length: n }, () => ({ ko_ok: true, en_ok: true, sp_ok: true }))
+  it('퀴즈 통과 수로 자람', () => {
+    expect(petState([]).name).toBe('아기')
+    expect(petState(ws(5)).name).toBe('꼬마') // 15
+    expect(petState(ws(5)).unlocked).toEqual(['ribbon'])
+    expect(petState(ws(100)).name).toBe('전설')
+    expect(petState(ws(100)).next).toBe(null)
+    expect(petState(ws(4)).toNext).toBe(3)
+  })
+  it('착용은 풀린 것만', () => {
+    expect(wearing({ wear: ['crown', 'ribbon'] }, ['ribbon'])).toEqual(['ribbon'])
+    expect(wearing(null, ['ribbon', 'glasses'])).toEqual(['ribbon', 'glasses'])
+    expect(wearing({ wear: [] }, ['ribbon'])).toEqual([])
+  })
+})

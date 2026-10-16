@@ -185,4 +185,19 @@ describe('무료 AI(Gemini)·하루 한도', () => {
     expect(res.statusCode).toBe(429)
     expect(JSON.parse(res.body).code).toBe('LIMIT')
   })
+  it('나만의 예문: 별명이 없으면 400, 있으면 예문(mine) 돌려줌·위험 글자 제거', async () => {
+    process.env.GEMINI_API_KEY = 'g'
+    const bodies = []
+    vi.stubGlobal('fetch', vi.fn(async (url, opt) => { if (url.includes('generativelanguage')) bodies.push(opt.body); return url.includes('generativelanguage')
+      ? { ok: true, json: async () => ({}), text: async () => JSON.stringify({ choices: [{ message: { content: '[{"word":"library","example":{"en":"Kong reads in the library.","ko":"콩이는 도서관에서 읽어요.","scene":"📚"}}]' } }] }) }
+      : fam(url, false) }))
+    const { default: h } = await import('../api/story.js')
+    let res = mockRes(); await h(req({ words: [{ word: 'library', meaning: '도서관' }], nick: '' }), res)
+    expect(res.statusCode).toBe(400)
+    res = mockRes(); await h(req({ words: [{ word: 'library', meaning: '도서관' }], nick: '콩이"}<x>', likes: ['축구', '고양이', '피아노', '넷째'] }), res)
+    const b = JSON.parse(res.body)
+    expect(b.items[0].example.mine).toBe(true)
+    const sys = JSON.parse(bodies[0]).messages[0].content
+    expect(sys).toContain('"콩이x"'); expect(sys).not.toContain('넷째')
+  })
 })

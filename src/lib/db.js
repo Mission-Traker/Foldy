@@ -5,7 +5,7 @@ const KEY = import.meta.env.VITE_SUPABASE_KEY || 'sb_publishable_kMgYoZQrs5LRk-z
 const TOKEN_KEY = 'foldy.session'
 const MEMBER_KEY = 'foldy.member'
 const MTOK_KEY = 'foldy.memberTokens' // 구성원별 잠금 해제 토큰
-const MEMBER_COLS = 'id,family_id,name,avatar,level,daily_goal,streak,best_streak,last_study,created_at,has_pin'
+const MEMBER_COLS = 'id,family_id,name,avatar,level,daily_goal,streak,best_streak,last_study,created_at,has_pin,story,pet'
 
 function store(k, v) {
   try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)) } catch { /* 저장 불가 환경 */ }
@@ -266,3 +266,28 @@ export async function handoffRedeem(code) {
   }
   return d
 }
+
+// 가족끼리 단어 내기
+export const sendChallenge = (fromId, toId, words, note) =>
+  q(client.from('foldy_challenges').insert({ family_id: session.family_id, from_member: fromId, to_member: toId, words, note: note || null }).select().single())
+export const challengesFor = (memberId) =>
+  q(client.from('foldy_challenges').select('*').or(`to_member.eq.${memberId},from_member.eq.${memberId}`).order('created_at', { ascending: false }).limit(40))
+export async function finishChallenge(id, score, total, results) {
+  const rows = await q(client.from('foldy_challenges').update({ done_at: new Date().toISOString(), score, total, results }).eq('id', id).select())
+  if (!rows.length) throw new Error(friendly({ message: 'FORBIDDEN' }))
+  return rows[0]
+}
+export const deleteChallenge = (id) => q(client.from('foldy_challenges').delete().eq('id', id).select('id'))
+// 이번 주 가족 기록(월요일부터)
+export const familyWeek = (fromDay) => q(client.from('foldy_daily').select('member_id,day,done').gte('day', fromDay))
+export const memberWords = (memberId) => q(client.from('foldy_words').select('id,word,meaning,en_ok,ko_ok,sp_ok').eq('member_id', memberId).order('seq').limit(5000))
+
+// 시험 대비
+export const listExams = (memberId) => q(client.from('foldy_exams').select('*').eq('member_id', memberId).order('exam_date'))
+export const addExam = (row) => q(client.from('foldy_exams').insert(row).select().single())
+export async function updateExam(id, patch) {
+  const rows = await q(client.from('foldy_exams').update(patch).eq('id', id).select())
+  if (!rows.length) throw new Error(friendly({ message: 'FORBIDDEN' }))
+  return rows[0]
+}
+export const deleteExam = (id) => q(client.from('foldy_exams').delete().eq('id', id).select('id'))

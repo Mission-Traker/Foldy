@@ -116,3 +116,10 @@ input, button, textarea, select { font: inherit; }
 .gn-h { font-family: 'Jua', sans-serif; font-size: 19px; color: #3E5486; margin-bottom: 6px; text-wrap: balance; }
 .gn-p { font-size: 14px; color: #8A8172; line-height: 1.55; margin-bottom: 12px; }
 @media (prefers-reduced-motion: reduce) { .gn-crit, .gn-sheet { transition: none; } .gn-crit.chomp .gn-body, .gn-crit.hop .gn-body { animation: none; } }
+
+/* 캐릭터 키우기 */
+.pet-eat { animation: petEat .5s ease-in-out 3; transform-origin: 50% 90%; }
+@keyframes petEat { 30% { transform: scale(1.08, .92); } 60% { transform: scale(.96, 1.06) translateY(-4px); } }
+.pet-yum { animation: petYum 2.6s ease-out forwards; }
+@keyframes petYum { 0% { opacity: 0; transform: translateY(6px); } 15% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-8px); } }
+@media (prefers-reduced-motion: reduce) { .pet-eat, .pet-yum { animation: none; } }
