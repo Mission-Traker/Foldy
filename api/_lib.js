@@ -113,7 +113,11 @@ async function isPaidFamily(req) {
 const usesClaude = (req) => !!req?.foldyPaid && hasKey()
 
 // 유료 가족의 하루 Claude 사용 한도
-export const LIMITS = { text: Number(process.env.FOLDY_DAILY_TEXT || 150), vision: Number(process.env.FOLDY_DAILY_VISION || 20) }
+export const LIMITS = {
+  text: Number(process.env.FOLDY_DAILY_TEXT || 150), vision: Number(process.env.FOLDY_DAILY_VISION || 20),
+  // 무료 AI는 모든 가족이 같은 무료 한도를 나눠 쓰므로, 한 가족이 다 써 버리지 않게 하루 한도를 둠
+  free_text: Number(process.env.FOLDY_FREE_TEXT || 200), free_vision: Number(process.env.FOLDY_FREE_VISION || 15),
+}
 export class FreeOnlyError extends Error { constructor() { super('AI 기능을 준비하고 있어요. 조금만 기다려 주세요'); this.code = 'NO_KEY' } }
 export class LimitError extends Error { constructor() { super('오늘 AI 사용량을 다 썼어요. 내일 다시 쓸 수 있어요'); this.code = 'LIMIT' } }
 async function takeQuota(req, kind) {
@@ -152,8 +156,9 @@ export async function textLLM({ system, text, maxTokens = 2000, check = () => tr
     if (!check(out)) throw new Error('AI 응답 형식이 맞지 않아요. 다시 해 주세요')
     return { text: out, via: 'free' }
   }
-  // 그 밖의 가족: 무료 AI만
+  // 그 밖의 가족: 무료 AI만(가족당 하루 한도 안에서)
   if (!hasFree()) throw new FreeOnlyError()
+  if (!(await takeQuota(req, 'free_text'))) throw new LimitError()
   for (let i = 0; i < 2; i++) {
     const out = await freeChat({ system: i ? system + '\n\n반드시 요청한 형식만 정확히 출력하라.' : system, text, maxTokens })
     if (check(out)) return { text: out, via: 'free' }
@@ -181,6 +186,7 @@ export async function visionLLM({ system, text, image, mediaType, maxTokens = 80
     return { text: out, via: 'free' }
   }
   if (!hasFreeVision()) throw new FreeOnlyError()
+  if (!(await takeQuota(req, 'free_vision'))) throw new LimitError()
   const out = await freeChat({ system, text, maxTokens, image, mediaType })
   if (!check(out)) throw new Error('무료 AI가 사진을 읽지 못했어요. 다시 해 주세요')
   return { text: out, via: 'free' }
