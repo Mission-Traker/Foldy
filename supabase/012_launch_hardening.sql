@@ -9,3 +9,4 @@
 -- ⑦ foldy_set_pin: 바꾸거나 없애면 그 구성원의 잠금 해제(다른 기기)도 끊음
 -- ⑧ foldy_members.level_base: 레벨이 바뀐 순간의 경험치(다음 레벨업은 그 뒤부터 셈)
 -- ⑨ 트리거 전용 함수 실행 권한 회수, foldy_feedback_bu·foldy_challenges_bu search_path 고정, 외래키 인덱스
+-- ⑩ foldy_daily.extra: '새 단어 더 하기'로 직접 늘린 개수. 오늘의 단어 수 = 하루 목표 + extra(그 이상 쌓이면 뒤에서부터 정리)

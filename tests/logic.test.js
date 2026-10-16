@@ -516,3 +516,34 @@ describe('이름은 한 달에 한 번', () => {
     expect([n.getUTCMonth(), n.getUTCDate()]).toEqual([1, 28])
   })
 })
+
+describe('오늘의 단어 수는 하루 목표로 고정', async () => {
+  const S = await import('../src/lib/study.js')
+  const mk = (i, o = {}) => ({ id: 'w' + i, seq: i, word: 'w' + i, ko_ok: false, en_ok: false, sp_ok: false, ...o })
+  const words = Array.from({ length: 30 }, (_, i) => mk(i + 1))
+  it('저장된 세트가 목표보다 많으면 뒤에서부터 덜어 냄(오늘 푼 단어는 남김)', () => {
+    const saved = words.slice(0, 22).map((w) => w.id)
+    const r = S.resolveTodaySet(words, saved, 10, ['w20', 'w21'])
+    expect(r.length).toBe(10)
+    expect(r).toContain('w20'); expect(r).toContain('w21')
+    expect(r.slice(0, 8)).toEqual(['w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7', 'w8'])
+  })
+  it('새 단어 더 하기(extra)만큼은 늘어남', () => {
+    expect(S.resolveTodaySet(words, [], 10, [], 5).length).toBe(15)
+  })
+  it('단어장에서 보낸 단어는 맨 앞, 개수는 그대로, 안 푼 단어가 빠짐', () => {
+    const cur = ['w1', 'w2', 'w3', 'w4']
+    const { ids, dropped } = S.sendToSet(cur, 'w9', 4, ['w4'])
+    expect(ids).toEqual(['w9', 'w1', 'w2', 'w4'])
+    expect(dropped).toEqual(['w3'])
+  })
+  it('이미 있으면 그대로', () => {
+    expect(S.sendToSet(['w1'], 'w1', 1).dropped).toEqual([])
+  })
+  it('연달아 보내면 보낸 단어들이 앞에 쌓임', () => {
+    let ids = ['w1', 'w2', 'w3']
+    ids = S.sendToSet(ids, 'w8', 3).ids
+    ids = S.sendToSet(ids, 'w9', 3).ids
+    expect(ids).toEqual(['w9', 'w8', 'w1'])
+  })
+})

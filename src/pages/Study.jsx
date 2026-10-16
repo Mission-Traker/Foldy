@@ -18,7 +18,7 @@ export default function Study() {
   const today = ymd()
   const isToday = daily && daily.day === today
   const due = reviewCount(words, isToday ? daily.seen_ids : [], today)
-  const setIds = resolveTodaySet(words, isToday ? daily.set_ids : [], member?.daily_goal || 5)
+  const setIds = resolveTodaySet(words, isToday ? daily.set_ids : [], member?.daily_goal || 5, isToday ? daily.seen_ids : [], isToday ? daily.extra : 0)
   const setWords = setIds.map((id) => words.find((w) => w.id === id)).filter(Boolean)
   const again = wrongDueList(words, today)
   const expandTodo = words.filter((w) => expandStage(w) === 'synant' && w.enriched).length

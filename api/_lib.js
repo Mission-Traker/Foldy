@@ -78,7 +78,8 @@ async function freeChatOnce(c, model, { system, text, maxTokens, image, mediaTyp
   const user = image
     ? [{ type: 'image_url', image_url: { url: `data:${mediaType || 'image/jpeg'};base64,${image}` } }, { type: 'text', text }]
     : text
-  const r = await fetch(`${base}/chat/completions`, {
+  let r
+  try { r = await fetch(`${base}/chat/completions`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${c.key}`, 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -87,7 +88,13 @@ async function freeChatOnce(c, model, { system, text, maxTokens, image, mediaTyp
       messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
     }),
     signal: AbortSignal.timeout(timeout || (image ? 55000 : 40000)),
-  })
+  }) } catch (e) {
+    // 시간 초과·연결 끊김은 '붐빔'으로 보고 다음 모델로
+    const err = new Error('무료 AI가 지금 붐벼요. 조금 뒤 다시 해 주세요')
+    err.busy = true
+    console.error('[free-llm]', model, e?.name || '', e?.message || '')
+    throw err
+  }
   const raw = await r.text().catch(() => '')
   let data = {}
   try { data = JSON.parse(raw) } catch { /* 본문이 JSON이 아님 */ }
@@ -206,7 +213,8 @@ export function canParse(t) {
 }
 
 export async function claude({ model, system, content, maxTokens = 2000, req }) {
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
+  let r
+  try { r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'x-api-key': process.env.ANTHROPIC_API_KEY,
@@ -215,7 +223,10 @@ export async function claude({ model, system, content, maxTokens = 2000, req }) 
     },
     body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content }] }),
     signal: AbortSignal.timeout(Math.max(3000, Math.min(55000, remaining(req) - 1500))),
-  })
+  }) } catch (e) {
+    console.error('[claude]', e?.name || '', e?.message || '')
+    throw new Error('AI가 잠시 바빠요. 조금 뒤 다시 해 주세요')
+  }
   const data = await r.json().catch(() => ({}))
   if (!r.ok) {
     console.error('[claude]', r.status, data?.error?.message || '')

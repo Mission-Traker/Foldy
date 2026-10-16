@@ -93,10 +93,8 @@ export default function Home() {
           <Blob i={member.avatar} size={56} className={pet.ate ? 'pet-eat' : 'bob'} wear={pet.wear} />
           {pet.ate > 0 && <span className="pet-yum absolute -right-2 -top-1 rounded-full bg-tang px-1.5 py-0.5 font-jua text-[11px] text-white">냠 +{pet.ate}</span>}
         </button>
-        <div className="min-w-0 flex-1">
-          <h1 className="h-title text-2xl">안녕, {member.name}!</h1>
-          <p className="text-xs text-soft">🔥 {liveStreak(member)}일 연속 학습 중</p>
-        </div>
+        <h1 className="h-title min-w-0 flex-1 text-2xl">안녕, {member.name}!</h1>
+        <StreakBadge member={member} today={today} />
       </div>
       {ready && <LevelBar member={member} words={words} onLevelUp={async (lv) => { await updateMember({ level: lv }); showToast('🎉 레벨업! 이제 더 어려운 단어가 추천돼요') }} />}
 
@@ -169,6 +167,19 @@ export default function Home() {
         <p className="mt-3 text-center text-xs text-soft">AI 기능을 준비하고 있어서 사진 읽기·유의어·예문이 잠시 꺼져 있어요.</p>
       )}
       {petOpen && <PetSheet onClose={() => setPetOpen(false)} onProfile={() => { setPetOpen(false); openProfile() }} />}
+    </div>
+  )
+}
+
+// 연속 학습일: 오늘 첫 정답을 맞히는 순간 하루가 더해짐(자정이 지났다고 저절로 늘지는 않음)
+function StreakBadge({ member, today }) {
+  const n = liveStreak(member, today)
+  const doneToday = member.last_study === today
+  const sub = doneToday ? '오늘 학습 완료' : n > 0 ? `오늘 하면 ${n + 1}일째` : '오늘 시작해요'
+  return (
+    <div className="shrink-0 text-right" aria-label={`${n}일 연속 학습 중, ${sub}`}>
+      <p className="flex items-baseline justify-end gap-1 whitespace-nowrap font-jua text-xl leading-tight text-slate-deep"><span aria-hidden="true">🔥</span><span>{`${n}일`}</span><span className="text-sm">연속</span></p>
+      <p className={`whitespace-nowrap text-[11px] ${doneToday ? 'text-sage' : 'text-soft'}`}>{sub}</p>
     </div>
   )
 }

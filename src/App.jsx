@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import * as db from './lib/db.js'
 import { enrichPending, personalize, storyOn } from './lib/enrich.js'
-import { enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, ymd, gnawDays, pickGnawWords, reviewCount, wrongDue } from './lib/study.js'
+import { enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, sendToSet, ymd, gnawDays, pickGnawWords, reviewCount, wrongDue } from './lib/study.js'
 import { BottomNav, Confetti, Toast } from './components/ui.jsx'
 import { fanfare } from './lib/sfx.js'
 import { levelProgress, normLevel } from './lib/levels.js'
@@ -103,6 +103,15 @@ export default function App() {
   }, [session, showToast])
 
   // 구성원 선택 시 단어·오늘 기록 불러오기
+  // 앱을 켜 둔 채 자정이 지나면 화면을 새 날짜로 다시 그림(오늘 맞힌 수·오늘의 단어·연속 학습일)
+  const [today, setToday] = useState(ymd())
+  useEffect(() => {
+    const check = () => { const d = ymd(); setToday((t) => (t === d ? t : d)) }
+    const t = setInterval(check, 30000)
+    document.addEventListener('visibilitychange', check)
+    window.addEventListener('focus', check)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', check); window.removeEventListener('focus', check) }
+  }, [])
   const [loadError, setLoadError] = useState('')
   const [loadTry, setLoadTry] = useState(0)
   useEffect(() => {
@@ -234,7 +243,7 @@ export default function App() {
     if (!member) return null
     const day = ymd()
     const cur = dailyRef.current
-    const base = cur && cur.day === day && cur.member_id === member.id ? cur : { member_id: member.id, day, done: 0, recs: null, set_ids: [], seen_ids: [] }
+    const base = cur && cur.day === day && cur.member_id === member.id ? cur : { member_id: member.id, day, done: 0, recs: null, set_ids: [], seen_ids: [], extra: 0 }
     const change = fn({ ...base, set_ids: base.set_ids || [], seen_ids: base.seen_ids || [] })
     if (!change || !Object.keys(change).length) return base
     const next = { ...base, ...change }
@@ -263,26 +272,32 @@ export default function App() {
   const todayIds = useCallback(() => {
     const d = dailyRef.current
     const saved = d && d.day === ymd() ? d.set_ids || [] : []
-    return resolveTodaySet(words, saved, member?.daily_goal || 5)
+    const today = d && d.day === ymd() ? d : null
+    return resolveTodaySet(words, saved, member?.daily_goal || 5, today?.seen_ids || [], today?.extra || 0)
   }, [words, member])
   const ensureTodaySet = useCallback(() => {
     const ids = todayIds()
     updateDaily((d) => (JSON.stringify(d.set_ids) === JSON.stringify(ids) ? null : { set_ids: ids }))
     return ids
   }, [todayIds, updateDaily])
+  // '새 단어 더 하기': 오늘의 단어 수를 직접 늘림(extra에 기록해 다음 계산에도 유지)
   const extendTodaySet = useCallback((n) => {
     const cur = todayIds()
-    const ids = [...cur, ...nextCandidates(words, cur).slice(0, n).map((w) => w.id)]
-    updateDaily(() => ({ set_ids: ids }))
+    const add = nextCandidates(words, cur).slice(0, n).map((w) => w.id)
+    const ids = [...cur, ...add]
+    updateDaily((d) => ({ set_ids: ids, extra: (d.extra || 0) + add.length }))
     return ids
   }, [todayIds, words, updateDaily])
 
-  // 단어장에서 고른 단어를 오늘의 단어에 더하기(이미 있으면 그대로)
+  // 단어장에서 고른 단어를 오늘의 단어 맨 앞에 넣고 개수는 그대로(아직 안 푼 단어 하나가 빠짐) → 빠진 단어 id 목록
   const sendToToday = useCallback((id) => {
     const cur = todayIds()
-    if (cur.includes(id)) return false
-    updateDaily(() => ({ set_ids: [...cur, id] }))
-    return true
+    if (cur.includes(id)) return null
+    const d = dailyRef.current
+    const seen = d && d.day === ymd() ? d.seen_ids || [] : []
+    const { ids, dropped } = sendToSet(cur, id, cur.length, seen)
+    updateDaily(() => ({ set_ids: ids }))
+    return dropped
   }, [todayIds, updateDaily])
 
   // 최근 단어 예문을 내 이야기로 다시 만들기(내 정보에서)
@@ -296,8 +311,8 @@ export default function App() {
 
   const value = useMemo(() => ({
     session, setSession, members, setMembers, member, patchMemberLocal: (patch) => { setMember((m) => (m ? { ...m, ...patch } : m)); setMembers((ms) => ms.map((x) => (member && x.id === member.id ? { ...x, ...patch } : x))) }, setMember: (m) => { if (member && member.has_pin && member.id !== m?.id) db.forgetMemberToken(member.id); db.saveMemberId(m?.id || null); setMember(m); setWords([]); setLoadedFor(null); setLoadTry((n) => n + 1); dailyRef.current = null; setDaily(null); enrichedOnce.current = null; if (m) navTo('/') },
-    openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich,
-  }), [session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich])
+    openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich, today,
+  }), [today, session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich])
 
   const wrongCount = words.filter((w) => wrongDue(w)).length // 오늘 다시 볼 단어만 배지로
   // 오래 쉬었다 들어오면(또는 학습 알림으로 들어오면) 하루 한 번 '갉아먹기' 장면 — 단어는 그대로

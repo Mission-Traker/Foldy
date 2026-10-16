@@ -241,12 +241,28 @@ export function nextCandidates(words, exclude = []) {
     .filter((w) => statusOf(w) !== 'o' && !ex.has(w.id))
     .sort((a, b) => rank(a) - rank(b) || (a.seq || 0) - (b.seq || 0))
 }
-// 저장된 오늘 세트를 지키되, 지워진 단어는 빼고 목표 개수에 모자라면 채움(○가 된 단어는 세트에 그대로 남아 반복 학습)
-export function resolveTodaySet(words, savedIds = [], goal = 5) {
+// 오늘의 단어 수는 '하루 목표 + 직접 더 하기로 한 개수(extra)'로 고정
+// 저장된 세트를 지키되, 지워진 단어는 빼고, 많으면 뒤에서부터(오늘 아직 안 푼 단어 먼저) 덜어 내고, 모자라면 채움(○가 된 단어는 세트에 그대로 남아 반복 학습)
+export function resolveTodaySet(words, savedIds = [], goal = 5, seenIds = [], extra = 0) {
   const have = new Set(words.map((w) => w.id))
-  const kept = (savedIds || []).filter((id) => have.has(id))
-  if (kept.length >= goal) return kept
-  return [...kept, ...nextCandidates(words, kept).slice(0, goal - kept.length).map((w) => w.id)]
+  const cap = Math.max(1, goal + (extra || 0))
+  let kept = (savedIds || []).filter((id, i, a) => have.has(id) && a.indexOf(id) === i)
+  if (kept.length > cap) kept = trimSet(kept, cap, seenIds)
+  if (kept.length >= cap) return kept
+  return [...kept, ...nextCandidates(words, kept).slice(0, cap - kept.length).map((w) => w.id)]
+}
+// 뒤에서부터 덜어 냄: 오늘 이미 푼 단어는 되도록 남김
+export function trimSet(ids, cap, seenIds = []) {
+  const seen = new Set(seenIds || [])
+  const out = [...ids]
+  for (let i = out.length - 1; i >= 0 && out.length > cap; i--) if (!seen.has(out[i])) out.splice(i, 1)
+  return out.slice(0, cap)
+}
+// 단어장에서 고른 단어를 맨 앞에 넣고, 개수는 그대로(뒤에서 하나 덜어 냄) → { ids, dropped }
+export function sendToSet(ids, id, cap, seenIds = []) {
+  if (ids.includes(id)) return { ids, dropped: [] }
+  const next = trimSet([id, ...ids], cap, [...(seenIds || []), id])
+  return { ids: next, dropped: ids.filter((x) => !next.includes(x)) }
 }
 // 퀴즈 한 판: 오늘 세트 중 이 퀴즈를 아직 못 맞힌 단어. 모두 맞혔으면 오늘 세트 전체를 다시(외울 때까지 반복)
 export function todayQueue(words, setIds, mode) {

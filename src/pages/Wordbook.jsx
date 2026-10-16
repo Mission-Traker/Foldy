@@ -171,12 +171,13 @@ function EditSheet({ w, onClose }) {
 }
 
 export default function Wordbook() {
-  const { words, ready, daily, todayIds, sendToToday, showToast } = useApp()
-  const todaySet = useMemo(() => new Set(ready ? todayIds() : []), [ready, todayIds, daily])
+  const { words, ready, daily, todayIds, sendToToday, showToast, today } = useApp()
+  const todaySet = useMemo(() => new Set(ready ? todayIds() : []), [ready, todayIds, daily, today])
   function send(w) {
     if (todaySet.has(w.id)) { showToast('이미 오늘 학습할 단어예요'); return }
-    sendToToday(w.id)
-    showToast(`‘${w.word}’ → 오늘의 단어에 넣었어요`)
+    const dropped = sendToToday(w.id) || []
+    const out = dropped.map((id) => words.find((x) => x.id === id)?.word).filter(Boolean)
+    showToast(out.length ? `‘${w.word}’를 먼저 학습해요 · ‘${out[0]}’는 다음에` : `‘${w.word}’ → 오늘의 단어에 넣었어요`)
   }
   const [params, setParams] = useSearchParams()
   const [sort, setSort] = useState('seq')
