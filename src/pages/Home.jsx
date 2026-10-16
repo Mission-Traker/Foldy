@@ -7,13 +7,14 @@ import { meaningsFor } from '../lib/enrich.js'
 import { expandStage, reviewCount, statusOf, ymd, liveStreak } from '../lib/study.js'
 import { Blob, Ring, Speak, GoalStepper, FitWord } from '../components/ui.jsx'
 import LevelBar from '../components/LevelBar.jsx'
-import PetCard from '../components/PetCard.jsx'
+import { usePet, PetSheet } from '../components/PetCard.jsx'
 import HomeNotices from '../components/HomeNotices.jsx'
-import { petState, wearing } from '../lib/pet.js'
 
 export default function Home() {
   const { member, words, daily, updateDaily, addWords, showToast, aiState, ready, openProfile, updateMember, patchMemberLocal } = useApp()
   const [goalEdit, setGoalEdit] = useState(false)
+  const [petOpen, setPetOpen] = useState(false)
+  const pet = usePet()
   const goalTimer = useRef()
   const goal = member.daily_goal
   const [recGoal, setRecGoal] = useState(goal) // 추천 단어 수(목표를 다 바꾼 뒤에 반영)
@@ -77,81 +78,70 @@ export default function Home() {
     } catch (e) { showToast(e.message) }
   }
 
+  const goalMet = done >= member.daily_goal
+  const total = words.length
   return (
     <div className="pt-[max(env(safe-area-inset-top),16px)]">
-      <div className="mb-2 flex items-center gap-3">
-        <button onClick={openProfile} aria-label="내 프로필 수정" className="relative active:scale-95">
-          <Blob i={member.avatar} size={60} className="bob" wear={wearing(member.pet, petState(words).unlocked)} />
-          <span className="absolute -bottom-1 -right-1 rounded-full bg-paper px-1 text-[11px] border border-line">✎</span>
+      {/* 머리: 캐릭터(누르면 내 캐릭터) · 인사 · 연속 학습일 */}
+      <div className="mb-3 flex items-center gap-3">
+        <button onClick={() => setPetOpen(true)} aria-label="내 캐릭터 보기" className="relative shrink-0 active:scale-95">
+          <Blob i={member.avatar} size={56} className={pet.ate ? 'pet-eat' : 'bob'} wear={pet.wear} />
+          {pet.ate > 0 && <span className="pet-yum absolute -right-2 -top-1 rounded-full bg-tang px-1.5 py-0.5 font-jua text-[11px] text-white">냠 +{pet.ate}</span>}
         </button>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <h1 className="h-title text-2xl">안녕, {member.name}!</h1>
-        </div>
-        <div className="rounded-2xl bg-paper px-3 py-2 text-center border-2 border-line">
-          <div className="font-jua text-xl text-tang">🔥 {liveStreak(member)}</div>
-          <div className="text-[11px] text-soft">연속 학습일</div>
+          <p className="text-xs text-soft">🔥 {liveStreak(member)}일 연속 학습 중</p>
         </div>
       </div>
       {ready && <LevelBar member={member} words={words} onLevelUp={async (lv) => { await updateMember({ level: lv }); showToast('🎉 레벨업! 이제 더 어려운 단어가 추천돼요') }} />}
+
+      {/* 가장 중요한 것 하나: 오늘의 학습 */}
+      <section className="mb-4 rounded-3xl bg-slate-deep p-5 text-white shadow-[0_4px_0_#2c3d63]">
+        <div className="flex items-center gap-4">
+          <Ring value={Math.min(done, member.daily_goal)} max={member.daily_goal} size={72} color="#E9954B" track="rgba(255,255,255,.18)" text="#fff" />
+          <div className="min-w-0 flex-1">
+            <p className="font-jua text-xl">{goalMet ? '오늘 목표 달성! 🎉' : '오늘의 목표'}</p>
+            <p className="text-sm text-white/75"><span className="block">문제 {member.daily_goal}개 맞히기</span><span className="block">지금 {done}개 맞혔어요</span></p>
+          </div>
+        </div>
+        <Link to={!total ? '/add' : goalMet && due > 0 ? '/quiz/review' : '/study'}
+          className="mt-4 flex w-full items-center justify-center rounded-full bg-paper py-3 font-jua text-lg text-slate-deep shadow-[0_3px_0_rgba(0,0,0,.18)] active:translate-y-[2px] active:shadow-none">
+          {!total ? '첫 단어 넣기' : goalMet ? (due > 0 ? `복습 ${due}개 하기` : '한 번 더 학습하기') : done > 0 ? '이어서 학습하기' : '학습 시작하기'}
+        </Link>
+        <button onClick={() => setGoalEdit((v) => !v)} className="mx-auto mt-2 block text-xs text-white/70 underline">✎ 목표 바꾸기</button>
+        {goalEdit && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-paper p-3 text-ink">
+            <span className="font-jua text-slate-deep">하루 목표</span>
+            <GoalStepper value={goal} onChange={changeGoal} />
+            <button className="chip" onClick={() => setGoalEdit(false)}>완료</button>
+          </div>
+        )}
+      </section>
+
       {ready && <HomeNotices />}
 
-      <div className="card mb-4 flex items-center gap-4 p-4">
-        <Ring value={Math.min(done, member.daily_goal)} max={member.daily_goal} />
-        <div className="flex-1">
-          <p className="font-jua text-lg text-slate-deep">{done >= member.daily_goal ? '오늘 목표 달성! 🎉' : '오늘의 목표'}</p>
-          <p className="text-sm text-soft"><span className="block">문제 {member.daily_goal}개 맞히기</span><span className="block">지금 {done}개 맞혔어요</span></p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <Link to="/study" className="btn-main px-4 py-2 text-base">학습</Link>
-          <button onClick={() => setGoalEdit((v) => !v)} className="text-xs text-soft underline">✎ 목표 바꾸기</button>
-        </div>
-      </div>
-      {goalEdit && (
-        <div className="card -mt-2 mb-4 flex flex-wrap items-center justify-between gap-2 p-3">
-          <span className="font-jua text-slate-deep">하루 목표</span>
-          <GoalStepper value={goal} onChange={changeGoal} />
-          <button className="chip" onClick={() => setGoalEdit(false)}>완료</button>
-        </div>
-      )}
-
-      <div className="mb-4 grid grid-cols-3 gap-2 text-center">
-        {[['x', '미학습', 'text-coral'], ['t', '학습 중', 'text-mustard'], ['o', '완료', 'text-sage']].map(([k, l, c]) => (
-          <Link key={k} to={`/book?f=${k}`} className="card py-3">
-            <div className={`font-jua text-2xl ${c}`}>{counts[k]}</div>
-            <div className="text-xs text-soft">{k === 'o' ? '○' : k === 't' ? '△' : '✕'} {l}</div>
-          </Link>
-        ))}
-      </div>
-
-      {/* 복습·확장 카드는 늘 같은 자리에 — 할 게 없을 때도 사라지지 않고 상태를 알려 줌 */}
-      <div className="mb-4 grid grid-cols-2 gap-2">
-        <Link to="/quiz/review" className="card flex items-center gap-2 p-3">
-          <span className="text-2xl">⏰</span>
-          <span><b className="font-jua text-slate-deep">복습 {due}개</b><br /><span className="text-xs text-soft">{due > 0 ? '오늘 푼 단어 한 번 더' : '오늘 복습 끝!'}</span></span>
-        </Link>
-        <Link to="/expand" className="card flex items-center gap-2 p-3">
-          <span className="text-2xl">🌱</span>
-          <span><b className="font-jua text-slate-deep">확장 {expandTodo}개</b><br /><span className="text-xs text-soft">{expandTodo > 0 ? '유의어·반의어' : expandDone > 0 ? `${expandDone}개 확장 완료 ✓` : '○ 단어부터 열려요'}</span></span>
-        </Link>
-      </div>
-
-      {ready && <PetCard />}
+      {/* 나머지는 조용한 목록으로 */}
+      <nav className="mb-4 overflow-hidden rounded-3xl border border-line bg-paper" aria-label="더 할 수 있는 것">
+        <Row to="/quiz/review" icon="⏰" title={`복습 ${due}개`} sub={due > 0 ? '오늘 푼 단어 한 번 더' : '오늘 복습 끝!'} />
+        <Row to="/expand" icon="🌱" title={`확장 ${expandTodo}개`} sub={expandTodo > 0 ? '유의어·반의어' : expandDone > 0 ? `${expandDone}개 확장 완료 ✓` : '○ 단어부터 열려요'} />
+        <Row to="/book" icon="📒" title={`내 단어 ${total}개`} sub={<><span className="text-sage">○{counts.o}</span> · <span className="text-mustard">△{counts.t}</span> · <span className="text-coral">✕{counts.x}</span></>} last />
+      </nav>
 
       <div className="mb-4 grid grid-cols-2 gap-2">
-        <Link to="/add?tab=photo" className="btn-tang">📷 사진으로 추가</Link>
-        <Link to="/add?tab=manual" className="btn-ghost">✍️ 직접 추가</Link>
+        <Link to="/add?tab=photo" className="btn-ghost !py-2.5 text-base">📷 사진으로 추가</Link>
+        <Link to="/add?tab=manual" className="btn-ghost !py-2.5 text-base">✍️ 직접 추가</Link>
       </div>
 
-      <section className="card p-4">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="font-jua text-xl text-slate-deep">오늘의 추천 단어</h2>
+      <section className="rounded-3xl border border-line bg-paper p-4">
+        <div className="mb-1 flex items-center justify-between">
+          <h2 className="font-jua text-lg text-slate-deep">오늘의 추천 단어</h2>
           {recs?.length > 0 && <button className="chip" onClick={() => add(recs)}>모두 담기</button>}
         </div>
         <p className="mb-3 text-xs text-soft">
           {recs?.some((r) => r.related) ? '내가 외운 단어와 이어지는 단어예요' : `교육부 기본 어휘 ${levelLabel(member.level)}에서 골랐어요`}
         </p>
         {recBusy && !recs && <p className="py-4 text-center text-sm text-soft">단어를 고르는 중…</p>}
-        <ul className="divide-y-2 divide-dashed divide-line">
+        <ul className="divide-y divide-line">
           {(recs || []).map((r) => {
             const has = owned.has(r.word.toLowerCase())
             return (
@@ -161,7 +151,7 @@ export default function Home() {
                   <FitWord as="p" text={r.word} max={18} min={12} className="font-title font-semibold leading-tight text-ink" />
                   <p className="text-sm text-soft">{r.meaning || (recBusy ? '뜻 불러오는 중…' : '뜻은 AI 연결 후 표시돼요')}{r.why ? ` · ${r.why}` : ''}</p>
                 </div>
-                <button disabled={has} onClick={() => add([r])} className={`chip ${has ? '' : 'border-sage text-sage'}`}>{has ? '담음' : '＋ 담기'}</button>
+                <button disabled={has} onClick={() => add([r])} className={`shrink-0 rounded-full px-3 py-1.5 font-jua text-sm ${has ? 'text-soft' : 'text-slate-deep active:bg-cream'}`}>{has ? '담음 ✓' : '＋ 담기'}</button>
               </li>
             )
           })}
@@ -170,6 +160,17 @@ export default function Home() {
       {aiState === 'nokey' && (
         <p className="mt-3 text-center text-xs text-soft">AI 기능을 준비하고 있어서 사진 읽기·유의어·예문이 잠시 꺼져 있어요.</p>
       )}
+      {petOpen && <PetSheet onClose={() => setPetOpen(false)} onProfile={() => { setPetOpen(false); openProfile() }} />}
     </div>
+  )
+}
+
+function Row({ to, icon, title, sub, last }) {
+  return (
+    <Link to={to} className={`flex items-center gap-3 px-4 py-3 active:bg-cream ${last ? '' : 'border-b border-line'}`}>
+      <span className="w-6 text-center text-lg" aria-hidden="true">{icon}</span>
+      <span className="min-w-0 flex-1"><b className="font-jua text-slate-deep">{title}</b><span className="ml-2 whitespace-nowrap text-xs text-soft">{sub}</span></span>
+      <span className="text-soft" aria-hidden="true">›</span>
+    </Link>
   )
 }

@@ -8,9 +8,9 @@ import { canListen } from '../lib/speech.js'
 import { isIOS, pronHereOK } from '../lib/browser.js'
 
 const CARDS = [
-  { mode: 'ko', icon: '🔤', title: '영어 보고 뜻 쓰기', desc: '비슷한 뜻이면 정답이에요', cls: 'bg-tang/15 border-tang/40' },
-  { mode: 'en', icon: '✏️', title: '뜻 보고 영어 쓰기', desc: '철자까지 정확하게', cls: 'bg-sage/15 border-sage/40' },
-  { mode: 'sp', icon: '🎤', title: '발음하기', desc: '정석 발음과 70% 비슷하면 통과', cls: 'bg-coral/15 border-coral/40' },
+  { mode: 'ko', icon: '🔤', title: '영어 보고 뜻 쓰기', desc: '비슷한 뜻이면 정답이에요', cls: 'bg-paper border-line' },
+  { mode: 'en', icon: '✏️', title: '뜻 보고 영어 쓰기', desc: '철자까지 정확하게', cls: 'bg-paper border-line' },
+  { mode: 'sp', icon: '🎤', title: '발음하기', desc: '정석 발음과 70% 비슷하면 통과', cls: 'bg-paper border-line' },
 ]
 
 export default function Study() {
@@ -63,12 +63,12 @@ export default function Study() {
           const clear = setWords.length > 0 && left === 0
           return (
             <Link key={c.mode} to={`/quiz/${c.mode}`}
-              className={`relative flex items-center gap-4 rounded-3xl border-2 p-4 shadow-card ${clear ? 'border-sage bg-sage/20' : c.cls}`}>
+              className={`relative flex items-center gap-4 rounded-3xl border p-4 ${clear ? 'border-sage/60 bg-sage/10' : c.cls}`}>
               <span className="text-4xl">{c.icon}</span>
               <span className="min-w-0 flex-1">
                 <b className="font-jua text-xl text-slate-deep">{c.title}</b>
                 <span className="block text-sm text-soft">{c.mode === 'sp' && !pronHereOK(canListen()) ? `${isIOS() ? '사파리' : '크롬'}에서 열려요 ↗` : clear ? '오늘의 단어 통과! 눌러서 다시 외우기' : c.desc}</span>
-                <span className="mt-1.5 block h-2 overflow-hidden rounded-full bg-white/70">
+                <span className="mt-1.5 block h-2 overflow-hidden rounded-full bg-line">
                   <span className="block h-full rounded-full bg-sage transition-all" style={{ width: `${setWords.length ? (done / setWords.length) * 100 : 0}%` }} />
                 </span>
               </span>
@@ -82,16 +82,16 @@ export default function Study() {
         })}
       </div>
       {setWords.some((w) => statusOf(w) !== 'o') && (
-        <Link to="/quiz/focus" className="nudge mt-4 flex items-center gap-3 rounded-3xl border-2 border-dashed border-slate bg-paper p-4">
-          <span className="text-3xl">🎯</span>
-          <span className="flex-1"><b className="font-jua text-lg text-slate-deep">○ 만들기 도전</b><span className="block text-xs text-soft">오늘의 단어 중 못 맞힌 퀴즈만 한 번에</span></span>
-          <span className="font-jua text-slate">시작 →</span>
+        <Link to="/quiz/focus" className="mt-4 flex items-center gap-3 rounded-2xl border border-line bg-paper px-4 py-3">
+          <span className="text-2xl">🎯</span>
+          <span className="flex-1"><b className="font-jua text-slate-deep">○ 만들기 도전</b><span className="block text-xs text-soft">오늘의 단어 중 못 맞힌 퀴즈만 한 번에</span></span>
+          <span className="text-soft">›</span>
         </Link>
       )}
 
       <div className="mb-2 mt-6 flex items-center justify-between">
         <h2 className="font-jua text-lg text-slate-deep">📅 시험 대비</h2>
-        <Link to="/exam/new" className="chip border-tang text-tang">＋ 시험 만들기</Link>
+        <Link to="/exam/new" className="chip">＋ 시험 만들기</Link>
       </div>
       {exams.length ? (
         <div className="space-y-2">

@@ -62,7 +62,7 @@ export default function ProfileSheet({ onClose }) {
           {LEVELS.map((l) => (
             <button type="button" key={l.id} onClick={() => setLevel(l.id)} className={`chip ${level === l.id ? 'chip-on' : ''}`}>{l.short}</button>
           ))}
-          <button type="button" className="chip border-tang text-tang" onClick={() => { onClose(); nav('/level-test') }}>진단하기</button>
+          <button type="button" className="chip" onClick={() => { onClose(); nav('/level-test') }}>진단하기</button>
         </div>
 
         <button className="btn-main mb-4 w-full" disabled={busy} onClick={save}>저장</button>

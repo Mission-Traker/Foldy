@@ -34,17 +34,17 @@ export default function LevelBar({ member, words, onLevelUp }) {
   return (
     <div className="mb-4" aria-label={`레벨 ${p.label}, 경험치 ${p.xp}/${p.need}`}>
       <div className="flex items-center gap-2">
-        <span className="shrink-0 rounded-lg bg-slate-deep px-2 py-0.5 font-title text-sm font-semibold text-white shadow-[0_2px_0_#2c3d63]">{p.label}</span>
-        <div className="relative h-4 min-w-0 flex-1 overflow-hidden rounded-full border-2 border-line bg-paper" role="progressbar" aria-valuemin={0} aria-valuemax={p.need} aria-valuenow={p.xp}>
+        <span className="shrink-0 font-title text-sm font-semibold text-slate-deep">{p.label}</span>
+        <div className="relative h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuemin={0} aria-valuemax={p.need} aria-valuenow={p.xp}>
           <div className={`xpfill h-full rounded-full ${p.full ? 'xpfull' : ''}`} style={{ width: `${shownPct}%` }} />
-          {gain > 0 && <span className="xpgain absolute right-1 top-1/2 -translate-y-1/2 font-title text-[11px] font-bold text-tang">+{gain} XP</span>}
+
         </div>
-        <span className="shrink-0 font-title text-xs tabular-nums text-soft">{p.next ? `${p.xp}/${p.need}` : 'MAX'}</span>
+        <span className="shrink-0 font-title text-xs tabular-nums text-soft">{gain > 0 && <b className="xpgain mr-1 inline-block text-tang">+{gain}</b>}{p.next ? `${p.xp}/${p.need}` : 'MAX'}</span>
       </div>
       {p.full ? (
-        <button onClick={up} className="lvup mt-2 w-full rounded-2xl bg-tang py-2 font-jua text-base text-white shadow-[0_3px_0_#c4762f]">⬆ {p.nextLabel}로 레벨업!</button>
+        <button onClick={up} className="lvup mt-2 w-full rounded-full border-2 border-tang bg-paper py-2 font-jua text-base text-tang">⬆ {p.nextLabel}로 레벨업!</button>
       ) : (
-        <p className="mt-1 text-[11px] text-soft">{p.next ? <>퀴즈 하나 맞히면 1 XP · <span className="whitespace-nowrap">{p.nextLabel}까지 ○ 단어 {leftWords}개</span></> : '가장 높은 레벨이에요'}</p>
+        <p className="mt-1 text-[11px] text-soft/80">{p.next ? <>퀴즈 하나 맞히면 1 XP · <span className="whitespace-nowrap">{p.nextLabel}까지 ○ 단어 {leftWords}개</span></> : '가장 높은 레벨이에요'}</p>
       )}
     </div>
   )

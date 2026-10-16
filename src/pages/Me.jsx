@@ -55,7 +55,7 @@ export default function Me() {
       <section className="card mb-4 p-4">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="font-jua text-lg text-slate-deep">레벨</h2>
-          <Link to="/level-test" className="chip border-tang text-tang">레벨 진단하기</Link>
+          <Link to="/level-test" className="chip">레벨 진단하기</Link>
         </div>
         <div className="grid grid-cols-2 gap-2">
           {LEVELS.map((l) => (

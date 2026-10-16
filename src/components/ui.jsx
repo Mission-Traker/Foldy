@@ -48,12 +48,8 @@ export function Blob({ i = 0, size = 64, look = 'up', className = '', wear }) {
 export function Confetti() {
   return (
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-      <div className="absolute -left-10 top-24 h-24 w-24 rounded-full bg-sage/25" />
-      <div className="absolute right-[-30px] top-10 h-20 w-20 rotate-12 rounded-2xl bg-mustard/25" />
-      <div className="absolute left-8 bottom-40 h-4 w-4 rounded-full bg-coral/50" />
-      <div className="absolute right-10 bottom-64 h-3 w-3 rounded-full bg-tang/60" />
-      <div className="absolute right-16 top-48 h-3 w-3 rounded-full bg-sage/60" />
-      <div className="absolute left-1/2 top-6 h-0 w-0 border-x-[18px] border-b-[30px] border-x-transparent border-b-coral/25" />
+      <div className="absolute -left-12 top-28 h-28 w-28 rounded-full bg-sage/10" />
+      <div className="absolute right-[-36px] top-10 h-24 w-24 rotate-12 rounded-3xl bg-mustard/10" />
     </div>
   )
 }
@@ -157,16 +153,16 @@ export function Toast({ msg }) {
   )
 }
 
-export function Ring({ value, max, size = 64, color = '#8DAE78' }) {
+export function Ring({ value, max, size = 64, color = '#8DAE78', track = '#E7DCC9', text = '#3E5486' }) {
   const r = 26
   const c = 2 * Math.PI * r
   const p = Math.min(1, max ? value / max : 0)
   return (
     <svg viewBox="0 0 64 64" width={size} height={size} aria-label={`${value}/${max}`}>
-      <circle cx="32" cy="32" r={r} fill="none" stroke="#E7DCC9" strokeWidth="8" />
+      <circle cx="32" cy="32" r={r} fill="none" stroke={track} strokeWidth="8" />
       <circle cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round"
         strokeDasharray={`${c * p} ${c}`} transform="rotate(-90 32 32)" />
-      <text x="32" y="37" textAnchor="middle" fontFamily="Jua" fontSize="15" fill="#3E5486">{value}/{max}</text>
+      <text x="32" y="37" textAnchor="middle" fontFamily="Jua" fontSize="15" fill={text}>{value}/{max}</text>
     </svg>
   )
 }

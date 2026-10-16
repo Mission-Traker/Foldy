@@ -60,7 +60,7 @@ export function FeedbackSheet({ memberName, onClose, onSent }) {
             <div className="mb-4 flex flex-wrap gap-1.5">
               {AREAS.map((a) => (
                 <button key={a} onClick={() => setArea(area === a ? '' : a)}
-                  className={`chip text-xs ${area === a ? 'border-tang bg-tang text-white' : ''}`}>{a}</button>
+                  className={`chip text-xs ${area === a ? 'chip-on' : ''}`}>{a}</button>
               ))}
             </div>
             <label className="label" htmlFor="fb-text">무엇이 이상했나요? 무엇을 바라나요?</label>

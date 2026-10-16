@@ -220,7 +220,7 @@ export default function Wordbook() {
 
   return (
     <div>
-      <Header title="단어장" right={<Link to="/add" className="btn-tang px-4 py-2 text-base">＋ 추가</Link>} />
+      <Header title="단어장" right={<Link to="/add" className="chip">＋ 추가</Link>} />
 
       <div className="mb-2 flex flex-wrap gap-1.5 pb-1">
         {[['all', '전체'], ['x', '미학습'], ['t', '△ 학습 중'], ['o', '○ 완료']].map(([k, l]) => (
@@ -242,18 +242,18 @@ export default function Wordbook() {
       </div>
       <div className="mb-3 flex flex-wrap gap-2">
         {HIDES.map(([k, l]) => (
-          <button key={k} onClick={() => { setHide(k); setPeek(new Set()) }} className={`chip ${hide === k ? 'border-tang bg-tang text-white' : ''}`}>{l}</button>
+          <button key={k} onClick={() => { setHide(k); setPeek(new Set()) }} className={`chip ${hide === k ? 'chip-on' : ''}`}>{l}</button>
         ))}
       </div>
 
       {ready && (counts.t + counts.x) > 0 && filter !== 'o' && (
-        <Link to="/quiz/focus" className="nudge mb-3 flex items-center gap-3 rounded-3xl border-2 border-tang/50 bg-tang/10 p-3">
+        <Link to="/quiz/focus" className="mb-3 flex items-center gap-3 rounded-2xl border border-line bg-paper px-4 py-3">
           <span className="text-2xl">🎯</span>
           <span className="flex-1 text-sm">
             <b className="font-jua text-slate-deep">○를 기다리는 단어 {counts.x + counts.t}개</b>
             <span className="block text-xs text-soft">세 가지 퀴즈를 다 맞히면 ○</span>
           </span>
-          <span className="rounded-full bg-tang px-3 py-1.5 font-jua text-sm text-white">지금 끝내기</span>
+          <span className="whitespace-nowrap text-sm text-soft">지금 끝내기 ›</span>
         </Link>
       )}
       {!ready ? (
