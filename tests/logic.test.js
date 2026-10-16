@@ -377,3 +377,29 @@ describe('레벨업 게이지', () => {
     expect(levelProgress(many, 'm').label).toBe('Lv.04')
   })
 })
+
+import { gnawDays, pickGnawWords, gnawEat } from '../src/lib/study.js'
+describe('갉아먹기 장면', () => {
+  it('이틀 이상 쉬었을 때만(알림으로 오면 하루도)', () => {
+    expect(gnawDays({ last_study: '2026-10-13' }, '2026-10-16')).toBe(3)
+    expect(gnawDays({ last_study: '2026-10-15' }, '2026-10-16')).toBe(0)
+    expect(gnawDays({ last_study: '2026-10-15' }, '2026-10-16', true)).toBe(1)
+    expect(gnawDays({ last_study: '2026-10-16' }, '2026-10-16', true)).toBe(0)
+    expect(gnawDays({ last_study: null }, '2026-10-16', true)).toBe(0)
+  })
+  it('복습할 단어 먼저, 구·짧은 단어 제외, 최대 3개', () => {
+    const ws = [
+      { id: 1, word: 'ox', ko_ok: true, en_ok: true, sp_ok: true, next_review: '2026-10-01' },
+      { id: 2, word: 'look after', ko_ok: true },
+      { id: 3, word: 'library', ko_ok: true, en_ok: true, sp_ok: true, next_review: '2026-10-10' },
+      { id: 4, word: 'tiger' }, { id: 5, word: 'happy', en_ok: true }, { id: 6, word: 'apple' },
+    ]
+    const p = pickGnawWords(ws, '2026-10-16')
+    expect(p.map((w) => w.id)[0]).toBe(3)
+    expect(p.length).toBe(3)
+    expect(p.some((w) => w.id === 1 || w.id === 2)).toBe(false)
+  })
+  it('먹는 글자 수: 절반 남짓, 앞 2글자는 남김', () => {
+    expect(gnawEat('library')).toBe(4); expect(gnawEat('cat')).toBe(1); expect(gnawEat('fortune')).toBe(4)
+  })
+})

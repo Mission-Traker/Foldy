@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import * as db from './lib/db.js'
 import { enrichPending } from './lib/enrich.js'
-import { enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, ymd } from './lib/study.js'
+import { enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, ymd, gnawDays, pickGnawWords, reviewCount } from './lib/study.js'
 import { BottomNav, Confetti, Toast } from './components/ui.jsx'
 import { fanfare } from './lib/sfx.js'
 import { cacheGet, cacheSet, isNetErr, outboxAdd, outboxFlush, outboxSize } from './lib/offline.js'
@@ -20,6 +20,7 @@ import LevelTest from './pages/LevelTest.jsx'
 import Family from './pages/Family.jsx'
 import Admin from './pages/Admin.jsx'
 import Intro, { introSeen } from './components/Intro.jsx'
+import GnawIntro from './components/GnawIntro.jsx'
 import InAppBanner from './components/InAppBanner.jsx'
 import ProfileSheet from './components/ProfileSheet.jsx'
 
@@ -264,6 +265,28 @@ export default function App() {
   }), [session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, showToast, aiState, runEnrich])
 
   const wrongCount = words.filter((w) => (w.wrong_modes || []).length).length
+  // 오래 쉬었다 들어오면(또는 학습 알림으로 들어오면) 하루 한 번 '갉아먹기' 장면 — 단어는 그대로
+  const [gnaw, setGnaw] = useState(null)
+  const fromPush = useRef(/[?&]gnaw=1/.test(window.location.hash))
+  useEffect(() => {
+    // 서버에서 받은 최신 구성원 정보로 판단(이 기기에 저장해 둔 옛 정보로 '며칠 만'을 잘못 세지 않게)
+    if (!member || !membersReady || loadedFor !== member.id || introOpen || gnaw) return
+    const push = fromPush.current
+    fromPush.current = false
+    if (/[?&]gnaw=1/.test(loc.search)) navTo('/', { replace: true })
+    const today = ymd()
+    const key = `foldy.gnaw.${member.id}`
+    let seen = null
+    try { seen = localStorage.getItem(key) } catch { /* */ }
+    if (seen === today) return
+    const days = gnawDays(member, today, push)
+    if (!days) return
+    const picks = pickGnawWords(words, today)
+    if (!picks.length) return
+    try { localStorage.setItem(key, today) } catch { /* */ }
+    setGnaw({ days, words: picks.map((w) => ({ word: w.word, meaning: w.meaning })) })
+  }, [member, membersReady, loadedFor, introOpen]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const fullScreen = /^\/(quiz|expand|add|level-test)/.test(loc.pathname)
 
   return (
@@ -271,6 +294,11 @@ export default function App() {
       <Confetti />
       {!online && <div className="fixed inset-x-0 top-0 z-[55] bg-slate-deep py-1 text-center font-jua text-xs text-white">오프라인이에요 · 푼 답은 연결되면 저장돼요</div>}
       {introOpen && <Intro onDone={() => setIntroOpen(false)} />}
+      {gnaw && member && (
+        <GnawIntro name={member.name} days={gnaw.days} words={gnaw.words}
+          onClose={() => setGnaw(null)}
+          onRescue={() => { const d = dailyRef.current; setGnaw(null); navTo(reviewCount(words, d && d.day === ymd() ? d.seen_ids : []) > 0 ? '/quiz/review' : '/study') }} />
+      )}
       <div className="mx-auto min-h-screen max-w-md px-4 pb-28">
         {!session ? (
           <Auth />

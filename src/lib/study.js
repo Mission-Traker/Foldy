@@ -241,3 +241,24 @@ export function liveStreak(member, today = ymd()) {
   if (!member?.last_study) return 0
   return member.last_study === today || member.last_study === addDays(today, -1) ? member.streak || 0 : 0
 }
+
+// 갉아먹기 장면(오래 쉬었다 돌아왔을 때) — 실제 단어는 바꾸지 않는 연출
+// 며칠 쉬었는지: 마지막 학습일로부터 2일 이상 지났거나(=하루 이상 통째로 쉼) 학습 알림으로 들어왔을 때만
+export function gnawDays(member, today = ymd(), fromPush = false) {
+  if (!member?.last_study) return 0
+  const [a, b] = [member.last_study, today].map((s) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d) })
+  const days = Math.round((b - a) / 86400000)
+  if (days >= 2) return days
+  if (fromPush && days >= 1) return days
+  return 0
+}
+// 갉아먹을 단어 3개: 복습할 때가 된 단어 → 공부했던(○·△) 단어, 글자 3개 이상
+export function pickGnawWords(words, today = ymd(), n = 3) {
+  const ok = (w) => /^[a-z][a-z'-]{2,13}$/i.test(String(w.word || '').trim())
+  const due = words.filter((w) => ok(w) && isDue(w, today))
+  const studied = words.filter((w) => ok(w) && !isDue(w, today) && statusOf(w) !== 'x')
+  const rest = words.filter((w) => ok(w) && statusOf(w) === 'x')
+  const rand = seeded(today + (words[0]?.member_id || ''))
+  return [...shuffle(due, rand), ...shuffle(studied, rand), ...shuffle(rest, rand)].slice(0, n)
+}
+export const gnawEat = (word) => Math.max(1, Math.min(word.length - 2, Math.ceil(word.length * 0.45)))
