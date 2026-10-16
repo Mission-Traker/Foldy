@@ -46,7 +46,7 @@ function freeConf() {
   if (process.env.FREE_LLM_BASE_URL && process.env.FREE_LLM_API_KEY) {
     return { base: process.env.FREE_LLM_BASE_URL, key: process.env.FREE_LLM_API_KEY, model: process.env.FREE_LLM_MODEL || 'auto', vision: process.env.FREE_LLM_VISION === '1' }
   }
-  if (process.env.GEMINI_API_KEY) return { base: GEMINI_BASE, key: process.env.GEMINI_API_KEY, model: process.env.GEMINI_MODEL || 'gemini-2.5-flash', vision: true }
+  if (process.env.GEMINI_API_KEY) return { base: GEMINI_BASE, key: process.env.GEMINI_API_KEY, model: process.env.GEMINI_MODEL || 'gemini-flash-latest', vision: true }
   return null
 }
 export function hasFree() { return !!freeConf() }
@@ -68,8 +68,11 @@ async function freeChat({ system, text, maxTokens, image, mediaType }) {
     }),
     signal: AbortSignal.timeout(image ? 55000 : 40000),
   })
-  const data = await r.json().catch(() => ({}))
-  if (!r.ok) throw new Error(data?.error?.message || `무료 LLM ${r.status}`)
+  const raw = await r.text().catch(() => '')
+  let data = {}
+  try { data = JSON.parse(raw) } catch { /* 본문이 JSON이 아님 */ }
+  if (Array.isArray(data)) data = data[0] || {}
+  if (!r.ok) throw new Error(data?.error?.message || `무료 LLM ${r.status}${raw ? ': ' + raw.slice(0, 160) : ''}`)
   const out = data?.choices?.[0]?.message?.content
   if (!out) throw new Error('무료 LLM 응답이 비었어요')
   return out
