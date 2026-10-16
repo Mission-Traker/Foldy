@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import Auth from './Auth.jsx'
@@ -95,7 +95,12 @@ function Families() {
   const [q, setQ] = useState('')
   const [msg, setMsg] = useState('')
   const [arm, setArm] = useState(false)
-  const load = useCallback(() => { db.adminFamilies(tests).then(setRows).catch((e) => setMsg(e.message)) }, [tests])
+  const seq = useRef(0)
+  // 늦게 온 이전 응답(테스트 포함 전 목록)이 새 목록을 덮지 않게
+  const load = useCallback(() => {
+    const n = ++seq.current
+    db.adminFamilies(tests).then((r) => { if (n === seq.current) setRows(r) }).catch((e) => setMsg(e.message))
+  }, [tests])
   useEffect(() => { setRows(null); load() }, [load])
   async function togglePaid(f) {
     setRows((rs) => rs.map((x) => (x.id === f.id ? { ...x, ai_paid: !f.ai_paid } : x)))

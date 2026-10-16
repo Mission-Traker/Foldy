@@ -95,7 +95,7 @@ try {
     check('그 비밀번호로 연 기기에선 관리자', (await rpc('foldy_admin_ok', {}, mt)).data === true)
     await rpc('foldy_set_pin', { p_member: mid, p_pin: '' }, mt) // 다시 돌릴 수 있게 원래대로
   }
-} catch (e) { check('예외 없이 완료', false, e.message.split('\n')[0]) }
+} catch (e) { check('예외 없이 완료', false, e.message.split('\n')[0]); if (SHOT) await page.screenshot({ path: SHOT + '-fail.png', fullPage: true }) }
 check('페이지 오류 없음', errors.length === 0, errors.join(' | '))
 await browser.close()
 const f = results.filter((x) => !x).length
