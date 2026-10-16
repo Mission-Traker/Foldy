@@ -44,9 +44,10 @@ export default function Expand() {
     return (
       <div>
         <Header title="확장 학습" back />
-        <Empty title="지금 확장할 단어가 없어요" desc={waiting ? (aiState === 'nokey' ? 'AI 기능이 준비되면 유의어·반의어가 만들어져요' : `유의어·반의어를 준비 중인 단어 ${waiting}개`) : '세 가지 퀴즈를 모두 맞혀 ○를 받은 단어가 여기로 와요'} i={1}>
-          <Link to="/study" className="btn-main mt-2">학습으로</Link>
-        </Empty>
+        <Empty title="지금 확장할 단어가 없어요" desc={waiting ? (aiState === 'nokey' ? 'AI 기능이 준비되면 유의어·반의어가 만들어져요' : `유의어·반의어를 준비 중인 단어 ${waiting}개`) : '아래 순서대로 하면 확장 학습이 열려요'} i={1} />
+        <div className="mt-4" />
+        <ExpandGuide words={words} />
+        <Link to="/study" className="btn-main mt-4 w-full">학습으로</Link>
       </div>
     )
   }
@@ -123,6 +124,44 @@ export default function Expand() {
       ) : !res.ok && (
         <button className="btn-main w-full" onClick={() => setIdx((i) => i + 1)}>다음 →</button>
       )}
+      <details className="mt-6 text-sm">
+        <summary className="cursor-pointer py-1 text-center text-soft">확장 학습은 어떻게 열리나요?</summary>
+        <div className="mt-2"><ExpandGuide words={words} compact /></div>
+      </details>
     </div>
+  )
+}
+
+// 확장 학습이 열리는 조건: ① ○ 받기 → ② 유의어·반의어 준비(AI 자동) → ③ 유의어·반의어 퀴즈 → 예문 열림
+export function ExpandGuide({ words, compact = false }) {
+  const st = { o: 0, wait: 0, ready: 0, open: 0, notO: 0 }
+  for (const w of words || []) {
+    const s = expandStage(w)
+    if (s === 'none') st.notO++
+    else { st.o++; if (s === 'example') st.open++; else if (w.enriched) st.ready++; else st.wait++ }
+  }
+  const steps = [
+    { t: '단어에 ○ 받기', d: '영어 → 뜻, 뜻 → 영어, 발음 세 퀴즈를 모두 맞히면 ○가 붙어요', n: `○ 단어 ${st.o}개`, on: st.o > 0 },
+    { t: '유의어·반의어 준비', d: '○를 받으면 AI가 비슷한 말과 반대말을 자동으로 만들어요', n: st.wait ? `준비 중 ${st.wait}개` : '기다릴 단어 없음', on: st.ready + st.open > 0 },
+    { t: '유의어·반의어 퀴즈 맞히기', d: '비슷한 말·반대말의 뜻을 맞히면 그 단어의 예문이 열려요', n: `확장할 단어 ${st.ready}개`, on: st.ready > 0 },
+    { t: '예문 열림', d: '예문은 단어장에서 단어를 눌러 볼 수 있어요', n: `예문 열린 단어 ${st.open}개`, on: st.open > 0 },
+  ]
+  return (
+    <section className={`rounded-3xl border border-line bg-paper ${compact ? 'p-3' : 'p-4'}`} aria-label="확장 학습이 열리는 조건">
+      {!compact && <h2 className="mb-2 font-jua text-lg text-slate-deep">확장 학습은 이렇게 열려요</h2>}
+      <ol className="space-y-3">
+        {steps.map((x, i) => (
+          <li key={x.t} className="flex gap-3">
+            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-jua text-sm ${x.on ? 'bg-sage text-white' : 'border-2 border-line text-soft'}`}>{i + 1}</span>
+            <span className="min-w-0 flex-1">
+              <b className="block font-jua text-slate-deep">{x.t}</b>
+              <span className="block text-sm text-soft">{x.d}</span>
+              <span className="mt-0.5 block text-xs text-slate">{x.n}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      {st.notO > 0 && <p className="mt-3 text-xs text-soft">아직 ○가 아닌 단어 {st.notO}개 — 학습에서 세 퀴즈를 마저 맞혀 보세요.</p>}
+    </section>
   )
 }

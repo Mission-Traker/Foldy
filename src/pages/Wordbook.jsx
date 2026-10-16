@@ -119,8 +119,8 @@ function Row({ w, hide, peek, onPeek, onEdit, inToday, onSend, ipa }) {
             탭해서 보기
           </span>
         </button>
-        <button onClick={onSend} aria-label={inToday ? `${w.word}: 오늘 학습할 단어에 있어요` : `${w.word} 오늘 학습할 단어로 보내기`} title="오늘 학습할 단어로 보내기"
-          className={`flex w-8 shrink-0 items-center justify-center self-center rounded-full border-2 text-sm font-bold leading-none h-8 ${inToday ? 'border-sage bg-sage/15 text-sage' : 'border-tang text-tang active:bg-tang/10'}`}>
+        <button onClick={onSend} aria-label={inToday ? `${w.word}: 오늘 학습할 단어에 있어요` : `${w.word} 오늘 학습할 단어로 보내기`} data-tip={inToday ? '오늘 학습 중이에요' : '학습 단어로 넣기'}
+          className={`tip flex w-8 shrink-0 items-center justify-center self-center rounded-full border-2 text-sm font-bold leading-none h-8 ${inToday ? 'border-sage bg-sage/15 text-sage' : 'border-tang text-tang active:bg-tang/10'}`}>
           {inToday ? '✓' : '➜'}
         </button>
         <button onClick={() => setMenu(true)} aria-label={`${w.word} 메뉴`} aria-haspopup="menu" className="w-7 shrink-0 rounded-lg text-xl leading-none text-soft active:bg-cream">⋯</button>

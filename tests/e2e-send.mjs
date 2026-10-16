@@ -47,6 +47,13 @@ try {
   const sendBtns = await page.getByRole('button', { name: /오늘 학습할 단어로 보내기/ }).count()
   const inBtns = await page.getByRole('button', { name: /오늘 학습할 단어에 있어요/ }).count()
   check('오늘 5개 ✓, 나머지 2개 ➜', inBtns === 5 && sendBtns === 2, `${inBtns}/${sendBtns}`)
+  // 마우스를 올리면 '학습 단어로 넣기' 안내(화면 밖으로 나가지 않게)
+  const btn = page.getByRole('button', { name: /오늘 학습할 단어로 보내기/ }).first()
+  await btn.hover(); await page.waitForTimeout(250)
+  const tip = await btn.evaluate((el) => { const cs = getComputedStyle(el, '::after'); const r = el.getBoundingClientRect(); return { text: cs.content, op: cs.opacity, left: r.left - 8 - parseFloat(cs.width) } })
+  check('➜ 위에 마우스 → 학습 단어로 넣기 안내', tip.text.includes('학습 단어로 넣기') && tip.op === '1' && tip.left >= 0, JSON.stringify(tip))
+  if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT })
+  await page.mouse.move(5, 5)
   const target = await page.getByRole('button', { name: /오늘 학습할 단어로 보내기/ }).first().getAttribute('aria-label')
   const tw = target.split(' ')[0]
   await page.getByRole('button', { name: new RegExp(`^${tw} 오늘 학습할 단어로 보내기`) }).click()
