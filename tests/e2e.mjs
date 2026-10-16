@@ -134,7 +134,7 @@ try {
   check('퀴즈 결과 화면(4문제 중 3개)', await page.getByText(/4문제 중 3개 정답/).waitFor().then(() => true, () => false))
   // 새로고침 없이 앱 안에서 오답노트로 이동(버그 재현 확인)
   await page.getByRole('button', { name: '그만하기' }).click()
-  await page.getByRole('link', { name: /오답노트/ }).click()
+  await page.locator('nav a[href="#/wrong"]').click()
   check('새로고침 없이 오답노트에 보임(버그 수정)', await page.locator('li').filter({ hasText: 'library' }).waitFor({ timeout: 5000 }).then(() => true, () => false))
 
   // 상태 확인: △
