@@ -114,3 +114,21 @@ export const SPEECH_PASS = 0.7
 export function gradeSpeech(alternatives, word) {
   return speechScore(alternatives, word) >= SPEECH_PASS
 }
+
+// 철자 비교: 내가 쓴 글자마다 정답과 맞는지(최장 공통 부분열 기준) → [{ ch, ok }]
+// 빠진 글자는 { ch: '_', miss: true }로 그 자리에 표시
+export function spellDiff(input, word) {
+  const a = String(input || '').trim(), b = String(word || '')
+  const al = a.toLowerCase(), bl = b.toLowerCase()
+  const n = a.length, m = b.length
+  const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0))
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) dp[i][j] = al[i] === bl[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1])
+  const out = []
+  let i = 0, j = 0
+  while (i < n || j < m) {
+    if (i < n && j < m && al[i] === bl[j]) { out.push({ ch: a[i], ok: true }); i++; j++ }
+    else if (j < m && (i >= n || dp[i][j + 1] > dp[i + 1][j])) { out.push({ ch: '_', ok: false, miss: true }); j++ }
+    else { out.push({ ch: a[i], ok: false }); i++ }
+  }
+  return out
+}

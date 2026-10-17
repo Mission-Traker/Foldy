@@ -9,6 +9,7 @@ import { isIOS, openOutside, pronHereOK } from '../lib/browser.js'
 import { loadIpa, ipaFromMap, ipaCached } from '../lib/ipa.js'
 import { savedMic } from '../lib/mic.js'
 import SelfPron from '../components/SelfPron.jsx'
+import MyAnswer from '../components/MyAnswer.jsx'
 import { Blob, Empty, FitWord, Header, Reaction } from '../components/ui.jsx'
 import * as sfx from '../lib/sfx.js'
 
@@ -259,6 +260,7 @@ function AnswerCard({ w, mode, onAnswer, onNext, showToast }) {
           </div>
         )}
         {final && res.ok && <p className="font-jua text-2xl text-sage">정답! 🎉</p>}
+        {final && !res.ok && <MyAnswer input={input} word={w.word} mode={mode} />}
         {final && !res.ok && <p className="text-slate-deep">정답: <b className="font-title text-lg">{mode === 'ko' ? w.meaning : w.word}</b></p>}
         {res?.heard && <p className="text-sm text-soft">들은 말: “{res.heard}”{res.score != null && ` · ${Math.round(res.score * 100)}%`}</p>}
       </div>
@@ -277,7 +279,7 @@ function AnswerCard({ w, mode, onAnswer, onNext, showToast }) {
           <input ref={ref} className="field text-center text-xl" value={input} onChange={(e) => { setInput(e.target.value); sfx.tap() }}
             placeholder={mode === 'ko' ? '한글 뜻' : 'English'} autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false} lang={mode === 'ko' ? 'ko' : 'en'} maxLength={60} />
           <div className="flex gap-2">
-            <button type="button" onClick={() => done(false)} className="btn-ghost flex-1">모르겠어요</button>
+            <button type="button" onClick={() => { setInput(''); done(false) }} className="btn-ghost flex-1">모르겠어요</button>
             <button className="btn-main flex-[2]" disabled={!input.trim()}>확인</button>
           </div>
         </form>

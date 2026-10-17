@@ -7,6 +7,7 @@ import { applyAnswer, applyReview, MODE_FIELD, MODE_LABEL, nextCandidates, revie
 import { canListen, listenOnce, speak } from '../lib/speech.js'
 import { isIOS, openOutside, pronHereOK } from '../lib/browser.js'
 import SelfPron from '../components/SelfPron.jsx'
+import MyAnswer from '../components/MyAnswer.jsx'
 import { Blob, Empty, Header, Reaction, FitWord } from '../components/ui.jsx'
 import * as sfx from '../lib/sfx.js'
 import MicPicker from '../components/MicPicker.jsx'
@@ -276,6 +277,7 @@ export default function Quiz() {
         {res && !res.ok && !res.retry && (
           <div className="space-y-1">
             <p className="font-jua text-xl text-coral">{res.close ? '아까워요!' : '틀렸어요'}</p>
+            <MyAnswer input={input} word={w.word} mode={qmode} />
             <p className="text-slate-deep">정답: <b className="font-title text-lg">{qmode === 'ko' ? w.meaning : w.word}</b>
               {qmode !== 'ko' && <button onClick={() => speak(w.word)} className="ml-1">🔊</button>}</p>
             {res.judgedNo && <p className="text-xs text-soft">AI: {res.judgedNo}</p>}
@@ -321,7 +323,7 @@ export default function Quiz() {
             <input ref={inputRef} className="field text-center text-xl" value={input} onChange={(e) => { setInput(e.target.value); sfx.tap() }}
               placeholder={qmode === 'ko' ? '한글 뜻' : 'English'} autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false} lang={qmode === 'ko' ? 'ko' : 'en'} maxLength={60} />
             <div className="flex gap-2">
-              <button type="button" onClick={() => record(false)} className="btn-ghost flex-1">모르겠어요</button>
+              <button type="button" onClick={() => { setInput(''); record(false) }} className="btn-ghost flex-1">모르겠어요</button>
               <button className="btn-main flex-[2]" disabled={!input.trim()}>확인</button>
             </div>
           </form>

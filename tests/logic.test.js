@@ -590,3 +590,14 @@ describe('AI 없이: 내장 어휘 데이터·연관 추천', async () => {
     expect(new Set(r.map((x) => x.from)).size).toBe(2)
   })
 })
+
+describe('틀린 철자 비교', async () => {
+  const { spellDiff } = await import('../src/lib/grading.js')
+  const show = (a, b) => spellDiff(a, b).map((c) => (c.ok ? c.ch : c.miss ? '_' : `[${c.ch}]`)).join('')
+  it('틀린 글자·빠진 글자 표시', () => {
+    expect(show('mesure', 'measure')).toBe('me_sure')
+    expect(show('meazure', 'measure')).toBe('mea[z]_ure'.replace('[z]_', '[z]_'))
+    expect(show('measure', 'measure')).toBe('measure')
+    expect(show('Measur', 'measure')).toBe('Measur_')
+  })
+})

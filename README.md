@@ -29,6 +29,7 @@
 - **오늘 복습**: 복습 날이 된 ○ 단어 + 오늘 한 번이라도 푼 단어가 자동으로 들어감(`foldy_daily.seen_ids`)
   - 영어 → 뜻: 어미·띄어쓰기·여러 뜻 중 하나·오타 1자 허용 + AI 허용답안 + "내 답도 맞아요"(AI 재채점)
   - 뜻 → 영어: 철자 정확히(대소문자·관사 무시)
+  - 틀리면 '내가 쓴 답'을 함께 보여 줌 — 철자 퀴즈에서 거의 맞힌 답은 틀린 글자(빨간 밑줄)·빠진 글자(_) 자리를 표시. '모르겠어요'는 표시 안 함
   - 발음: 음성 인식 결과를 철자·소리 유사도로 비교해 **정석 발음 대비 70% 이상이면 통과**(정확도 % 표시, r/l·v/f 혼동 허용). '🎧 더 정확한 발음 들어보기' → 보통/천천히 듣기, 발음기호, 강세 음절, 한글 흉내, 입 모양 요령, 내 발음 조언
   - 마이크 선택: 기기 마이크 목록·소리 크기 테스트(내 정보, 발음 퀴즈 안). 크롬 최신판은 고른 마이크로 인식, 그 외는 기기 기본 마이크
 - 틀리면 "📌 오답노트로 보내기" → 오답노트 '다시 익히기' 3단계: ① 다시 보기(단어·발음기호·뜻·예문) ② 쉬운 문제(뜻 4지선다) ③ 원래 틀린 방식으로 다시 풀기
@@ -132,7 +133,7 @@ npx vercel dev       # AI 경로까지 (Vercel CLI 로그인 + GEMINI_API_KEY �
 ## 테스트
 
 ```bash
-npm test                                   # 단위 테스트 152개(채점·상태·복습·정렬·레벨·게이지·발음기호·갉아먹기·주간 순위·시험 분량·캐릭터·AI 범위)
+npm test                                   # 단위 테스트 153개(채점·상태·복습·정렬·레벨·게이지·발음기호·갉아먹기·주간 순위·시험 분량·캐릭터·AI 범위)
 npm run build && npx vite preview --port 4173 &
 BASE=http://localhost:4173 node tests/e2e.mjs   # 브라우저 자동 점검 52개(390px)
 BASE=http://localhost:4173 node tests/e2e-retry.mjs  # '한 번 더'·오늘의 단어 반복·오늘 복습 13개(느린 인터넷 흉내)
@@ -142,7 +143,7 @@ BASE=http://localhost:4173 node tests/linebreak.mjs    # 줄바꿈 점검(360·3
 BASE=http://localhost:4173 node tests/e2e-send.mjs     # 레벨 표기·➜ 보내기·발음기호·새로고침 깜빡임·게이지 18개
 BASE=http://localhost:4173 node tests/e2e-gnaw.mjs     # 갉아먹기 장면 12개(단어장 훼손 없음 확인)
 BASE=http://localhost:4173 node tests/e2e-handoff.mjs  # 카톡 → 사파리 자동 채점 이어받기 4개
-BASE=http://localhost:4173 node tests/e2e-pron.mjs     # 소개 건너뛰기·비밀번호 8자·내 목소리로 확인 발음·AI 없이 발음 요령·예문 11개
+BASE=http://localhost:4173 node tests/e2e-pron.mjs     # 소개 건너뛰기·비밀번호 8자·내 목소리로 확인 발음·AI 없이 발음 요령·예문·내가 쓴 답 13개
 PHASE=a FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 아니면 잠김 5개 → SQL로 그 가족 구성원을 foldy_admins에 넣고
 PHASE=b FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 페이지 4개 탭·유료 AI 없음·랜딩 미리보기·숫자 비밀번호 17개
 BASE=http://localhost:4173 node tests/e2e-streak.mjs   # 연속 학습일 9개

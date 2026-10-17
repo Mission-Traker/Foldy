@@ -73,6 +73,18 @@ try {
   })
   const apple = Array.isArray(ex) && ex.find((w) => w.word === 'apple')
   check('AI 없이 유의어·예문 채움(apple)', !!(enriched && apple && apple.enriched && apple.example?.en), JSON.stringify(apple).slice(0, 120))
+  // 철자 퀴즈에서 틀리면 내가 쓴 답을 보여 줌(틀린 글자 표시)
+  await page.goto(BASE + '/#/quiz/en')
+  await page.getByPlaceholder('English').waitFor({ timeout: 8000 })
+  const qm = (await page.locator('.card p.font-jua').nth(1).textContent()).trim()
+  const typo = qm.includes('사과') ? 'aple' : 'scool'
+  await page.getByPlaceholder('English').fill(typo)
+  await page.keyboard.press('Enter')
+  check('틀리면 내가 쓴 답 + 빠진 글자 자리(_) 표시', await page.getByText('내가 쓴 답:').waitFor({ timeout: 5000 }).then(() => true, () => false) && /a_ple|a_pl|ap_le|sc_ool/.test((await page.getByText('내가 쓴 답:').textContent()).replace(/\s/g, '')), typo)
+  await page.screenshot({ path: '/tmp/claude-0/myanswer.png' })
+  await page.getByRole('button', { name: '다음 →' }).click()
+  await page.getByRole('button', { name: '모르겠어요' }).click()
+  check('모르겠어요는 내가 쓴 답 없이', await page.getByText('틀렸어요').waitFor({ timeout: 5000 }).then(() => true, () => false) && !(await page.getByText('내가 쓴 답:').count()))
 } catch (e) { check('실행 중 오류', false, e.message.split('\n').slice(0, 3).join(' / ')); await page.screenshot({ path: '/tmp/claude-0/pr.png' }) }
 check('페이지 오류 없음', errors.length === 0, errors.join(' | '))
 await browser.close()
