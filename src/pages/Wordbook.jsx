@@ -94,7 +94,7 @@ function RowMenu({ w, onEdit, onClose }) {
   )
 }
 
-function Row({ w, hide, peek, onPeek, onEdit, inToday, onSend, ipa }) {
+function Row({ w, hide, peek, onPeek, onEdit, inToday, onSend, ipa, picking, picked, onPick }) {
   const s = statusOf(w)
   const [menu, setMenu] = useState(false)
   const coverWord = hide === 'word' && !peek
@@ -102,7 +102,10 @@ function Row({ w, hide, peek, onPeek, onEdit, inToday, onSend, ipa }) {
   return (
     <li className="relative border-b-2 border-dashed border-line last:border-0">
       <div className="flex items-stretch gap-2 py-2.5 pr-1">
-        <span className="w-6 shrink-0 self-center pl-1 text-right font-title text-xs text-soft">{w.seq}</span>
+        {picking
+          ? <button onClick={onPick} role="checkbox" aria-checked={picked} aria-label={`${w.word} 선택`}
+            className={`flex h-7 w-7 shrink-0 items-center justify-center self-center rounded-lg border-2 font-bold ${picked ? 'border-coral bg-coral text-white' : 'border-line bg-paper text-transparent'}`}>✓</button>
+          : <span className="w-6 shrink-0 self-center pl-1 text-right font-title text-xs text-soft">{w.seq}</span>}
         <div className="relative flex min-w-0 flex-[1.5] flex-col justify-center">
           <div className="flex min-w-0 items-center gap-1">
           <button onClick={() => (coverWord ? onPeek() : speak(w.word))} className="relative min-w-0 flex-1 text-left">
@@ -119,11 +122,11 @@ function Row({ w, hide, peek, onPeek, onEdit, inToday, onSend, ipa }) {
             탭해서 보기
           </span>
         </button>
-        <button onClick={onSend} aria-label={inToday ? `${w.word}: 오늘 학습할 단어에 있어요` : `${w.word} 오늘 학습할 단어로 보내기`} data-tip={inToday ? '오늘 학습 중이에요' : '학습 단어로 넣기'}
+        {!picking && <><button onClick={onSend} aria-label={inToday ? `${w.word}: 오늘 학습할 단어에 있어요` : `${w.word} 오늘 학습할 단어로 보내기`} data-tip={inToday ? '오늘 학습 중이에요' : '학습 단어로 넣기'}
           className={`tip flex w-8 shrink-0 items-center justify-center self-center rounded-full border-2 text-sm font-bold leading-none h-8 ${inToday ? 'border-sage bg-sage/15 text-sage' : 'border-tang text-tang active:bg-tang/10'}`}>
           {inToday ? '✓' : '➜'}
         </button>
-        <button onClick={() => setMenu(true)} aria-label={`${w.word} 메뉴`} aria-haspopup="menu" className="w-7 shrink-0 rounded-lg text-xl leading-none text-soft active:bg-cream">⋯</button>
+        <button onClick={() => setMenu(true)} aria-label={`${w.word} 메뉴`} aria-haspopup="menu" className="w-7 shrink-0 rounded-lg text-xl leading-none text-soft active:bg-cream">⋯</button></>}
       </div>
       {menu && <RowMenu w={w} onEdit={onEdit} onClose={() => setMenu(false)} />}
       <Steps w={w} />
@@ -171,7 +174,18 @@ function EditSheet({ w, onClose }) {
 }
 
 export default function Wordbook() {
-  const { words, ready, daily, todayIds, sendToToday, showToast, today } = useApp()
+  const { words, ready, daily, todayIds, sendToToday, showToast, today, removeWords } = useApp()
+  // 선택해서 한꺼번에 지우기(이미 아는 단어 정리)
+  const [pick, setPick] = useState(null) // null: 끔, Set: 고른 단어 id
+  const [arm, setArm] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const togglePick = (id) => { setArm(false); setPick((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n }) }
+  async function delPicked() {
+    if (!pick?.size || busy) return
+    if (!arm) { setArm(true); setTimeout(() => setArm(false), 4000); return }
+    setBusy(true); setArm(false)
+    try { const n = await removeWords([...pick]); showToast(`${n}개를 단어장에서 지웠어요`); setPick(null) } catch (e) { showToast(e.message) } finally { setBusy(false) }
+  }
   const todaySet = useMemo(() => new Set(ready ? todayIds() : []), [ready, todayIds, daily, today])
   function send(w) {
     if (todaySet.has(w.id)) { showToast('이미 오늘 학습할 단어예요'); return }
@@ -225,7 +239,10 @@ export default function Wordbook() {
 
   return (
     <div>
-      <Header title="단어장" right={<Link to="/add" className="chip">＋ 추가</Link>} />
+      <Header title="단어장" right={<div className="flex items-center gap-1.5">
+        {words.length > 0 && <button className={`chip whitespace-nowrap ${pick ? 'chip-on' : ''}`} onClick={() => { setArm(false); setPick((p) => (p ? null : new Set())) }}>{pick ? '선택 끝' : '☑ 선택'}</button>}
+        <Link to="/add" className="chip whitespace-nowrap">＋ 추가</Link>
+      </div>} />
 
       <div className="mb-2 flex flex-wrap gap-1.5 pb-1">
         {[['all', '전체'], ['x', '미학습'], ['t', '△ 학습 중'], ['o', '○ 완료']].map(([k, l]) => (
@@ -270,6 +287,21 @@ export default function Wordbook() {
       ) : !list.length ? (
         <Empty title="조건에 맞는 단어가 없어요" i={2} />
       ) : (
+        <>
+        {pick && (
+          <div className="sticky top-2 z-20 mb-3 rounded-2xl border-2 border-coral/40 bg-paper p-3 shadow-card">
+            <p className="mb-2 text-sm text-slate-deep"><b className="font-jua">{pick.size}개 선택</b> <span className="text-soft">· 이미 아는 단어를 골라 한꺼번에 지워요</span></p>
+            <div className="flex flex-wrap gap-1.5">
+              <button className="chip whitespace-nowrap" onClick={() => { setArm(false); setPick(new Set(list.map((w) => w.id))) }}>보이는 단어 모두 ({list.length})</button>
+              {counts.o > 0 && <button className="chip whitespace-nowrap" onClick={() => { setArm(false); setPick(new Set(words.filter((w) => statusOf(w) === 'o').map((w) => w.id))) }}>○ 완료만 ({counts.o})</button>}
+              {pick.size > 0 && <button className="chip whitespace-nowrap" onClick={() => { setArm(false); setPick(new Set()) }}>선택 풀기</button>}
+            </div>
+            <button disabled={!pick.size || busy} onClick={delPicked}
+              className={`mt-2 w-full rounded-full py-2.5 font-jua text-white disabled:opacity-40 ${arm ? 'bg-coral' : 'bg-coral/80'}`}>
+              {busy ? '지우는 중…' : arm ? `한 번 더 누르면 ${pick.size}개를 지워요 (되돌릴 수 없어요)` : `🗑 고른 ${pick.size}개 지우기`}
+            </button>
+          </div>
+        )}
         <div className="card relative overflow-hidden pl-6">
           {/* 스프링 노트 고리 */}
           <div className="absolute inset-y-0 left-0 flex w-6 flex-col items-center gap-5 bg-line/50 py-4" aria-hidden="true">
@@ -277,12 +309,14 @@ export default function Wordbook() {
           </div>
           <ul>
             {list.map((w) => (
-              <Row key={w.id} w={w} hide={hide} peek={peek.has(w.id)} onPeek={() => togglePeek(w.id)} onEdit={() => setEdit(w)} inToday={todaySet.has(w.id)} onSend={() => send(w)} ipa={ipaOf(w)} />
+              <Row key={w.id} w={w} hide={hide} peek={peek.has(w.id)} onPeek={() => togglePeek(w.id)} onEdit={() => setEdit(w)} inToday={todaySet.has(w.id)} onSend={() => send(w)} ipa={ipaOf(w)}
+                picking={!!pick} picked={!!pick?.has(w.id)} onPick={() => togglePick(w.id)} />
             ))}
           </ul>
         </div>
+        </>
       )}
-      {list.length > 0 && <p className="mt-3 text-center text-xs text-soft">가림판을 탭하면 정답이 열려요 · ➜ 오늘 학습할 단어로 보내기 · ⋯ 고치기·삭제</p>}
+      {list.length > 0 && <p className="mt-3 text-center text-xs text-soft">가림판을 탭하면 정답이 열려요 · ➜ 오늘 학습할 단어로 보내기 · ⋯ 고치기·삭제 · ☑ 선택해서 여러 개 지우기</p>}
       {edit && <EditSheet w={edit} onClose={() => setEdit(null)} />}
     </div>
   )

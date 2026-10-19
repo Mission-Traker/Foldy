@@ -238,6 +238,13 @@ export default function App() {
     setWords((ws) => ws.filter((w) => w.id !== id))
   }, [])
 
+  const removeWords = useCallback(async (ids) => {
+    const n = await db.deleteWords(ids)
+    const gone = new Set(ids)
+    setWords((ws) => ws.filter((w) => !gone.has(w.id)))
+    return n
+  }, [])
+
   const updateMember = useCallback(async (patch) => {
     // 레벨이 바뀌면 그 순간의 경험치를 기준점으로(새 레벨 게이지는 0부터)
     if (patch.level && normLevel(patch.level) !== normLevel(member.level)) patch = { ...patch, level_base: levelProgress(words, patch.level).total }
@@ -321,8 +328,8 @@ export default function App() {
 
   const value = useMemo(() => ({
     session, setSession, members, setMembers, member, patchMemberLocal: (patch) => { setMember((m) => (m ? { ...m, ...patch } : m)); setMembers((ms) => ms.map((x) => (member && x.id === member.id ? { ...x, ...patch } : x))) }, setMember: (m) => { if (member && member.has_pin && member.id !== m?.id) db.forgetMemberToken(member.id); db.saveMemberId(m?.id || null); setMember(m); setWords([]); setLoadedFor(null); setLoadTry((n) => n + 1); dailyRef.current = null; setDaily(null); enrichedOnce.current = null; if (m) navTo('/') },
-    openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich, today,
-  }), [today, session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich])
+    openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, updateDaily, patchWord, addWords, removeWord, removeWords, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich, today,
+  }), [today, session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, removeWords, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich])
 
   const wrongCount = words.filter((w) => wrongDue(w)).length // 오늘 다시 볼 단어만 배지로
   // 오래 쉬었다 들어오면(또는 학습 알림으로 들어오면) 하루 한 번 '갉아먹기' 장면 — 단어는 그대로

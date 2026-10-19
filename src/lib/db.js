@@ -175,6 +175,16 @@ export async function deleteWord(id) {
   if (!rows.length) throw new Error(friendly({ message: 'FORBIDDEN' }))
 }
 
+// 여러 단어 한꺼번에 지우기(100개씩) → 지운 개수
+export async function deleteWords(ids) {
+  let n = 0
+  for (let i = 0; i < ids.length; i += 100) {
+    const rows = await q(client.from('foldy_words').delete().in('id', ids.slice(i, i + 100)).select('id'))
+    n += rows.length
+  }
+  return n
+}
+
 // 하루 기록
 export async function getDaily(memberId, day) {
   const rows = await q(client.from('foldy_daily').select('*').eq('member_id', memberId).eq('day', day))
