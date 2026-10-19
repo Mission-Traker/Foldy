@@ -182,8 +182,10 @@ export async function getDaily(memberId, day) {
 }
 // 오늘 전 가장 최근 날의 오늘의 단어(새 날엔 이 단어들을 뒤로 미룸)
 export async function getPrevSetIds(memberId, day) {
-  const rows = await q(client.from('foldy_daily').select('day,set_ids').eq('member_id', memberId).lt('day', day).order('day', { ascending: false }).limit(1))
-  return (rows[0] && rows[0].set_ids) || []
+  // 공부를 안 한 날은 오늘의 단어가 비어 있으므로, 비어 있지 않은 가장 최근 날을 찾음
+  const rows = await q(client.from('foldy_daily').select('day,set_ids').eq('member_id', memberId).lt('day', day).order('day', { ascending: false }).limit(14))
+  const r = rows.find((x) => Array.isArray(x.set_ids) && x.set_ids.length)
+  return (r && r.set_ids) || []
 }
 export const upsertDaily = (row) => q(client.from('foldy_daily').upsert(row).select().single())
 

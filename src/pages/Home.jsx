@@ -24,6 +24,8 @@ export default function Home() {
   }
   const [recs, setRecs] = useState(null)
   const [recBusy, setRecBusy] = useState(false)
+  // 🔄 다른 단어 보기: 지금 보이는 추천을 빼고 새로 고름
+  const [reroll, setReroll] = useState({ n: 0, skip: [] })
   const today = ymd()
   const owned = useMemo(() => new Set(words.map((w) => w.word.toLowerCase())), [words])
 
@@ -42,7 +44,9 @@ export default function Home() {
   // 오늘의 추천 5개: 처음엔 레벨 목록에서, 단어가 20개 이상 쌓이면 내 단어와 연관된 단어로
   useEffect(() => {
     if (!ready) return
-    if (daily?.day === today && Array.isArray(daily.recs) && daily.recs.length >= recGoal) { setRecs(daily.recs.slice(0, recGoal)); return }
+    if (!reroll.n && daily?.day === today && Array.isArray(daily.recs) && daily.recs.length >= recGoal) { setRecs(daily.recs.slice(0, recGoal)); return }
+    const skip = new Set([...owned, ...reroll.skip])
+    const seed = `${member.id}-${today}${reroll.n ? '-' + reroll.n : ''}`
     let alive = true
     ;(async () => {
       setRecBusy(true)
@@ -50,13 +54,15 @@ export default function Home() {
       if (words.length >= 20) {
         // AI 없이: 기본 어휘 목록에서 내 최근 단어와 같은 주제(목록에서 가까운 단어)
         const recent = [...words].sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 30).map((w) => w.word)
-        const rel = relatedPick(recent, owned, `${member.id}-${today}`, Math.min(recGoal, 10))
+        const rel = relatedPick(recent, skip, seed, Math.min(recGoal, 10))
         const ms = await meaningsFor(rel.map((x) => x.word), member.level)
         items = rel.map((x, i) => ({ word: x.word, meaning: ms[i].meaning, why: `‘${x.from}’ 주제`, related: true })).filter((x) => x.meaning)
       }
       if (items.length < recGoal) {
-        const have = new Set([...owned, ...items.map((x) => x.word.toLowerCase())])
-        const picks = dailyPick(member.level, have, `${member.id}-${today}`, recGoal - items.length)
+        const have = new Set([...skip, ...items.map((x) => x.word.toLowerCase())])
+        let picks = dailyPick(member.level, have, seed, recGoal - items.length)
+        // 레벨 목록을 다 돌았으면 지금 보던 단어도 다시 후보로
+        if (!picks.length && reroll.skip.length) picks = dailyPick(member.level, new Set([...owned, ...items.map((x) => x.word.toLowerCase())]), seed, recGoal - items.length)
         items = [...items, ...(await meaningsFor(picks, member.level))]
       }
       if (!alive) return
@@ -68,7 +74,7 @@ export default function Home() {
     })()
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, member.id, today, recGoal])
+  }, [ready, member.id, today, recGoal, reroll])
 
   const [adding, setAdding] = useState(false)
   async function add(list) {
@@ -140,7 +146,13 @@ export default function Home() {
       <section className="rounded-3xl border border-line bg-paper p-4">
         <div className="mb-1 flex items-center justify-between">
           <h2 className="font-jua text-lg text-slate-deep">오늘의 추천 단어</h2>
-          {recs?.length > 0 && <button className="chip" disabled={adding} onClick={() => add(recs)}>모두 담기</button>}
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button className="chip whitespace-nowrap" disabled={recBusy} aria-label="추천 단어 새로고침"
+              onClick={() => setReroll((r) => ({ n: r.n + 1, skip: [...new Set([...r.skip, ...(recs || []).map((x) => x.word.toLowerCase())])].slice(-300) }))}>
+              🔄 새로고침
+            </button>
+            {recs?.length > 0 && <button className="chip whitespace-nowrap" disabled={adding} onClick={() => add(recs)}>모두 담기</button>}
+          </div>
         </div>
         <p className="mb-3 text-xs text-soft">
           {recs?.some((r) => r.related) ? '내가 외운 단어와 이어지는 단어예요' : `교육부 기본 어휘 ${levelLabel(member.level)}에서 골랐어요`}
