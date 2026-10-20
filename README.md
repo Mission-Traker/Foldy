@@ -182,6 +182,8 @@ BASE=http://localhost:4173 node tests/e2e-pron.mjs     # 소개 건너뛰기·�
 PHASE=a FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 아니면 잠김 5개 → SQL로 그 가족 구성원을 foldy_admins에 넣고
 PHASE=b FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 페이지 4개 탭·유료 AI 없음·랜딩 미리보기·숫자 비밀번호·재방문 지표 18개
 BASE=http://localhost:4173 node tests/e2e-streak.mjs   # 연속 학습일 9개
+BASE=http://localhost:4173 node tests/e2e-race.mjs     # 느린 망: 가입 직후 첫 구성원이 사라지지 않음 1개
+STATE=/tmp/admin-state.json node tests/shot-admin.mjs   # 관리자 재방문 지표·설문 요약 화면 확인(e2e-admin b단계 뒤)
 BASE=http://localhost:4173 node tests/e2e-today.mjs    # 오늘의 단어 수·날짜 바뀜·➜ 보내기 7개
 BASE=http://localhost:4173 node tests/e2e-pinlock.mjs  # 다른 기기에서 숫자 비밀번호를 걸면 다시 묻기 5개
 BASE=http://localhost:4173 node tests/e2e-wrong.mjs    # 오답노트 다시 익히기·졸업·오늘 끼워 넣기·이름 한 달에 한 번 20개
