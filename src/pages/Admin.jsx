@@ -113,8 +113,11 @@ function Retention() {
           <li className="flex justify-between gap-2"><span className="text-soft">복습 기억률(7일)</span><b className="font-jua text-slate-deep">{pct(r.review7)}</b></li>
           <li className="flex justify-between gap-2"><span className="text-soft">오늘의 한 판(7일)</span><b className="font-jua text-slate-deep">{r.runs7 ?? '—'}번</b></li>
           <li className="flex justify-between gap-2"><span className="text-soft">○ 단어 비율</span><b className="font-jua text-slate-deep">{pct(r.o_pct)}</b></li>
+          <li className="flex justify-between gap-2"><span className="text-soft">소개로 온 가족</span><b className="font-jua text-slate-deep">{r.invited ?? '—'}</b></li>
+          <li className="flex justify-between gap-2"><span className="text-soft">그중 최근 7일</span><b className="font-jua text-slate-deep">{r.invited7 ?? '—'}</b></li>
         </ul>
       )}
+      {r?.inviters?.length > 0 && <p className="mt-2 break-keep text-xs text-soft">많이 소개한 가족: {r.inviters.map((x) => `${x.name} ${x.n}`).join(' · ')}</p>}
       <p className="mt-2 text-[11px] text-soft">다음 날 다시 옴: 최근 2주, 공부한 날 다음 날에도 공부한 비율</p>
     </section>
   )
@@ -285,6 +288,9 @@ function FeedbackInbox() {
   const counts = {}
   rows.forEach((r) => { counts[r.status] = (counts[r.status] || 0) + 1 })
   const shown = filter === '전체' ? rows : rows.filter((r) => r.status === filter)
+  // 베타 설문 요약: 별점 평균·응답 수(3일째·7일째 따로)
+  const survey = rows.filter((r) => r.category === '베타 설문').map((r) => ({ day: (String(r.area || '').match(/(\d+)일째/) || [])[1], stars: (String(r.area || '').match(/★/g) || []).length })).filter((x) => x.stars > 0)
+  const avg = (xs) => (xs.length ? (xs.reduce((a, x) => a + x.stars, 0) / xs.length).toFixed(1) : '—')
 
   return (
     <div>
@@ -295,6 +301,13 @@ function FeedbackInbox() {
           </button>
         ))}
       </div>
+      {survey.length > 0 && (
+        <section className="mb-3 rounded-2xl border border-line bg-paper p-3" aria-label="베타 설문 요약">
+          <p className="font-jua text-slate-deep">⭐ 베타 설문 {survey.length}명 · 평균 {avg(survey)}점</p>
+          <p className="mt-1 text-xs text-soft">3일째 {survey.filter((x) => x.day === '3').length}명 · {avg(survey.filter((x) => x.day === '3'))}점 / 7일째 {survey.filter((x) => x.day === '7').length}명 · {avg(survey.filter((x) => x.day === '7'))}점</p>
+          <p className="mt-1 text-xs text-soft">{[5, 4, 3, 2, 1].map((n) => `${'★'.repeat(n)} ${survey.filter((x) => x.stars === n).length}`).join(' · ')}</p>
+        </section>
+      )}
       <p className="mb-3 text-[11px] text-soft"><b>확인·고치는 중</b>을 누르면 ‘수정진행’으로 넘어가요. 상태를 바꾸거나 답장을 보내면 그 가족의 내 정보에 ‘새 소식’으로 떠요.</p>
       {msg && <p className="mb-2 text-sm text-coral">{msg}</p>}
       {loading ? <p className="py-10 text-center text-soft">불러오는 중…</p>

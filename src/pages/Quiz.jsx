@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
 import { gradeMeaning, gradeSpelling, speechScore, SPEECH_PASS } from '../lib/grading.js'
-import { applyAnswer, applyReview, clozeOf, dailyRunQueue, wrongDueList, WRONG_DAILY, ENOUGH_X, MODE_FIELD, MODE_LABEL, nextCandidates, PRACTICE_MODES, practiceQueue, reviewQueue, sendToWrongNote, shuffle, statusOf, todayQueue, ymd } from '../lib/study.js'
+import { applyAnswer, applyReview, clozeOf, dailyRunQueue, wrongDueList, WRONG_DAILY, ENOUGH_X, MODE_FIELD, MODE_LABEL, nextCandidates, PRACTICE_MODES, practiceQueue, reviewQueue, shuffle, statusOf, todayQueue, ymd } from '../lib/study.js'
 import { canListen, listenOnce, speak, speakTTS } from '../lib/speech.js'
 import { isIOS, openOutside, pronHereOK } from '../lib/browser.js'
 import SelfPron from '../components/SelfPron.jsx'
@@ -61,7 +61,6 @@ export default function Quiz() {
   const [score, setScore] = useState({ ok: 0, total: 0 })
   const [listening, setListening] = useState(false)
   const [judging, setJudging] = useState(false)
-  const [sent, setSent] = useState(false)
   const [pron, setPron] = useState(false)
   const inputRef = useRef()
   const endSound = useRef(false)
@@ -70,7 +69,7 @@ export default function Quiz() {
   const qmode = item?.mode
 
   useEffect(() => {
-    setInput(''); setRes(null); setSent(false); setSpFails(0)
+    setInput(''); setRes(null); setSpFails(0)
     // 영어→뜻·발음 문제는 들어오자마자 발음 재생(뜻→영어는 정답이 드러나므로 재생 안 함)
     // queue도 지켜봐야 첫 문제(단어 목록을 불러온 직후)에서도 재생됨
     if ((qmode === 'ko' || qmode === 'sp' || qmode === 'dict') && w) setTimeout(() => speak(w.word), 250)
@@ -146,7 +145,7 @@ export default function Quiz() {
     // 새로고침하지 않고 다시 시작(저장 중인 답이 끊기지 않게)
     const start = (q, ids2 = setIds) => {
       setSetIds(ids2); setQueue(q); setRound((r) => r + 1)
-      setIdx(0); setScore({ ok: 0, total: 0 }); setRes(null); setInput(''); setSent(false)
+      setIdx(0); setScore({ ok: 0, total: 0 }); setRes(null); setInput('')
       endSound.current = false
     }
     const restart = () => start(daily3 ? todayQueue(words, setIds, mode) : buildQueue(words, mode, src, ids, setIds, seenToday()))
@@ -271,13 +270,6 @@ export default function Quiz() {
     } finally { setJudging(false) }
   }
 
-  async function toWrongNote() {
-    await patchWord(w.id, sendToWrongNote(w, qmode))
-    setSent(true)
-    showToast('오답노트로 보냈어요')
-  }
-
-  const already = (w.wrong_modes || []).includes(qmode)
   const cz = qmode === 'cloze' ? clozeOf(w) : null
   const progress = ((idx + (res ? 1 : 0)) / queue.length) * 100
 
@@ -381,10 +373,8 @@ export default function Quiz() {
           <div className="flex gap-2">
             {PRACTICE_MODES.includes(qmode) ? (
               <span className="flex-1 self-center text-center text-sm text-soft">연습 문제예요</span>
-            ) : !already && !sent ? (
-              <button onClick={toWrongNote} className="btn-coral flex-1 whitespace-nowrap px-3">📌 오답노트로</button>
             ) : (
-              <span className="flex-1 self-center text-center text-sm text-soft">📌 오답노트에 있어요</span>
+              <span className="flex-1 self-center text-center text-sm text-soft">📌 오답노트에 담았어요</span>
             )}
             <button onClick={() => setIdx((i) => i + 1)} className="btn-main flex-1">다음 →</button>
           </div>

@@ -9,7 +9,7 @@ const id = 'e2e_eg' + Date.now().toString(36)
 const results = []
 const check = (name, ok, extra = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${extra ? ' — ' + extra : ''}`) }
 const browser = await pw.chromium.launch()
-const ctx = await browser.newContext({ viewport: { width: 360, height: 780 } })
+const ctx = await browser.newContext({ viewport: { width: 360, height: 780 }, acceptDownloads: true })
 await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1') } catch {} })
 const page = await ctx.newPage()
 const errors = []
@@ -93,6 +93,10 @@ try {
   check('가족 공동 목표 보임', await seen('가족 공동 목표'))
   await page.getByRole('button', { name: '둘 깨우기' }).click()
   check('👏 깨우기 → 깨웠어요(하루 한 번)', await page.getByRole('button', { name: '둘 깨우기' }).getByText('깨웠어요').waitFor({ timeout: 8000 }).then(() => true, () => false))
+  const dl = page.waitForEvent('download', { timeout: 10000 }).then((d) => d.suggestedFilename(), () => '')
+  await page.getByRole('button', { name: '📤 성장 카드 공유하기' }).click()
+  const fname = await dl
+  check('성장 카드: 이미지로 저장', /^foldy-week-.*\.png$/.test(fname), fname)
   await page.screenshot({ path: '/tmp/claude-0/week.png', fullPage: true })
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
   check('360px 가로 넘침 없음', overflow <= 0, String(overflow))

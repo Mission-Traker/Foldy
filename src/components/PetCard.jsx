@@ -6,7 +6,7 @@ import { Blob } from './ui.jsx'
 // 홈에서 늘 돌아가는 캐릭터 상태: 자람·새 꾸미기 저장·'냠냠 +N'
 export function usePet() {
   const { member, words, updateMember, showToast, ready } = useApp()
-  const st = petState(words)
+  const st = petState(words, member.pet)
   const wear = wearing(member.pet, st.unlocked)
   const key = `foldy.petfood.${member.id}`
   const [ate, setAte] = useState(0)
@@ -32,7 +32,7 @@ export function usePet() {
     if (!fresh.length || saving.current) return
     saving.current = true
     const nextWear = [...new Set([...(Array.isArray(member.pet?.wear) ? member.pet.wear : []), ...fresh])]
-    updateMember({ pet: { got: st.unlocked, wear: nextWear } })
+    updateMember({ pet: { ...(member.pet || {}), got: st.unlocked, wear: nextWear } })
       .then(() => showToast(`✨ ${st.name}로 자랐어요! ${fresh.map((x) => WEAR_LABEL[x]).join('·')}가 생겼어요`))
       .catch(() => {})
       .finally(() => { saving.current = false })
@@ -44,11 +44,11 @@ export function usePet() {
 // 왼쪽 위 캐릭터를 누르면 열리는 '내 캐릭터'
 export function PetSheet({ onClose, onProfile }) {
   const { member, words, updateMember, showToast } = useApp()
-  const st = petState(words)
+  const st = petState(words, member.pet)
   const wear = wearing(member.pet, st.unlocked)
   async function toggleWear(k) {
     const next = wear.includes(k) ? wear.filter((x) => x !== k) : [...wear, k]
-    try { await updateMember({ pet: { got: st.unlocked, wear: next } }) } catch (e) { showToast(e.message) }
+    try { await updateMember({ pet: { ...(member.pet || {}), got: st.unlocked, wear: next } }) } catch (e) { showToast(e.message) }
   }
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-ink/30" onClick={onClose} role="dialog" aria-modal="true" aria-label="내 캐릭터">

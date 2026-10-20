@@ -77,8 +77,16 @@ export function applyAnswer(w, mode, ok, today = ymd()) {
     patch.ivl = 0
     patch.ease = Math.max(EASE_MIN, Math.round(((w.ease || EASE_START) - 0.2) * 100) / 100)
   }
-  // 오답노트 단어는 일반 퀴즈에서 한 번 맞혀도 빠지지 않음 — 오답노트 '다시 익히기'에서 서로 다른 날 3번 맞혀야 졸업
-  return patch
+  // 오답노트는 '지금 틀린(모르는) 단어'만: 틀리면 바로 담고, 그 방식으로 다시 맞히면 그 방식은 뺌
+  return { ...patch, ...wrongNotePatch(w, mode, ok) }
+}
+// 퀴즈 결과로 오답노트를 바로잡기(바뀔 게 없으면 빈 객체)
+export function wrongNotePatch(w, mode, ok) {
+  const cur = w.wrong_modes || []
+  if (!ok) return cur.includes(mode) ? { wrong_step: 0, wrong_next: null } : sendToWrongNote(w, mode)
+  if (!cur.includes(mode)) return {}
+  const rest = cur.filter((m) => m !== mode)
+  return rest.length ? { wrong_modes: rest } : { wrong_modes: [], wrong_step: 0, wrong_next: null }
 }
 
 // 똑똑한 복습 간격: 단어마다 ease(배율)를 기억. 맞히면 간격 × ease로 늘고(최대 180일), 틀리면 ease를 낮추고 처음부터
@@ -94,6 +102,7 @@ export function applyReview(w, mode, ok, today = ymd()) {
   if (!ok) return { ...applyAnswer(w, mode, false, today) }
   const ivl = nextInterval(w)
   return {
+    ...wrongNotePatch(w, mode, true),
     review_step: Math.min((w.review_step || 1) + 1, REVIEW_GAPS.length),
     ivl,
     ease: Math.min(3, Math.round(((w.ease || EASE_START) + 0.05) * 100) / 100),

@@ -36,6 +36,7 @@ export default function Auth({ preview = false }) {
       const s = tab === 'login' ? await db.login(loginId, f.pw) : await db.signup(loginId, f.pw, f.name.trim().slice(0, 30))
       if (tab === 'signup') {
         db.markGuardian().catch(() => {})
+        if (invitedBy) db.markInvited(invitedBy).catch(() => {})
         // 비밀번호를 잊었을 때 쓸 복구 코드를 먼저 보여 줌
         const c = await db.recoveryNew().catch(() => null)
         if (c) { setPending({ ...s, login_id: loginId }); setCode(c); return }

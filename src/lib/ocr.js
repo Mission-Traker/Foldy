@@ -4,7 +4,8 @@
 const HANGUL = /[ㄱ-ㆎ가-힣]/
 
 // OCR 글자 → 단어·뜻 짝 (의존성 없음, 단위 테스트 대상)
-export function pairFromText(text) {
+// known: 내장 사전 단어(소문자 Set) — 주면 영어만 적힌 사진에서도 사전에 있는 단어를 뽑음(뜻은 사전으로 채움)
+export function pairFromText(text, known) {
   const lines = String(text || '')
     .split(/\n/)
     .map((l) => l.replace(/[|_~^*`"“”‘’<>{}[\]\\]/g, ' ').replace(/\s+/g, ' ').trim())
@@ -34,12 +35,21 @@ export function pairFromText(text) {
       i++
     }
   }
+  if (known && known.size) {
+    for (const l of lines) {
+      if (HANGUL.test(l) || out.length >= 80) continue
+      for (const t of l.split(/[^A-Za-z'\-]+/)) {
+        const k = t.toLowerCase().replace(/^['\-]+|['\-]+$/g, '')
+        if (k.length >= 3 && known.has(k)) push(k, '')
+      }
+    }
+  }
   return out
 }
 
 let workerP = null
 let progressCb = null
-export async function ocrCanvas(canvas, onProgress) {
+export async function ocrCanvas(canvas, onProgress, known) {
   const { createWorker } = await import('tesseract.js')
   progressCb = onProgress
   if (!workerP) {
@@ -49,5 +59,5 @@ export async function ocrCanvas(canvas, onProgress) {
   }
   const worker = await workerP
   const { data } = await worker.recognize(canvas)
-  return pairFromText(data.text)
+  return pairFromText(data.text, known)
 }

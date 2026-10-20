@@ -161,7 +161,8 @@ export default function AddWords() {
       if (aiDown) {
         setWait({ index: i, total: list.length, found, stage: 'ocr', ocrProgress: 0 })
         try {
-          got = await ocrCanvas(pic.canvas, (p) => setWait((w) => (w ? { ...w, ocrProgress: p } : w)))
+          const known = new Set((await loadDict()).map((d) => d.lw))
+          got = await ocrCanvas(pic.canvas, (p) => setWait((w) => (w ? { ...w, ocrProgress: p } : w)), known)
         } catch (err) { failed.push({ name: f.name, reason: '글자 인식 실패: ' + err.message }); continue }
       }
       if (!got.length) { failed.push({ name: f.name, reason: '단어를 찾지 못했어요(더 밝고 반듯하게 찍어 주세요)' }); continue }

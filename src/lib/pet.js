@@ -12,13 +12,15 @@ export const WEAR_LABEL = { ribbon: '리본', glasses: '안경', cap: '모자', 
 // 오답노트를 졸업한 단어는 한 번 더 크게 먹음
 export const PET_GRAD_BONUS = 2
 // 지금까지 먹은 단어 수 = 통과한 퀴즈 수(한→영·영→한·발음, 단어당 최대 3)
-export function petFood(words) {
-  let n = 0
+// 가족 공동 목표를 달성한 주에 받는 간식(주마다 한 번, pet.goal_weeks에 기록)
+export const FAMILY_GOAL_BONUS = 10
+export function petFood(words, pet) {
+  let n = Math.max(0, Number(pet?.bonus) || 0)
   for (const w of words || []) n += (w.ko_ok ? 1 : 0) + (w.en_ok ? 1 : 0) + (w.sp_ok ? 1 : 0) + PET_GRAD_BONUS * (w.wrong_grad || 0)
   return n
 }
-export function petState(words) {
-  const food = petFood(words)
+export function petState(words, pet) {
+  const food = petFood(words, pet)
   let i = 0
   for (let k = 0; k < PET_STAGES.length; k++) if (food >= PET_STAGES[k].at) i = k
   const cur = PET_STAGES[i], next = PET_STAGES[i + 1] || null
@@ -29,4 +31,11 @@ export function petState(words) {
 export function wearing(pet, unlocked) {
   const want = Array.isArray(pet?.wear) ? pet.wear : unlocked
   return want.filter((x) => unlocked.includes(x))
+}
+
+// 이번 주(가족 목표) 간식을 받을 수 있나
+export const goalBonusReady = (pet, week) => !(Array.isArray(pet?.goal_weeks) && pet.goal_weeks.includes(week))
+export function withGoalBonus(pet, week) {
+  const weeks = [...(Array.isArray(pet?.goal_weeks) ? pet.goal_weeks : []), week].slice(-20)
+  return { ...(pet || {}), bonus: (Number(pet?.bonus) || 0) + FAMILY_GOAL_BONUS, goal_weeks: weeks }
 }

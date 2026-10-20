@@ -5,9 +5,10 @@ import { gradeMeaning, speechScore, SPEECH_PASS } from '../lib/grading.js'
 import { expandStage, shuffle } from '../lib/study.js'
 import { canListen, listenOnce, speak } from '../lib/speech.js'
 import { Blob, Empty, Header, Reaction, FitWord } from '../components/ui.jsx'
-import { isIOS, pronHereOK } from '../lib/browser.js'
+import { pronHereOK } from '../lib/browser.js'
 import * as sfx from '../lib/sfx.js'
 import { savedMic } from '../lib/mic.js'
+import SelfPron from '../components/SelfPron.jsx'
 
 const KIND = { syn: { label: '유의어', hint: '비슷한 뜻', color: 'text-sage' }, ant: { label: '반의어', hint: '반대 뜻', color: 'text-coral' } }
 
@@ -30,12 +31,13 @@ export default function Expand() {
   const [res, setRes] = useState(null)
   const [opened, setOpened] = useState([])
   const [heard, setHeard] = useState('')
+  const [self, setSelf] = useState(false) // 자동 채점이 안 되는 곳: 내 목소리로 확인
   const inputRef = useRef()
   const item = queue?.[idx]
   const w = useMemo(() => words.find((x) => x.id === item?.id), [words, item])
   const d = w && item ? w[item.kind] : null
 
-  useEffect(() => { setInput(''); setRes(null); setHeard(''); if (d) setTimeout(() => speak(d.word), 250); setTimeout(() => inputRef.current?.focus(), 100) }, [idx, queue]) // eslint-disable-line
+  useEffect(() => { setInput(''); setRes(null); setHeard(''); setSelf(false); if (d) setTimeout(() => speak(d.word), 250); setTimeout(() => inputRef.current?.focus(), 100) }, [idx, queue]) // eslint-disable-line
 
   if (!queue) return <p className="py-20 text-center text-soft">불러오는 중…</p>
   const waiting = words.filter((x) => expandStage(x) === 'synant' && !x.enriched).length
@@ -90,7 +92,7 @@ export default function Expand() {
   }
 
   async function practice() {
-    if (!pronHereOK(canListen())) return showToast(`발음 연습은 ${isIOS() ? '사파리' : '크롬'}에서 돼요 — 학습 › 발음하기에서 열어 주세요`)
+    if (!pronHereOK(canListen())) { setSelf((v) => !v); return }
     try {
       const alts = await listenOnce({ deviceId: savedMic() })
       { const sc = speechScore(alts, d.word); setHeard(sc >= SPEECH_PASS ? `👍 ${Math.round(sc * 100)}%! “${alts[0]?.t}”` : `“${alts[0]?.t || '잘 안 들렸어요'}” ${Math.round(sc * 100)}% — 한 번 더!`) }
@@ -109,6 +111,7 @@ export default function Expand() {
           <button onClick={() => speak(d.word)} className="h-11 w-11 rounded-full bg-slate/10 text-xl" aria-label="듣기">🔊</button>
         </div>
         <button onClick={practice} className="chip">🎤 발음 연습</button>
+        {self && <div className="w-full"><SelfPron key={idx} word={d.word} onResult={(ok) => { setSelf(false); setHeard(ok ? '👍 비슷하게 말했어요!' : '한 번 더 듣고 따라 해 봐요') }} /></div>}
         {heard && <p className="text-sm text-soft">{heard}</p>}
         {res?.ok && <p className="font-jua text-2xl text-sage">정답! 🎉</p>}
         {res && !res.ok && <p className="text-slate-deep">정답: <b>{d.meaning}</b></p>}

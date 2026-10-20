@@ -17,7 +17,7 @@ export default function WrongNote() {
     <div>
       <Header title="오답노트" />
       {!list.length ? (
-        <Empty title="오답노트가 비어 있어요" desc={grads ? `지금까지 ${grads}개 단어가 졸업했어요 🎓` : '퀴즈에서 틀린 단어를 ‘오답노트로 보내기’ 하면 여기 모여요'} i={3} />
+        <Empty title="오답노트가 비어 있어요" desc={grads ? `지금까지 ${grads}개 단어가 졸업했어요 🎓` : '퀴즈에서 틀리거나 ‘모르겠어요’한 단어가 여기 모여요'} i={3} />
       ) : (
         <>
           <section className="mb-4 rounded-3xl bg-slate-deep p-5 text-white shadow-[0_4px_0_#2c3d63]">

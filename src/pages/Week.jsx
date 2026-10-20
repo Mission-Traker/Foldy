@@ -3,12 +3,15 @@ import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
 import { familyGoal, liveStreak, statusOf, weekStart, weekSummary, ymd } from '../lib/study.js'
 import { Blob, Header } from '../components/ui.jsx'
+import { weekCardBlob } from '../lib/shareCard.js'
+import { FAMILY_GOAL_BONUS, goalBonusReady, withGoalBonus } from '../lib/pet.js'
 
 const DOW = ['월', '화', '수', '목', '금', '토', '일']
 
 // 이번 주 성장 카드 + 가족 공동 목표(👏 깨우기)
 export default function Week() {
-  const { member, members, words, showToast, today } = useApp()
+  const { member, members, words, showToast, today, updateMember } = useApp()
+  const [busy, setBusy] = useState(false)
   const [rows, setRows] = useState(null)
   const [fam, setFam] = useState(null)
   const [nudged, setNudged] = useState(new Set())
@@ -35,12 +38,34 @@ export default function Week() {
       showToast(r === 'already' ? `오늘은 이미 ${m.name}를 깨웠어요` : `👏 ${m.name}에게 알림을 보냈어요`)
     } catch (e) { showToast(e.message) }
   }
+  const text = () => `📈 폴디 이번 주 성장 (${member.name})\n공부한 날 ${sum.studied}/7일 · 맞힌 문제 ${sum.answers}개\n${sum.review != null ? `복습 기억률 ${sum.review}% · ` : ''}○ 단어 ${o}개 · 🔥 ${streak}일 연속`
+  // 이미지 카드로 공유(안 되면 글로)
   async function share() {
-    const text = `📈 폴디 이번 주 성장 (${member.name})\n공부한 날 ${sum.studied}/7일 · 맞힌 문제 ${sum.answers}개\n${sum.review != null ? `복습 기억률 ${sum.review}% · ` : ''}○ 단어 ${o}개 · 🔥 ${streak}일 연속`
+    if (busy) return
+    setBusy(true)
     try {
-      if (navigator.share) { await navigator.share({ text }); return }
-    } catch (e) { if (e?.name === 'AbortError') return }
-    try { await navigator.clipboard.writeText(text); showToast('복사했어요. 카톡에 붙여넣어 보내세요') } catch { showToast('복사하지 못했어요') }
+      const blob = await weekCardBlob({ name: member.name, start, sum, o, streak })
+      const file = blob && new File([blob], `foldy-week-${start}.png`, { type: 'image/png' })
+      if (file && navigator.canShare?.({ files: [file] })) {
+        try { await navigator.share({ files: [file], text: text() }); return } catch (e) { if (e?.name === 'AbortError') return }
+      }
+      if (file) {
+        const url = URL.createObjectURL(file)
+        const a = document.createElement('a'); a.href = url; a.download = file.name; document.body.appendChild(a); a.click(); a.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 4000)
+        showToast('성장 카드를 저장했어요. 카톡에 사진으로 보내세요')
+        return
+      }
+      throw new Error('no image')
+    } catch {
+      try { await navigator.clipboard.writeText(text()); showToast('복사했어요. 카톡에 붙여넣어 보내세요') } catch { showToast('공유하지 못했어요') }
+    } finally { setBusy(false) }
+  }
+  const canBonus = goal?.done && goalBonusReady(member.pet, start)
+  async function takeBonus() {
+    if (busy) return
+    setBusy(true)
+    try { await updateMember({ pet: withGoalBonus(member.pet, start) }); showToast(`🎁 캐릭터가 간식을 먹었어요! +${FAMILY_GOAL_BONUS}`) } catch (e) { showToast(e.message) } finally { setBusy(false) }
   }
 
   return (
@@ -66,15 +91,18 @@ export default function Week() {
             <Stat label="○ 단어" value={`${o}개`} sub={`이번 주 새 단어 ${newWords}개`} />
             <Stat label="연속 학습" value={`🔥 ${streak}일`} sub={`오늘의 한 판 ${sum.runs}번`} />
           </section>
-          <button className="btn-ghost mb-6 w-full" onClick={share}>📤 이번 주 성장 공유하기</button>
+          <button className="btn-ghost mb-6 w-full" onClick={share}>{busy ? '카드 만드는 중…' : '📤 성장 카드 공유하기'}</button>
 
           {members.length > 1 && (
             <section className="card p-4">
               <h2 className="font-jua text-lg text-slate-deep">👨‍👩‍👧 가족 공동 목표</h2>
-              <p className="mb-3 break-keep text-xs text-soft">이번 주 가족 모두 {goal?.goal || 5}일 이상 공부하기. 오늘 아직인 가족은 👏로 깨워 주세요(하루 한 번, 알림을 켠 사람에게).</p>
+              <p className="mb-3 break-keep text-xs text-soft">이번 주 가족 모두 {goal?.goal || 5}일 이상 공부하면 캐릭터 간식 +{FAMILY_GOAL_BONUS}. 오늘 아직인 가족은 👏로 깨워 주세요(하루 한 번, 알림을 켠 사람에게).</p>
               {!goal ? <p className="py-4 text-center text-sm text-soft">불러오는 중…</p> : (
                 <>
                   {goal.done && <p className="pop mb-3 rounded-2xl bg-sage/15 px-3 py-2 text-center font-jua text-sage">🏆 이번 주 가족 목표 달성!</p>}
+                  {goal.done && (canBonus
+                    ? <button className="btn-main mb-3 w-full" disabled={busy} onClick={takeBonus}>🎁 캐릭터 간식 받기 +{FAMILY_GOAL_BONUS}</button>
+                    : <p className="mb-3 text-center text-xs text-soft">이번 주 간식은 받았어요 · 다음 주에도 함께 달성해요</p>)}
                   <ul className="space-y-2.5">
                     {goal.per.map(({ m, days }) => {
                       const todayDone = m.last_study === today

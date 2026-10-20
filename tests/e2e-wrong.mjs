@@ -24,6 +24,7 @@ const getWords = async () => (await fetch(`${SB}/rest/v1/foldy_words?select=word
 const patchWord = (word, body) => fetch(`${SB}/rest/v1/foldy_words?member_id=eq.${mid}&word=eq.${word}`, { method: 'PATCH', headers: H(), body: JSON.stringify(body) })
 
 // 다시 익히기 한 판: okSet에 든 단어만 ③에서 맞힘
+let autoNext = true
 async function runPractice(okSet) {
   await page.getByText('1. 다시 보기').waitFor()
   while (await page.getByRole('button', { name: /기억했어요|쉬운 문제로/ }).isVisible().catch(() => false)) {
@@ -33,7 +34,9 @@ async function runPractice(okSet) {
   while (await page.getByText('알맞은 뜻을 골라 보세요').isVisible().catch(() => false)) {
     const w = (await page.locator('p.font-title').first().textContent()).trim()
     await page.getByRole('button', { name: MEAN[w], exact: true }).click()
-    await page.getByRole('button', { name: /다음 →/ }).click()
+    // 정답을 고르면 '다음'을 누르지 않아도 바로 넘어감
+    autoNext = autoNext && !(await page.getByRole('button', { name: /다음 →/ }).isVisible())
+    await page.waitForFunction((x) => !document.body.innerText.includes('알맞은 뜻을 골라 보세요') || document.querySelector('p.font-title')?.textContent.trim() !== x, w, { timeout: 4000 })
   }
   await page.getByPlaceholder('한글 뜻').waitFor()
   while (await page.getByPlaceholder('한글 뜻').isVisible().catch(() => false)) {
@@ -86,6 +89,7 @@ try {
   check('오답노트: 오늘 2개 + 사흘 뒤 1개 표시', wn.includes('2개 다시 익히기') && wn.includes(`${+kst(3).slice(5, 7)}/${+kst(3).slice(8)}에 다시`))
   await page.getByRole('link', { name: '2개 다시 익히기' }).click()
   await runPractice(new Set(['library']))
+  check("② 정답을 고르면 '다음' 없이 바로 넘어감", autoNext)
   await page.getByText('오늘 다시 익히기 끝!').waitFor()
   const end = await page.locator('body').textContent()
   check('끝 화면: 맞힌 단어는 3일 뒤, 틀린 단어는 처음부터', end.includes(`${+kst(3).slice(5, 7)}/${+kst(3).slice(8)}에 다시`) && end.includes('처음부터'))

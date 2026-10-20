@@ -64,9 +64,9 @@ describe('답 반영·복습 일정', () => {
     const p = applyAnswer({ ...base, en_ok: true, ko_ok: true, sp_ok: true, review_step: 2 }, 'ko', false)
     expect(p).toMatchObject({ ko_ok: false, review_step: 0, next_review: null })
   })
-  it('일반 퀴즈에서 한 번 맞혀도 오답노트에서 빠지지 않음', () => {
+  it('일반 퀴즈에서 맞히면 그 방식만 오답노트에서 빠짐', () => {
     const p = applyAnswer({ ...base, wrong_modes: ['ko', 'sp'] }, 'ko', true)
-    expect(p.wrong_modes).toBeUndefined()
+    expect(p.wrong_modes).toEqual(['sp'])
   })
   it('복습 정답이면 간격이 늘어남(1→3일)', () => {
     expect(applyReview({ review_step: 1 }, 'ko', true, '2026-10-15')).toMatchObject({ review_step: 2, ivl: 3, next_review: '2026-10-18' })
@@ -207,6 +207,22 @@ describe('기기 글자 인식 결과 → 단어·뜻', () => {
   it('영어 줄 다음 한글 줄', () => expect(pairFromText('library\n도서관')).toEqual([{ word: 'library', meaning: '도서관' }]))
   it('발음기호·잡음 제거', () => expect(pairFromText('umbrella [ʌmbrélə] 우산')[0]).toEqual({ word: 'umbrella', meaning: '우산' }))
   it('한 글자·숫자만 있는 줄은 버림', () => expect(pairFromText('a 하나\n123 숫자')).toEqual([]))
+  it('영어만 있는 사진: 사전에 있는 단어만 뽑음', () => expect(pairFromText('Apple, tiger\nzzqx library!', new Set(['apple', 'tiger', 'library']))).toEqual([
+    { word: 'apple', meaning: '' }, { word: 'tiger', meaning: '' }, { word: 'library', meaning: '' }]))
+  it('사전을 안 주면 영어만 있는 줄은 그대로 버림', () => expect(pairFromText('apple tiger')).toEqual([]))
+})
+
+import { petState, withGoalBonus, goalBonusReady, FAMILY_GOAL_BONUS } from '../src/lib/pet.js'
+describe('가족 목표 간식', () => {
+  it('간식은 먹이에 더해지고 주마다 한 번', () => {
+    const p1 = withGoalBonus({ wear: ['ribbon'] }, '2026-10-19')
+    expect(p1.bonus).toBe(FAMILY_GOAL_BONUS)
+    expect(p1.wear).toEqual(['ribbon'])
+    expect(goalBonusReady(p1, '2026-10-19')).toBe(false)
+    expect(goalBonusReady(p1, '2026-10-26')).toBe(true)
+    expect(petState([], p1).food).toBe(FAMILY_GOAL_BONUS)
+    expect(petState([]).food).toBe(0)
+  })
 })
 
 describe('직접 적기 자동완성', () => {
@@ -664,5 +680,17 @@ describe('똑똑한 복습·오늘의 한 판·주간 성장·가족 목표', as
     expect(w).toMatchObject({ start: '2026-10-19', studied: 2, answers: 7, review: 75, runs: 1 })
     const g = S.familyGoal([{ id: 'x' }, { id: 'y' }], [{ member_id: 'x', day: '2026-10-19', done: 1 }], T)
     expect(g.per.map((p) => p.days)).toEqual([1, 0]); expect(g.done).toBe(false)
+  })
+})
+
+import { applyAnswer as _aa, wrongNotePatch } from '../src/lib/study.js'
+describe('오답노트는 틀린(모르는) 단어만', () => {
+  it('틀리면 바로 담고, 그 방식으로 맞히면 뺌', () => {
+    const w = { word: 'x', ko_ok: false, en_ok: false, wrong_modes: [] }
+    expect(_aa(w, 'ko', false).wrong_modes).toEqual(['ko'])
+    expect(_aa({ ...w, wrong_modes: ['ko', 'en'] }, 'ko', true).wrong_modes).toEqual(['en'])
+    const p = _aa({ ...w, wrong_modes: ['ko'], wrong_step: 1, wrong_next: '2026-10-23' }, 'ko', true)
+    expect(p.wrong_modes).toEqual([]); expect(p.wrong_step).toBe(0)
+    expect(wrongNotePatch({ wrong_modes: ['en'] }, 'ko', true)).toEqual({})
   })
 })

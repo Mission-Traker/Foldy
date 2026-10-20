@@ -16,3 +16,8 @@ where ko_ok and en_ok and not coalesce(sp_ok, false) and coalesce(review_step, 0
 
 -- 2026-10-20 (적용 이름: foldy_beta_guardian_errors): 보호자 동의 시각(guardian_at·privacy_at, foldy_mark_guardian),
 -- 오류 기록(foldy_errors, foldy_log_error·foldy_admin_errors·foldy_admin_clear_errors), foldy_cleanup에 오류 90일·깨우기 30일 정리 추가
+
+-- 2026-10-20: 친구 소개 추적
+-- alter table foldy_families add column invited_by text;
+-- foldy_mark_invited(p_from): 가입 하루 안, 비어 있을 때만 기록 · foldy_admin_retention에 invited·invited7·inviters 추가
+-- 오답노트 정리: 이미 그 방식으로 맞힌(ko_ok/en_ok/sp_ok) 모드는 wrong_modes에서 뺌(일회성)

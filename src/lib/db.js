@@ -332,6 +332,7 @@ export const nudge = (fromId, toId) => rpcJson('foldy_nudge', { p_from: fromId, 
 export const nudgesToday = (day) => q(client.from('foldy_nudges').select('from_member,to_member').eq('day', day))
 export const adminRetention = () => rpcOrThrow('foldy_admin_retention')
 export const markGuardian = () => rpcOrThrow('foldy_mark_guardian')
+export const markInvited = (from) => rpcOrThrow('foldy_mark_invited', { p_from: from })
 export const adminErrors = () => rpcOrThrow('foldy_admin_errors', { p_limit: 60 })
 export const adminClearErrors = () => rpcOrThrow('foldy_admin_clear_errors')
 // 앱 오류 자동 기록(실패해도 조용히)

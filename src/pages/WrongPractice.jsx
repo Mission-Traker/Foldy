@@ -184,6 +184,12 @@ function ChoiceCard({ w, words, onNext }) {
   const [pick, setPick] = useState(null)
   useEffect(() => { if (choices.length < 2) onNext() }, []) // eslint-disable-line
   const ok = pick === w.meaning
+  // 정답을 고르면 잠깐 보여 주고 바로 다음으로(틀리면 정답을 보고 '다음'을 눌러 넘어감)
+  useEffect(() => {
+    if (!pick || !ok) return
+    const t = setTimeout(onNext, 800)
+    return () => clearTimeout(t)
+  }, [pick]) // eslint-disable-line
   return (
     <>
       <div className={`relative mb-4 flex flex-col items-center gap-2 rounded-3xl border bg-paper p-6 text-center ${pick ? (ok ? 'border-ok' : 'border-no') : 'border-line'}`}>
@@ -203,7 +209,9 @@ function ChoiceCard({ w, words, onNext }) {
           )
         })}
       </div>
-      {pick && <button className="btn-main w-full" onClick={onNext}>{ok ? '좋아요! 다음 →' : '다음 →'}</button>}
+      {pick && (ok
+        ? <p className="py-3 text-center font-jua text-lg text-sage">좋아요! 🎉</p>
+        : <button className="btn-main w-full" onClick={onNext}>다음 →</button>)}
     </>
   )
 }

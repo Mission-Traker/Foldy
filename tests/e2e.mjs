@@ -115,9 +115,7 @@ try {
     if (w === 'library') {
       await page.getByText('틀렸어요').waitFor()
       check('오답 처리(library=자동차)', true)
-      await page.getByRole('button', { name: '📌 오답노트로' }).click()
-      await page.getByText('📌 오답노트에 있어요').waitFor()
-      check('오답노트로 보내기', true)
+      check('틀리면 오답노트에 바로 담김', await page.getByText('📌 오답노트에 담았어요').waitFor({ timeout: 5000 }).then(() => true, () => false))
       await page.getByRole('button', { name: '다음 →' }).click()
       if (i < 3) await page.locator('.card p.font-title').first().filter({ hasNotText: /^library$/ }).waitFor()
     } else {

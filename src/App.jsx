@@ -6,6 +6,8 @@ import { enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, Pat
 import { BottomNav, Confetti, Toast } from './components/ui.jsx'
 import { fanfare } from './lib/sfx.js'
 import { levelProgress, normLevel } from './lib/levels.js'
+import { loadVocab } from './lib/vocab.js'
+import { loadDict } from './lib/dict.js'
 import { cacheGet, cacheSet, isNetErr, outboxAdd, outboxFlush, outboxSize } from './lib/offline.js'
 import Auth from './pages/Auth.jsx'
 import Profiles from './pages/Profiles.jsx'
@@ -186,6 +188,14 @@ export default function App() {
   // 오프라인 대비: 구성원·받은 단어·오늘 기록을 기기에 보관
   useEffect(() => { if (session && members.length) cacheSet('members:' + session.family_id, members) }, [members, session])
   useEffect(() => { if (member && loadedFor === member.id) { const t = setTimeout(() => cacheSet('words:' + member.id, words), 400); return () => clearTimeout(t) } }, [words, member, loadedFor])
+  // 내장 어휘(약 300KB)·사전을 쉬는 시간에 미리 받아 둠 — 첫 단어 추가·검색이 기다리지 않게
+  useEffect(() => {
+    if (!member || loadedFor !== member.id) return
+    const go = () => { loadVocab(); loadDict().catch(() => {}) }
+    const ric = window.requestIdleCallback
+    const h = ric ? ric(go, { timeout: 4000 }) : setTimeout(go, 1500)
+    return () => (ric ? window.cancelIdleCallback?.(h) : clearTimeout(h))
+  }, [member?.id, loadedFor]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (member && daily) cacheSet('daily:' + member.id, daily) }, [daily, member])
   // 인터넷이 돌아오면 모아 둔 답을 보냄
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false)
