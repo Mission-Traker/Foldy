@@ -6,7 +6,7 @@ const EVENT = {
   intro: '소개 슬라이드', auth_view: '가입·로그인 화면', signup: '가족 만들기', login: '로그인', member_add: '구성원 추가',
   add_words: '단어 담기', photo: '사진으로 단어', quiz_start: '퀴즈 시작', quiz_end: '퀴즈 끝까지', wrong_end: '다시 익히기 끝',
   sort_end: '아는 단어 거르기 끝', share_week: '성장 카드 공유', pron: '발음 연습', push_on: '알림 켜기', survey: '베타 설문',
-  feedback: '수정요청 보냄', nudge: '가족 깨우기', pet: '가족 펫',
+  feedback: '수정요청 보냄', nudge: '가족 깨우기', pet: '가족 펫', pick_today: '단어장에서 오늘 학습 고르기',
 }
 const SUB = {
   skip: '건너뜀', done: '끝까지', direct: '직접', invited: '소개', photo: '사진', manual: '직접 적기', recommend: '추천 단어', family: '가족 단어',

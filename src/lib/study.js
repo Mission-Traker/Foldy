@@ -371,6 +371,13 @@ export function trimSet(ids, cap, seenIds = []) {
   for (let i = out.length - 1; i >= 0 && out.length > cap; i--) if (!seen.has(out[i])) out.splice(i, 1)
   return out.slice(0, cap)
 }
+// 단어장에서 직접 고른 단어로 오늘의 단어를 통째로 정함 — 고른 만큼만(모자라도 무작위로 채우지 않음)
+// extra = 고른 수 − 하루 목표(음수 가능) → resolveTodaySet의 cap이 고른 수와 같아져 그대로 유지됨
+export const PICK_MAX = 30
+export function chooseSet(ids, goal = 5) {
+  const uniq = [...new Set(ids || [])].slice(0, PICK_MAX)
+  return { set_ids: uniq, extra: uniq.length - goal }
+}
 // 단어장에서 고른 단어를 맨 앞에 넣고, 개수는 그대로(뒤에서 하나 덜어 냄) → { ids, dropped }
 export function sendToSet(ids, id, cap, seenIds = []) {
   if (ids.includes(id)) return { ids, dropped: [] }

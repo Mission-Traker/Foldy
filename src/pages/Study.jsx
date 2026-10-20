@@ -43,6 +43,10 @@ export default function Study() {
           <span className="text-xs text-soft">하루 목표 {member?.daily_goal || 5}개</span>
         </div>
         <p className="mb-3 text-sm text-soft">오늘은 이 단어들만 퀴즈에 나와요. 한 바퀴를 다 돌면 같은 단어로 다시 외워요.</p>
+        <Link to="/book?pick=1" className="mb-3 flex items-center justify-between gap-2 rounded-2xl border-2 border-slate/30 bg-slate/5 px-3 py-2 text-sm">
+          <span className="min-w-0 break-keep"><b className="font-jua text-slate-deep">📒 단어장에서 직접 고르기</b><span className="block text-xs text-soft">아는 단어는 빼고 공부할 단어만 골라요</span></span>
+          <span className="shrink-0 text-soft">›</span>
+        </Link>
         {setWords.length ? (
           <ul className="flex flex-wrap gap-1.5">
             {setWords.map((w) => {

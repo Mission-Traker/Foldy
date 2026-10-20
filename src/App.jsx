@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import * as db from './lib/db.js'
 import { enrichPending, personalize, storyOn } from './lib/enrich.js'
-import { enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, sendToSet, ymd, gnawDays, pickGnawWords, reviewCount, wrongDue, ENOUGH_X } from './lib/study.js'
+import { chooseSet, enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, sendToSet, ymd, gnawDays, pickGnawWords, reviewCount, wrongDue, ENOUGH_X } from './lib/study.js'
 import { BottomNav, Confetti, Toast } from './components/ui.jsx'
 import { fanfare } from './lib/sfx.js'
 import { levelProgress, normLevel } from './lib/levels.js'
@@ -337,6 +337,14 @@ export default function App() {
     return dropped
   }, [todayIds, updateDaily])
 
+  // 단어장에서 고른 단어로 오늘의 단어를 정함(고른 만큼만)
+  const chooseToday = useCallback((ids) => {
+    const c = chooseSet(ids, member?.daily_goal || 5)
+    if (!c.set_ids.length) return []
+    updateDaily(() => c)
+    return c.set_ids
+  }, [member, updateDaily])
+
   // 최근 단어 예문을 내 이야기로 다시 만들기(내 정보에서)
   const remakeStory = useCallback(async (n = 10) => {
     if (!member || !storyOn(member)) return 0
@@ -348,8 +356,8 @@ export default function App() {
 
   const value = useMemo(() => ({
     session, setSession, members, setMembers, member, patchMemberLocal: (patch) => { setMember((m) => (m ? { ...m, ...patch } : m)); setMembers((ms) => ms.map((x) => (member && x.id === member.id ? { ...x, ...patch } : x))) }, setMember: (m) => { if (member && member.has_pin && member.id !== m?.id) db.forgetMemberToken(member.id); db.saveMemberId(m?.id || null); setMember(m); setWords([]); setLoadedFor(null); setLoadTry((n) => n + 1); dailyRef.current = null; setDaily(null); enrichedOnce.current = null; if (m) navTo('/') },
-    openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, updateDaily, patchWord, addWords, removeWord, removeWords, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich, today,
-  }), [today, session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, removeWords, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, remakeStory, showToast, aiState, runEnrich])
+    openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, updateDaily, patchWord, addWords, removeWord, removeWords, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, chooseToday, remakeStory, showToast, aiState, runEnrich, today,
+  }), [today, session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, removeWords, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, chooseToday, remakeStory, showToast, aiState, runEnrich])
 
   const wrongCount = words.filter((w) => wrongDue(w)).length // 오늘 다시 볼 단어만 배지로
   // 오래 쉬었다 들어오면(또는 학습 알림으로 들어오면) 하루 한 번 '갉아먹기' 장면 — 단어는 그대로

@@ -30,3 +30,5 @@ where ko_ok and en_ok and not coalesce(sp_ok, false) and coalesce(review_step, 0
 -- foldy_family_pet(family_id pk, species, name, hunger·fun·clean, xp, updated_at) · foldy_pet_log(family_id, member_id, action, day)
 -- foldy_pet_now(하루 20씩 감소 계산) · foldy_pet_tickets(구성원별 오늘 돌봄권: 밥=done/10 최대 3, 산책=run_done, 목욕=rev_n≥3 또는 연속 2일)
 -- foldy_pet_get / foldy_pet_adopt / foldy_pet_rename / foldy_pet_care(+35, xp+5) · foldy_track 허용 이름에 'pet'
+
+-- 2026-10-20: 오늘 학습 단어 직접 고르기 — foldy_daily_extra_check를 extra >= -50 and extra <= 200 으로(고른 수가 목표보다 적을 때 음수) · foldy_track 허용 이름에 'pick_today'

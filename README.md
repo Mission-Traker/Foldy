@@ -62,6 +62,11 @@
 - 😱 갉아먹기 장면: 이틀 이상 쉬었거나 학습 알림으로 들어오면 하루 한 번, 캐릭터들이 단어 3개를 갉아먹는 연출 → '복습하고 되찾기'. 단어장 내용은 바뀌지 않음
 - 연속 학습일(🔥, 하루라도 빠지면 0으로 표시), 하루 목표 기본 5개(홈 '✎ 목표 바꾸기'·내 정보에서 1~50개로 조절) — 목표 수만큼 오늘의 추천 단어가 나옴
 
+## 오늘 학습할 단어 직접 고르기
+- 학습 화면 '📒 단어장에서 직접 고르기' 또는 단어장 '☑ 선택' → 공부할 단어를 골라 '📚 고른 N개로 오늘 학습하기'(최대 30개)
+- 고른 단어만 오늘의 단어가 됨: 목표보다 적게 골라도 무작위로 채우지 않음(`chooseSet` → `foldy_daily.extra` = 고른 수 − 목표, 음수 허용 −50~200)
+- 다음 날은 다시 자동으로 골라 줌(그날도 직접 고를 수 있음)
+
 ## 우리 가족 펫 (`/#/pet`)
 - 가족이 한 마리를 함께 키움: 강아지·고양이·새·돼지·토끼·햄스터(지금 캐릭터와 같은 동글동글한 그림체, `src/components/PetArt.jsx`)
 - 상태 3칸(배부름·신남·깨끗함, 0~100): 하루마다 20씩 줄고, 아프거나 죽지 않음(오래 못 돌보면 졸려 할 뿐)
@@ -198,6 +203,7 @@ BASE=http://localhost:4173 node tests/e2e-pron.mjs     # 소개 건너뛰기·�
 PHASE=a FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 아니면 잠김 5개 → SQL로 그 가족 구성원을 foldy_admins에 넣고
 PHASE=b FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 페이지 4개 탭·유료 AI 없음·랜딩 미리보기·숫자 비밀번호·재방문 지표 18개
 BASE=http://localhost:4173 node tests/e2e-streak.mjs   # 연속 학습일 9개
+BASE=http://localhost:4173 node tests/e2e-pick.mjs     # 단어장에서 고른 단어만 오늘 학습·퀴즈 8개
 BASE=http://localhost:4173 node tests/e2e-pet.mjs      # 가족 펫: 데려오기·돌봄권·돌보기·같은 펫·서버 거절·이름 바꾸기 21개
 BASE=http://localhost:4173 node tests/e2e-race.mjs     # 느린 망: 가입 직후 첫 구성원이 사라지지 않음 1개
 STATE=/tmp/admin-state.json node tests/shot-admin.mjs   # 관리자 재방문 지표·설문 요약 화면 확인(e2e-admin b단계 뒤)

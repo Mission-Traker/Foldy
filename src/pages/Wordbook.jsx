@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../App.jsx'
-import { expandStage, sortWords, statusOf, cleanEntry, MODE_FIELD } from '../lib/study.js'
+import { expandStage, sortWords, statusOf, cleanEntry, MODE_FIELD, PICK_MAX } from '../lib/study.js'
+import { track } from '../lib/track.js'
 import { Empty, Header, Speak, fmtDate, FitWord } from '../components/ui.jsx'
 import { speak } from '../lib/speech.js'
 import * as db from '../lib/db.js'
@@ -174,9 +175,10 @@ function EditSheet({ w, onClose }) {
 }
 
 export default function Wordbook() {
-  const { words, ready, daily, todayIds, sendToToday, showToast, today, removeWords } = useApp()
-  // 선택해서 한꺼번에 지우기(이미 아는 단어 정리)
-  const [pick, setPick] = useState(null) // null: 끔, Set: 고른 단어 id
+  const { words, ready, daily, todayIds, sendToToday, chooseToday, showToast, today, removeWords } = useApp()
+  const nav = useNavigate()
+  // 선택해서 오늘 학습할 단어로 보내기 / 한꺼번에 지우기(이미 아는 단어 정리)
+  const [pick, setPick] = useState(() => { try { return new URLSearchParams(location.hash.split('?')[1] || '').get('pick') ? new Set() : null } catch { return null } }) // null: 끔, Set: 고른 단어 id
   const [arm, setArm] = useState(false)
   const [busy, setBusy] = useState(false)
   const togglePick = (id) => { setArm(false); setPick((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n }) }
@@ -185,6 +187,15 @@ export default function Wordbook() {
     if (!arm) { setArm(true); setTimeout(() => setArm(false), 4000); return }
     setBusy(true); setArm(false)
     try { const n = await removeWords([...pick]); showToast(`${n}개를 단어장에서 지웠어요`); setPick(null) } catch (e) { showToast(e.message) } finally { setBusy(false) }
+  }
+  function studyPicked() {
+    if (!pick?.size) return
+    if (pick.size > PICK_MAX) { showToast(`한 번에 ${PICK_MAX}개까지 고를 수 있어요`); return }
+    const ids = chooseToday([...pick])
+    track('pick_today', { n: ids.length })
+    showToast(`고른 ${ids.length}개로 오늘 학습해요`)
+    setPick(null)
+    nav('/study')
   }
   const todaySet = useMemo(() => new Set(ready ? todayIds() : []), [ready, todayIds, daily, today])
   function send(w) {
@@ -296,15 +307,20 @@ export default function Wordbook() {
       ) : (
         <>
         {pick && (
-          <div className="sticky top-2 z-20 mb-3 rounded-2xl border-2 border-coral/40 bg-paper p-3 shadow-card">
-            <p className="mb-2 text-sm text-slate-deep"><b className="font-jua">{pick.size}개 선택</b> <span className="text-soft">· 이미 아는 단어를 골라 한꺼번에 지워요</span></p>
+          <div className="sticky top-2 z-20 mb-3 rounded-2xl border-2 border-slate/40 bg-paper p-3 shadow-card">
+            <p className="mb-2 text-sm text-slate-deep"><b className="font-jua">{pick.size}개 선택</b> <span className="text-soft">· 공부할 단어를 골라 오늘 학습하거나, 아는 단어를 한꺼번에 지워요</span></p>
             <div className="flex flex-wrap gap-1.5">
               <button className="chip whitespace-nowrap" onClick={() => { setArm(false); setPick(new Set(list.map((w) => w.id))) }}>보이는 단어 모두 ({list.length})</button>
+              {counts.x > 0 && counts.x <= PICK_MAX && <button className="chip whitespace-nowrap" onClick={() => { setArm(false); setPick(new Set(words.filter((w) => statusOf(w) === 'x').map((w) => w.id))) }}>안 배운 단어 ({counts.x})</button>}
               {counts.o > 0 && <button className="chip whitespace-nowrap" onClick={() => { setArm(false); setPick(new Set(words.filter((w) => statusOf(w) === 'o').map((w) => w.id))) }}>○ 완료만 ({counts.o})</button>}
               {pick.size > 0 && <button className="chip whitespace-nowrap" onClick={() => { setArm(false); setPick(new Set()) }}>선택 풀기</button>}
             </div>
+            <button disabled={!pick.size || busy} onClick={studyPicked} className="btn-main mt-2 w-full !py-2.5">
+              {pick.size ? `📚 고른 ${pick.size}개로 오늘 학습하기` : '📚 공부할 단어를 골라 주세요'}
+            </button>
+            {pick.size > PICK_MAX && <p className="mt-1 text-center text-xs text-coral">오늘 학습은 {PICK_MAX}개까지 고를 수 있어요</p>}
             <button disabled={!pick.size || busy} onClick={delPicked}
-              className={`mt-2 w-full rounded-full py-2.5 font-jua text-white disabled:opacity-40 ${arm ? 'bg-coral' : 'bg-coral/80'}`}>
+              className={`mt-2 w-full rounded-full py-2 font-jua text-sm text-white disabled:opacity-40 ${arm ? 'bg-coral' : 'bg-coral/70'}`}>
               {busy ? '지우는 중…' : arm ? `한 번 더 누르면 ${pick.size}개를 지워요 (되돌릴 수 없어요)` : `🗑 고른 ${pick.size}개 지우기`}
             </button>
           </div>
@@ -323,7 +339,7 @@ export default function Wordbook() {
         </div>
         </>
       )}
-      {list.length > 0 && <p className="mt-3 text-center text-xs text-soft">가림판을 탭하면 정답이 열려요 · ➜ 오늘 학습할 단어로 보내기 · ⋯ 고치기·삭제 · ☑ 선택해서 여러 개 지우기</p>}
+      {list.length > 0 && <p className="mt-3 text-center text-xs text-soft">가림판을 탭하면 정답이 열려요 · ➜ 오늘 학습할 단어로 보내기 · ⋯ 고치기·삭제 · ☑ 선택해서 오늘 학습하기·여러 개 지우기</p>}
       {edit && <EditSheet w={edit} onClose={() => setEdit(null)} />}
     </div>
   )
