@@ -15,7 +15,7 @@ const page = await ctx.newPage()
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message))
 const W = { apple: '사과', school: '학교', tiger: '호랑이', banana: '바나나', happy: '행복한', library: '도서관', orange: '오렌지', river: '강' }
-const PICK = ['tiger', 'library', 'river']
+const PICK = ['tiger', 'library', 'river', 'apple', 'orange']
 try {
   await page.goto(BASE)
   await page.getByText('가족 만들기').click()
@@ -39,22 +39,26 @@ try {
   await page.goto(BASE + '/#/study')
   await page.getByRole('link', { name: /단어장에서 직접 고르기/ }).click()
   check('학습 → 단어장 고르기 모드로 바로 열림', await page.getByText(/0개 선택/).waitFor({ timeout: 8000 }).then(() => true, () => false))
-  check('아무것도 안 고르면 학습 버튼 잠김', await page.getByRole('button', { name: '📚 공부할 단어를 골라 주세요' }).isDisabled())
-  for (const w of PICK) await page.getByRole('checkbox', { name: `${w} 선택` }).click()
+  check('아무것도 안 고르면 학습 버튼 잠김', await page.getByRole('button', { name: '📚 5개 더 골라 주세요 (목표 5개)' }).isDisabled())
+  const bh = (await page.getByRole('button', { name: /더 골라 주세요/ }).boundingBox()).height
+  check('안내 버튼 글자가 한 줄', bh < 52, `${Math.round(bh)}px`)
+  for (const w of PICK.slice(0, 3)) await page.getByRole('checkbox', { name: `${w} 선택` }).click()
+  check('목표보다 적으면 더 고르라는 안내(버튼 잠김)', await page.getByRole('button', { name: '📚 2개 더 골라 주세요 (목표 5개)' }).isDisabled())
+  for (const w of PICK.slice(3)) await page.getByRole('checkbox', { name: `${w} 선택` }).click()
   const ov = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
   check('고르기 화면 가로 넘침 없음', ov <= 0, String(ov))
   await page.screenshot({ path: '/tmp/claude-0/pick.png' })
-  await page.getByRole('button', { name: '📚 고른 3개로 오늘 학습하기' }).click()
-  check('학습 화면으로 이동 · 오늘의 단어 3개', await page.getByText('오늘의 단어 3개').waitFor({ timeout: 8000 }).then(() => true, () => false))
+  await page.getByRole('button', { name: '📚 고른 5개로 오늘 학습하기' }).click()
+  check('학습 화면으로 이동 · 오늘의 단어 5개', await page.getByText('오늘의 단어 5개').waitFor({ timeout: 8000 }).then(() => true, () => false))
   const chips = (await page.locator('section.card ul li').allTextContents()).map((t) => t.replace('○ ', '').trim()).sort()
-  check('고른 단어만(목표 5개여도 채우지 않음)', JSON.stringify(chips) === JSON.stringify([...PICK].sort()), chips.join(','))
+  check('고른 단어만(무작위로 섞이지 않음)', JSON.stringify(chips) === JSON.stringify([...PICK].sort()), chips.join(','))
   await page.reload()
   await page.getByText(/오늘의 단어 \d개/).waitFor()
-  check('새로고침해도 고른 단어 유지', await page.getByText('오늘의 단어 3개').isVisible())
+  check('새로고침해도 고른 단어 유지', await page.getByText('오늘의 단어 5개').isVisible())
   // 뜻 쓰기 퀴즈에는 고른 단어만
   await page.goto(BASE + '/#/quiz/ko')
   const asked = new Set()
-  for (let n = 0; n < 3; n++) {
+  for (let n = 0; n < 5; n++) {
     await page.getByPlaceholder('한글 뜻').waitFor()
     const w = (await page.locator('.card p.font-title').first().textContent()).trim()
     asked.add(w)

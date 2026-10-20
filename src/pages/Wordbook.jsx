@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../App.jsx'
-import { expandStage, sortWords, statusOf, cleanEntry, MODE_FIELD, PICK_MAX } from '../lib/study.js'
+import { expandStage, sortWords, statusOf, cleanEntry, MODE_FIELD, PICK_MAX, pickNeed } from '../lib/study.js'
 import { track } from '../lib/track.js'
 import { Empty, Header, Speak, fmtDate, FitWord } from '../components/ui.jsx'
 import { speak } from '../lib/speech.js'
@@ -175,7 +175,8 @@ function EditSheet({ w, onClose }) {
 }
 
 export default function Wordbook() {
-  const { words, ready, daily, todayIds, sendToToday, chooseToday, showToast, today, removeWords } = useApp()
+  const { words, ready, daily, todayIds, sendToToday, chooseToday, showToast, today, removeWords, member } = useApp()
+  const need = pickNeed(member?.daily_goal || 5, words.length)
   const nav = useNavigate()
   // 선택해서 오늘 학습할 단어로 보내기 / 한꺼번에 지우기(이미 아는 단어 정리)
   const [pick, setPick] = useState(() => { try { return new URLSearchParams(location.hash.split('?')[1] || '').get('pick') ? new Set() : null } catch { return null } }) // null: 끔, Set: 고른 단어 id
@@ -188,14 +189,18 @@ export default function Wordbook() {
     setBusy(true); setArm(false)
     try { const n = await removeWords([...pick]); showToast(`${n}개를 단어장에서 지웠어요`); setPick(null) } catch (e) { showToast(e.message) } finally { setBusy(false) }
   }
-  function studyPicked() {
-    if (!pick?.size) return
+  async function studyPicked() {
+    if (!pick?.size || busy) return
+    if (pick.size < need) { showToast(`하루 목표 ${need}개를 채워 골라 주세요`); return }
     if (pick.size > PICK_MAX) { showToast(`한 번에 ${PICK_MAX}개까지 고를 수 있어요`); return }
-    const ids = chooseToday([...pick])
-    track('pick_today', { n: ids.length })
-    showToast(`고른 ${ids.length}개로 오늘 학습해요`)
-    setPick(null)
-    nav('/study')
+    setBusy(true)
+    try {
+      const ids = await chooseToday([...pick])
+      track('pick_today', { n: ids.length })
+      showToast(`고른 ${ids.length}개로 오늘 학습해요`)
+      setPick(null)
+      nav('/study')
+    } finally { setBusy(false) }
   }
   const todaySet = useMemo(() => new Set(ready ? todayIds() : []), [ready, todayIds, daily, today])
   function send(w) {
@@ -315,8 +320,8 @@ export default function Wordbook() {
               {counts.o > 0 && <button className="chip whitespace-nowrap" onClick={() => { setArm(false); setPick(new Set(words.filter((w) => statusOf(w) === 'o').map((w) => w.id))) }}>○ 완료만 ({counts.o})</button>}
               {pick.size > 0 && <button className="chip whitespace-nowrap" onClick={() => { setArm(false); setPick(new Set()) }}>선택 풀기</button>}
             </div>
-            <button disabled={!pick.size || busy} onClick={studyPicked} className="btn-main mt-2 w-full !py-2.5">
-              {pick.size ? `📚 고른 ${pick.size}개로 오늘 학습하기` : '📚 공부할 단어를 골라 주세요'}
+            <button disabled={pick.size < need || busy} onClick={studyPicked} className="btn-main mt-2 w-full whitespace-nowrap !px-3 !py-2.5 !text-base">
+              {pick.size >= need ? `📚 고른 ${pick.size}개로 오늘 학습하기` : `📚 ${need - pick.size}개 더 골라 주세요 (목표 ${need}개)`}
             </button>
             {pick.size > PICK_MAX && <p className="mt-1 text-center text-xs text-coral">오늘 학습은 {PICK_MAX}개까지 고를 수 있어요</p>}
             <button disabled={!pick.size || busy} onClick={delPicked}

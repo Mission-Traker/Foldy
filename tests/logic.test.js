@@ -731,13 +731,17 @@ describe('가족 펫', () => {
   })
 })
 
-import { chooseSet, resolveTodaySet as _rts } from '../src/lib/study.js'
+import { chooseSet, pickNeed, resolveTodaySet as _rts } from '../src/lib/study.js'
 describe('단어장에서 직접 고른 오늘의 단어', () => {
   const ws = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((id, i) => ({ id, word: id, seq: i + 1, ko_ok: false, en_ok: false }))
-  it('목표보다 적게 골라도 무작위로 채우지 않음', () => {
-    const c = chooseSet(['c', 'e'], 5)
-    expect(c).toEqual({ set_ids: ['c', 'e'], extra: -3 })
-    expect(_rts(ws, c.set_ids, 5, [], c.extra)).toEqual(['c', 'e'])
+  it('하루 목표만큼은 골라야 함(단어장이 작으면 그만큼)', () => {
+    expect(pickNeed(5, 100)).toBe(5)
+    expect(pickNeed(5, 3)).toBe(3)
+  })
+  it('목표만큼 고르면 고른 단어 그대로', () => {
+    const c = chooseSet(['c', 'e', 'a', 'g', 'b'], 5)
+    expect(c).toEqual({ set_ids: ['c', 'e', 'a', 'g', 'b'], extra: 0 })
+    expect(_rts(ws, c.set_ids, 5, [], c.extra)).toEqual(['c', 'e', 'a', 'g', 'b'])
   })
   it('목표보다 많이 골라도 고른 대로', () => {
     const c = chooseSet(['a', 'b', 'c', 'd', 'e', 'f', 'f'], 5)

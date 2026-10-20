@@ -274,6 +274,7 @@ export default function App() {
   }, [member, words])
 
   // 오늘 기록(맞힌 수·추천·오늘의 단어·오늘 푼 단어)은 한곳에서 순서대로 저장 — 연달아 바뀌어도 앞 값을 덮어쓰지 않게
+  const dailySave = useRef(Promise.resolve())
   const updateDaily = useCallback((fn) => {
     if (!member) return null
     const day = ymd()
@@ -284,7 +285,8 @@ export default function App() {
     const next = { ...base, ...change }
     dailyRef.current = next
     setDaily(next)
-    enqueue('daily:' + member.id, () => db.upsertDaily(next)).catch((e) => { if (isNetErr(e)) outboxAdd('daily', member.id, next) })
+    // 보낼 때의 가장 최신 기록을 보냄(밀린 저장이 한꺼번에 나가도 옛 기록이 새 기록을 덮지 않게)
+    dailySave.current = enqueue('daily:' + member.id, () => { const cur2 = dailyRef.current; return db.upsertDaily(cur2 && cur2.member_id === next.member_id && cur2.day === next.day ? cur2 : next) }).catch((e) => { if (isNetErr(e)) outboxAdd('daily', member.id, next) })
     return next
   }, [member])
 
@@ -338,10 +340,12 @@ export default function App() {
   }, [todayIds, updateDaily])
 
   // 단어장에서 고른 단어로 오늘의 단어를 정함(고른 만큼만)
-  const chooseToday = useCallback((ids) => {
+  // 저장이 끝날 때까지 기다림(바로 앱을 닫거나 새로고침해도 고른 단어가 남게)
+  const chooseToday = useCallback(async (ids) => {
     const c = chooseSet(ids, member?.daily_goal || 5)
     if (!c.set_ids.length) return []
     updateDaily(() => c)
+    await dailySave.current
     return c.set_ids
   }, [member, updateDaily])
 
