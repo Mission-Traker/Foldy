@@ -47,18 +47,19 @@ function Body({ k, c, d }) {
   )
 }
 
-function Face({ k, mood, d }) {
+function Face({ k, mood, d, blink, look }) {
   const sleepy = mood === 'sleepy'
   const happy = mood === 'happy'
+  const lx = look === 'left' ? -3 : look === 'right' ? 3 : 0
   return (
     <g>
-      {sleepy ? (
+      {sleepy || blink ? (
         <g stroke="#2E2E3A" strokeWidth="3" strokeLinecap="round" fill="none"><path d="M33 47 Q40 51 47 47" /><path d="M53 47 Q60 51 67 47" /></g>
       ) : (
         <g>
           <circle cx="40" cy="46" r="9" fill="#fff" /><circle cx="60" cy="46" r="9" fill="#fff" />
-          <circle cx={happy ? 40 : 41} cy={happy ? 44 : 47} r="4.5" fill="#2E2E3A" /><circle cx={happy ? 60 : 61} cy={happy ? 44 : 47} r="4.5" fill="#2E2E3A" />
-          <circle cx="42" cy="43" r="1.4" fill="#fff" /><circle cx="62" cy="43" r="1.4" fill="#fff" />
+          <circle cx={(happy ? 40 : 41) + lx} cy={happy ? 44 : 47} r="4.5" fill="#2E2E3A" /><circle cx={(happy ? 60 : 61) + lx} cy={happy ? 44 : 47} r="4.5" fill="#2E2E3A" />
+          <circle cx={42 + lx} cy="43" r="1.4" fill="#fff" /><circle cx={62 + lx} cy="43" r="1.4" fill="#fff" />
         </g>
       )}
       {k === 'bird' && <path d="M45 56 L55 56 L50 64 Z" fill="#E3B23C" />}
@@ -74,13 +75,13 @@ function Face({ k, mood, d }) {
   )
 }
 
-export function PetArt({ species = 'dog', mood = 'ok', size = 120, stage = 0, className = '' }) {
+export function PetArt({ species = 'dog', mood = 'ok', size = 120, stage = 0, className = '', blink = false, look = null }) {
   const s = speciesOf(species)
   return (
     <svg viewBox="0 0 100 100" width={size} height={size} className={className} aria-hidden="true" style={{ overflow: 'visible' }}>
       <Ears k={s.key} c={s.color} d={s.dark} />
       <Body k={s.key} c={s.color} d={s.dark} />
-      <Face k={s.key} mood={mood} d={s.dark} />
+      <Face k={s.key} mood={mood} d={s.dark} blink={blink} look={look} />
       {stage >= 4 && <path d="M36 14 L38 4 L45 10 L50 1 L55 10 L62 4 L64 14 Z" fill="#E3B23C" stroke="#C4962A" strokeWidth="1.2" transform="translate(0 -2)" />}
     </svg>
   )

@@ -6,6 +6,7 @@ import { Blob, Header } from '../components/ui.jsx'
 import { PetArt, SPECIES, speciesOf } from '../components/PetArt.jsx'
 import { MOOD_TEXT, PET_ACTIONS, petMood, petStage, ticketHint } from '../lib/familyPet.js'
 import { track } from '../lib/track.js'
+import usePetIdle from '../components/usePetIdle.js'
 import * as sfx from '../lib/sfx.js'
 
 // 우리 가족 펫: 가족이 함께 한 마리를 키움. 공부하면 생기는 돌봄권으로 밥·산책·목욕
@@ -55,9 +56,7 @@ export default function FamilyPet() {
         <p className="text-sm text-soft">{sp.name} · {stage.name}</p>
         <div className="relative mx-auto mt-2 flex h-[200px] items-end justify-center">
           <span className="absolute bottom-2 h-4 w-28 rounded-full bg-ink/10" aria-hidden="true" />
-          <div className={anim?.key === 'walk' ? 'pet-walk' : anim ? 'pet-joy' : mood === 'sleepy' ? '' : 'bob'}>
-            <PetArt species={p.species} mood={anim ? 'happy' : mood} size={120 + stage.i * 14} stage={stage.i} />
-          </div>
+          <LivePet species={p.species} mood={mood} stage={stage.i} size={120 + stage.i * 14} anim={anim} />
           {anim && <CareFx k={anim.key} key={anim.n} />}
         </div>
         <p className="mt-1 font-jua text-slate-deep" aria-live="polite">{anim ? '고마워요! 💛' : MOOD_TEXT[mood]}</p>
@@ -77,7 +76,7 @@ export default function FamilyPet() {
             <span className="w-9 shrink-0 text-right font-title tabular-nums text-soft">{p[a.meter]}</span>
           </div>
         ))}
-        <p className="break-keep text-[11px] text-soft">하루가 지나면 조금씩 줄어요. 오래 못 돌봐도 아프지는 않고 졸려 할 뿐이에요.</p>
+        <p className="break-keep text-[11px] text-soft">시간이 지나면 줄어요(배부름이 가장 빨리, 깨끗함이 가장 천천히). 오래 못 돌봐도 아프지는 않고 졸려 할 뿐이에요.</p>
       </section>
 
       <h3 className="mb-2 font-jua text-slate-deep">{member.name}의 돌봄권</h3>
@@ -120,6 +119,21 @@ export default function FamilyPet() {
         )}
         {week.length > 1 && <p className="mt-3 break-keep text-xs text-soft">이번 주 가장 많이 돌본 가족: {week[0].m.name} {week[0].n}번</p>}
       </section>
+    </div>
+  )
+}
+
+// 돌볼 때는 돌봄 동작, 평소엔 몇 초마다 바뀌는 귀여운 동작 + 숨쉬기·깜빡임·두리번
+export function LivePet({ species, mood, stage = 0, size = 120, anim = null }) {
+  const idle = usePetIdle(mood, !!anim)
+  return (
+    <div className="relative">
+      <div className={anim?.key === 'walk' ? 'pet-walk' : anim ? 'pet-joy' : 'pet-breathe'}>
+        <div key={idle.key} className={anim ? '' : `pet-move ${idle.cls}`}>
+          <PetArt species={species} mood={anim ? 'happy' : mood} size={size} stage={stage} blink={!anim && idle.blink} look={anim ? null : idle.look} />
+        </div>
+      </div>
+      {!anim && idle.fx && <span key={idle.key + 'fx'} className="pet-idle-fx absolute -right-1 top-0 font-jua text-xl text-slate" aria-hidden="true">{idle.fx}</span>}
     </div>
   )
 }

@@ -33,3 +33,4 @@ where ko_ok and en_ok and not coalesce(sp_ok, false) and coalesce(review_step, 0
 
 -- 2026-10-20: 오늘 학습 단어 직접 고르기 — foldy_daily_extra_check를 extra >= -50 and extra <= 200 으로(고른 수가 목표보다 적을 때 음수) · foldy_track 허용 이름에 'pick_today'
 -- 2026-10-20: foldy_track 허용 이름에 'swap_word'(다른 단어로 바꾸기)
+-- 2026-10-20: 가족 펫 감소 속도 칸마다 다르게(foldy_pet_now: 배부름 30·신남 22·깨끗함 14/일), 처음 값 60·70·80

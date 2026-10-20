@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import * as db from '../lib/db.js'
 import { PetArt } from './PetArt.jsx'
+import usePetIdle from './usePetIdle.js'
 import { MOOD_TEXT, petMood, ticketTotal } from '../lib/familyPet.js'
 
 // 홈의 '우리 가족 펫' 줄: 기분 + 지금 쓸 수 있는 돌봄권 수
@@ -18,7 +19,7 @@ export default function FamilyPetCard({ memberId, refreshKey }) {
   return (
     <Link to="/pet" className="mb-4 flex items-center gap-3 rounded-3xl border border-line bg-paper p-3 active:scale-[.99]" aria-label="우리 가족 펫">
       <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-sage/15">
-        {p ? <PetArt species={p.species} mood={petMood(p)} size={48} /> : <span className="text-3xl" aria-hidden="true">🐾</span>}
+        {p ? <MiniPet p={p} /> : <span className="text-3xl" aria-hidden="true">🐾</span>}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-jua text-slate-deep">{p ? `우리 가족 펫 ${p.name}` : '우리 가족 펫을 데려와요'}</span>
@@ -27,4 +28,9 @@ export default function FamilyPetCard({ memberId, refreshKey }) {
       {p && n > 0 ? <span className="shrink-0 rounded-full bg-tang px-2.5 py-1 font-jua text-xs text-white">돌봄권 {n}</span> : <span className="shrink-0 text-soft">›</span>}
     </Link>
   )
+}
+
+function MiniPet({ p }) {
+  const idle = usePetIdle(petMood(p))
+  return <span key={idle.key} className={`pet-move inline-block ${idle.cls}`}><PetArt species={p.species} mood={petMood(p)} size={48} blink={idle.blink} look={idle.look} /></span>
 }

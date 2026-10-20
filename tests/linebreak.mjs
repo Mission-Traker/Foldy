@@ -186,7 +186,7 @@ for (const W of WIDTHS) {
   await audit(page, '가족 펫 고르기')
   await page.getByRole('radio', { name: /햄스터/ }).click()
   await page.getByRole('button', { name: /데려오기/ }).click()
-  await page.getByText('하루가 지나면 조금씩 줄어요').waitFor()
+  await page.getByText('시간이 지나면 줄어요', { exact: false }).waitFor()
   await audit(page, '가족 펫')
   await page.goto(BASE + '/#/study')
   await page.getByRole('button', { name: '내 프로필' }).click()
