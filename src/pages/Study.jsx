@@ -4,6 +4,7 @@ import * as db from '../lib/db.js'
 import { useApp } from '../App.jsx'
 import { examPlan, expandStage, MODE_FIELD, reviewCount, statusOf, ymd, wrongDueList, WRONG_DAILY } from '../lib/study.js'
 import { Empty, Header } from '../components/ui.jsx'
+import SwapWord from '../components/SwapWord.jsx'
 import { canListen } from '../lib/speech.js'
 import { pronHereOK } from '../lib/browser.js'
 
@@ -15,6 +16,7 @@ const CARDS = [
 
 export default function Study() {
   const { words, daily, member, todayIds } = useApp()
+  const [swap, setSwap] = useState(null)
   const today = ymd()
   const isToday = daily && daily.day === today
   const due = reviewCount(words, isToday ? daily.seen_ids : [], today)
@@ -29,6 +31,7 @@ export default function Study() {
     return (
       <div>
         <Header title="학습" />
+      {swap && <SwapWord w={swap} onClose={() => setSwap(null)} />}
         <Empty title="단어장이 비어 있어요" desc="단어를 넣으면 퀴즈로 외울 수 있어요"><Link to="/add" className="btn-main mt-2">단어 추가</Link></Empty>
       </div>
     )
@@ -37,12 +40,13 @@ export default function Study() {
   return (
     <div>
       <Header title="학습" />
+      {swap && <SwapWord w={swap} onClose={() => setSwap(null)} />}
       <section className="card mb-4 p-4">
         <div className="mb-1 flex items-baseline justify-between gap-2">
           <h2 className="font-jua text-lg text-slate-deep">오늘의 단어 {setWords.length}개</h2>
           <span className="text-xs text-soft">하루 목표 {member?.daily_goal || 5}개</span>
         </div>
-        <p className="mb-3 text-sm text-soft">오늘은 이 단어들만 퀴즈에 나와요. 한 바퀴를 다 돌면 같은 단어로 다시 외워요.</p>
+        <p className="mb-3 text-sm text-soft">오늘은 이 단어들만 퀴즈에 나와요. 이미 아는 단어는 눌러서 다른 단어로 바꿀 수 있어요.</p>
         <Link to="/book?pick=1" className="mb-3 flex items-center justify-between gap-2 rounded-2xl border-2 border-slate/30 bg-slate/5 px-3 py-2 text-sm">
           <span className="min-w-0 break-keep"><b className="font-jua text-slate-deep">📒 단어장에서 직접 고르기</b><span className="block text-xs text-soft">아는 단어는 빼고 공부할 단어만 골라요</span></span>
           <span className="shrink-0 text-soft">›</span>
@@ -52,8 +56,10 @@ export default function Study() {
             {setWords.map((w) => {
               const st = statusOf(w)
               return (
-                <li key={w.id} className={`rounded-full border-2 px-2.5 py-1 font-title text-sm ${st === 'o' ? 'border-sage bg-sage/15 text-[#5E7F4B]' : st === 't' ? 'border-mustard/60 bg-mustard/10 text-ink' : 'border-line bg-white text-ink'}`}>
-                  {st === 'o' ? '○ ' : ''}{w.word}
+                <li key={w.id}>
+                  <button onClick={() => setSwap(w)} aria-label={`${w.word} 바꾸기`} className={`flex items-center gap-1 rounded-full border-2 py-1 pl-2.5 pr-2 font-title text-sm ${st === 'o' ? 'border-sage bg-sage/15 text-[#5E7F4B]' : st === 't' ? 'border-mustard/60 bg-mustard/10 text-ink' : 'border-line bg-white text-ink'}`}>
+                    {st === 'o' ? '○ ' : ''}{w.word}<span className="text-xs text-soft" aria-hidden="true">🔄</span>
+                  </button>
                 </li>
               )
             })}

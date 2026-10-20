@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import * as db from './lib/db.js'
 import { enrichPending, personalize, storyOn } from './lib/enrich.js'
-import { chooseSet, enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, sendToSet, ymd, gnawDays, pickGnawWords, reviewCount, wrongDue, ENOUGH_X } from './lib/study.js'
+import { chooseSet, markKnown, enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, sendToSet, ymd, gnawDays, pickGnawWords, reviewCount, wrongDue, ENOUGH_X } from './lib/study.js'
 import { BottomNav, Confetti, Toast } from './components/ui.jsx'
 import { fanfare } from './lib/sfx.js'
 import { levelProgress, normLevel } from './lib/levels.js'
@@ -340,6 +340,23 @@ export default function App() {
   }, [todayIds, updateDaily])
 
   // 단어장에서 고른 단어로 오늘의 단어를 정함(고른 만큼만)
+  // 오늘의 단어 하나를 다른(아직 모르는) 단어로 바꿈 — known이면 원래 단어는 ○로 표시
+  // 오늘 바꿔서 뺀 단어는 그날 다시 들어오지 않음
+  const swapped = useRef({ day: '', ids: new Set() })
+  const swapToday = useCallback(async (id, known) => {
+    const cur = todayIds()
+    if (!cur.includes(id)) return null
+    if (swapped.current.day !== ymd()) swapped.current = { day: ymd(), ids: new Set() }
+    const cand = nextCandidates(words, [...cur, ...swapped.current.ids, id], prevSet)[0]
+    if (!cand) return null
+    swapped.current.ids.add(id)
+    const w = words.find((x) => x.id === id)
+    if (known && w) await patchWord(id, markKnown(w))
+    updateDaily(() => ({ set_ids: cur.map((x) => (x === id ? cand.id : x)) }))
+    await dailySave.current
+    return cand
+  }, [todayIds, words, prevSet, patchWord, updateDaily])
+
   // 저장이 끝날 때까지 기다림(바로 앱을 닫거나 새로고침해도 고른 단어가 남게)
   const chooseToday = useCallback(async (ids) => {
     const c = chooseSet(ids, member?.daily_goal || 5)
@@ -360,8 +377,8 @@ export default function App() {
 
   const value = useMemo(() => ({
     session, setSession, members, setMembers, member, patchMemberLocal: (patch) => { setMember((m) => (m ? { ...m, ...patch } : m)); setMembers((ms) => ms.map((x) => (member && x.id === member.id ? { ...x, ...patch } : x))) }, setMember: (m) => { if (member && member.has_pin && member.id !== m?.id) db.forgetMemberToken(member.id); db.saveMemberId(m?.id || null); setMember(m); setWords([]); setLoadedFor(null); setLoadTry((n) => n + 1); dailyRef.current = null; setDaily(null); enrichedOnce.current = null; if (m) navTo('/') },
-    openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, updateDaily, patchWord, addWords, removeWord, removeWords, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, chooseToday, remakeStory, showToast, aiState, runEnrich, today,
-  }), [today, session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, removeWords, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, chooseToday, remakeStory, showToast, aiState, runEnrich])
+    openProfile: () => setProfileOpen(true), openIntro: () => setIntroOpen(true), words, setWords, loading, ready: !!member && loadedFor === member.id, daily, setDaily, updateDaily, patchWord, addWords, removeWord, removeWords, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, chooseToday, swapToday, remakeStory, showToast, aiState, runEnrich, today,
+  }), [today, session, members, member, words, loading, loadedFor, daily, updateDaily, patchWord, addWords, removeWord, removeWords, updateMember, bumpDaily, markSeen, todayIds, ensureTodaySet, extendTodaySet, sendToToday, chooseToday, swapToday, remakeStory, showToast, aiState, runEnrich])
 
   const wrongCount = words.filter((w) => wrongDue(w)).length // 오늘 다시 볼 단어만 배지로
   // 오래 쉬었다 들어오면(또는 학습 알림으로 들어오면) 하루 한 번 '갉아먹기' 장면 — 단어는 그대로

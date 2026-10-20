@@ -50,7 +50,7 @@ try {
   await page.screenshot({ path: '/tmp/claude-0/pick.png' })
   await page.getByRole('button', { name: '📚 고른 5개로 오늘 학습하기' }).click()
   check('학습 화면으로 이동 · 오늘의 단어 5개', await page.getByText('오늘의 단어 5개').waitFor({ timeout: 8000 }).then(() => true, () => false))
-  const chips = (await page.locator('section.card ul li').allTextContents()).map((t) => t.replace('○ ', '').trim()).sort()
+  const chips = (await page.locator('section.card ul li').allTextContents()).map((t) => t.replace(/[○🔄]/g, '').trim()).sort()
   check('고른 단어만(무작위로 섞이지 않음)', JSON.stringify(chips) === JSON.stringify([...PICK].sort()), chips.join(','))
   await page.reload()
   await page.getByText(/오늘의 단어 \d개/).waitFor()

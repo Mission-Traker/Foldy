@@ -89,7 +89,7 @@ try {
   check('새로고침 때 로그인·프로필 화면이 비치지 않음', !(await page.evaluate(() => localStorage.getItem('e2e.flash'))))
   await page.goto(BASE + '/#/study')
   await page.getByText('오늘의 단어 5개').waitFor({ timeout: 8000 })
-  check('학습 화면 오늘의 단어 5개, 보낸 단어가 맨 앞', ((await page.locator('ul li.font-title').first().textContent()) || '').includes(tw), await page.locator('ul li.font-title').first().textContent())
+  check('학습 화면 오늘의 단어 5개, 보낸 단어가 맨 앞', ((await page.locator('ul li button.font-title').first().textContent()) || '').includes(tw), await page.locator('ul li button.font-title').first().textContent())
   await page.goto(BASE + '/#/')
   await page.getByRole('progressbar').waitFor({ timeout: 8000 })
   check('홈 레벨업 게이지(Lv.01 · 0/90)', (await page.getByRole('progressbar').getAttribute('aria-valuemax')) === '90' && (await page.locator('body').textContent()).includes('0/90'))

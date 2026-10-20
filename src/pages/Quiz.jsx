@@ -14,6 +14,7 @@ import MicPicker from '../components/MicPicker.jsx'
 import PronSheet from '../components/PronSheet.jsx'
 import { savedMic } from '../lib/mic.js'
 import { track } from '../lib/track.js'
+import SwapWord from '../components/SwapWord.jsx'
 
 // 완료 도전: 오늘의 단어 중 ✕·△ 단어의 아직 못 맞힌 퀴즈만 모아서(단어 하나만 고를 수도 있음)
 function focusQueue(words, ids, setIds) {
@@ -64,6 +65,7 @@ export default function Quiz() {
   const [listening, setListening] = useState(false)
   const [judging, setJudging] = useState(false)
   const [pron, setPron] = useState(false)
+  const [swap, setSwap] = useState(false)
   const inputRef = useRef()
   const endSound = useRef(false)
   const item = queue?.[idx]
@@ -335,6 +337,14 @@ export default function Quiz() {
           <button type="button" onClick={() => setPron(true)} className="chip border-slate text-slate-deep">🎧 더 정확한 발음 들어보기</button>
         )}
       </div>
+      {!res && item && !item.review && src !== 'wrong' && setIds.includes(item.id) && (
+        <button type="button" onClick={() => setSwap(true)} className="mx-auto -mt-2 mb-3 block py-1 text-sm text-soft underline">🔄 다른 단어로 바꾸기</button>
+      )}
+      {swap && w && <SwapWord w={w} onClose={() => setSwap(false)} onSwapped={(n) => {
+        const old = w.id
+        setSetIds((ids) => ids.map((x) => (x === old ? n.id : x)))
+        setQueue((q) => q.map((it) => (it.id === old ? { ...it, id: n.id } : it)))
+      }} />}
 
       {qmode === 'sp' ? (
         (!res || res.retry) && selfMode ? (

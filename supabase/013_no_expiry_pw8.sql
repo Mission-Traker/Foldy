@@ -32,3 +32,4 @@ where ko_ok and en_ok and not coalesce(sp_ok, false) and coalesce(review_step, 0
 -- foldy_pet_get / foldy_pet_adopt / foldy_pet_rename / foldy_pet_care(+35, xp+5) · foldy_track 허용 이름에 'pet'
 
 -- 2026-10-20: 오늘 학습 단어 직접 고르기 — foldy_daily_extra_check를 extra >= -50 and extra <= 200 으로(고른 수가 목표보다 적을 때 음수) · foldy_track 허용 이름에 'pick_today'
+-- 2026-10-20: foldy_track 허용 이름에 'swap_word'(다른 단어로 바꾸기)

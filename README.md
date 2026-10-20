@@ -62,6 +62,11 @@
 - 😱 갉아먹기 장면: 이틀 이상 쉬었거나 학습 알림으로 들어오면 하루 한 번, 캐릭터들이 단어 3개를 갉아먹는 연출 → '복습하고 되찾기'. 단어장 내용은 바뀌지 않음
 - 연속 학습일(🔥, 하루라도 빠지면 0으로 표시), 하루 목표 기본 5개(홈 '✎ 목표 바꾸기'·내 정보에서 1~50개로 조절) — 목표 수만큼 오늘의 추천 단어가 나옴
 
+## 학습 중 다른 단어로 바꾸기
+- 학습 화면의 오늘의 단어 칩(🔄)을 누르거나, 퀴즈 문제 아래 '🔄 다른 단어로 바꾸기'
+- ✅ 이미 알아요: 그 단어를 ○로 표시(3일 뒤 확인)하고 아직 모르는 단어로 교체 · 🔄 그냥 다른 단어로: 표시 없이 교체
+- 오늘의 단어 개수는 그대로, 그날 뺀 단어는 다시 들어오지 않음(`swapToday`), 퀴즈 중이면 지금 문제가 바로 새 단어로 바뀜
+
 ## 오늘 학습할 단어 직접 고르기
 - 학습 화면 '📒 단어장에서 직접 고르기' 또는 단어장 '☑ 선택' → 공부할 단어를 골라 '📚 고른 N개로 오늘 학습하기'(최대 30개)
 - 하루 목표 개수만큼은 골라야 학습 버튼이 열림(단어장이 목표보다 작으면 있는 만큼) · 목표보다 많이 고르면 그만큼 오늘의 단어가 늘어남(`chooseSet` → extra)
@@ -205,6 +210,7 @@ BASE=http://localhost:4173 node tests/e2e-pron.mjs     # 소개 건너뛰기·�
 PHASE=a FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 아니면 잠김 5개 → SQL로 그 가족 구성원을 foldy_admins에 넣고
 PHASE=b FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 페이지 4개 탭·유료 AI 없음·랜딩 미리보기·숫자 비밀번호·재방문 지표 18개
 BASE=http://localhost:4173 node tests/e2e-streak.mjs   # 연속 학습일 9개
+BASE=http://localhost:4173 node tests/e2e-swap.mjs     # 학습 화면·퀴즈에서 다른 단어로 바꾸기 9개
 BASE=http://localhost:4173 node tests/e2e-pick.mjs     # 단어장에서 고른 단어만 오늘 학습·퀴즈 8개
 BASE=http://localhost:4173 node tests/e2e-pet.mjs      # 가족 펫: 데려오기·돌봄권·돌보기·같은 펫·서버 거절·이름 바꾸기 21개
 BASE=http://localhost:4173 node tests/e2e-race.mjs     # 느린 망: 가입 직후 첫 구성원이 사라지지 않음 1개

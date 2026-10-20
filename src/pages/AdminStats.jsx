@@ -6,12 +6,12 @@ const EVENT = {
   intro: '소개 슬라이드', auth_view: '가입·로그인 화면', signup: '가족 만들기', login: '로그인', member_add: '구성원 추가',
   add_words: '단어 담기', photo: '사진으로 단어', quiz_start: '퀴즈 시작', quiz_end: '퀴즈 끝까지', wrong_end: '다시 익히기 끝',
   sort_end: '아는 단어 거르기 끝', share_week: '성장 카드 공유', pron: '발음 연습', push_on: '알림 켜기', survey: '베타 설문',
-  feedback: '수정요청 보냄', nudge: '가족 깨우기', pet: '가족 펫', pick_today: '단어장에서 오늘 학습 고르기',
+  feedback: '수정요청 보냄', nudge: '가족 깨우기', pet: '가족 펫', pick_today: '단어장에서 오늘 학습 고르기', swap_word: '다른 단어로 바꾸기',
 }
 const SUB = {
   skip: '건너뜀', done: '끝까지', direct: '직접', invited: '소개', photo: '사진', manual: '직접 적기', recommend: '추천 단어', family: '가족 단어',
   ai: 'AI', ocr: '기기 글자 인식', self: '내 목소리', auto: '자동 채점', ko: '뜻 쓰기', en: '철자 쓰기', sp: '발음', daily: '오늘의 한 판',
-  review: '복습', feed: '밥', walk: '산책', bath: '목욕', focus: '오늘의 단어', dict: '듣고 쓰기', cloze: '빈칸 채우기', login: '로그인 탭', signup: '가입 탭', forgot: '비밀번호 찾기',
+  review: '복습', feed: '밥', known: '이미 알아요', other: '그냥 바꾸기', walk: '산책', bath: '목욕', focus: '오늘의 단어', dict: '듣고 쓰기', cloze: '빈칸 채우기', login: '로그인 탭', signup: '가입 탭', forgot: '비밀번호 찾기',
 }
 const PAGE = {
   '/': '홈', '/book': '단어장', '/add': '단어 추가', '/study': '학습', '/wrong': '오답노트', '/wrong/practice': '다시 익히기', '/me': '내 정보',

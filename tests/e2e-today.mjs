@@ -65,7 +65,7 @@ try {
   await page.getByText('‘teacher’를 먼저 학습해요').waitFor()
   await page.goto(BASE + '/#/study')
   await page.getByText('오늘의 단어 10개').waitFor()
-  check('보낸 단어가 맨 앞, 여전히 10개', ((await page.locator('ul li.font-title').first().textContent()) || '').includes('teacher'))
+  check('보낸 단어가 맨 앞, 여전히 10개', ((await page.locator('ul li button.font-title').first().textContent()) || '').includes('teacher'))
 } catch (e) { check('예외 없이 완료', false, e.message.split('\n')[0]) }
 check('페이지 오류 없음', errors.length === 0, errors.join(' | '))
 await browser.close()
