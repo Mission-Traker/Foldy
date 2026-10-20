@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Blob } from './ui.jsx'
 import { tap } from '../lib/sfx.js'
+import { track } from '../lib/track.js'
 
 // 처음 접속하면 뜨는 소개 슬라이드 — 아이콘 3개가 하나씩 나오며 주요 기능을 알려 주고, 마지막에 '폴디 시작하기'
 const KEY = 'foldy.introSeen'
@@ -38,7 +39,7 @@ export default function Intro({ onDone }) {
   const last = i === SLIDES.length - 1
 
   const go = (n) => { if (n < 0 || n >= SLIDES.length) return; tap(); setI(n) }
-  const finish = () => { markSeen(); onDone() }
+  const finish = () => { track('intro', { kind: last ? 'done' : 'skip', at: i + 1 }); markSeen(); onDone() }
 
   useEffect(() => {
     const onKey = (e) => {

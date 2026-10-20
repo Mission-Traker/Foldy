@@ -9,6 +9,7 @@ import { cleanEntry, parseLines } from '../lib/study.js'
 import { Blob, Header, Speak } from '../components/ui.jsx'
 import PhotoWait from '../components/PhotoWait.jsx'
 import * as sfx from '../lib/sfx.js'
+import { track } from '../lib/track.js'
 
 // 직접 적기: 영어나 한글을 치는 동안 바로 찾아 주고, 탭하면 단어장에 담김
 function SearchAdd() {
@@ -165,6 +166,7 @@ export default function AddWords() {
           got = await ocrCanvas(pic.canvas, (p) => setWait((w) => (w ? { ...w, ocrProgress: p } : w)), known)
         } catch (err) { failed.push({ name: f.name, reason: '글자 인식 실패: ' + err.message }); continue }
       }
+      track('photo', { ok: got.length > 0, via: aiDown ? 'ocr' : 'ai', n: got.length })
       if (!got.length) { failed.push({ name: f.name, reason: '단어를 찾지 못했어요(더 밝고 반듯하게 찍어 주세요)' }); continue }
       // 뜻이 빠진 단어는 내장 사전으로 채움
       const dict = await loadDict()

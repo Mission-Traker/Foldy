@@ -1,5 +1,6 @@
 // 알림(웹 푸시) 켜기·끄기 — 서비스워커는 main.jsx에서 등록
 import { sb } from './db.js'
+import { track } from './track.js'
 
 export const VAPID_PUBLIC = 'BNHHCGODwfQEhLmXdKs178ZcP3p1fvhoVx3IbbWySQt5-l_t3mEdabf2Vcu96uj2zKdy0L7qxHEvmvVOJ3a-1cQ'
 const b64 = (s) => { const p = '='.repeat((4 - (s.length % 4)) % 4); const r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, (c) => c.charCodeAt(0)) }
@@ -24,6 +25,7 @@ export async function enablePush(memberId) {
   const { data, error } = await sb().rpc('foldy_push_subscribe', { p_member: memberId || null, p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth })
   if (error || data?.error) throw new Error('알림 등록에 실패했어요')
   try { localStorage.setItem('foldy.pushMember', memberId || '') } catch { /* */ }
+  track('push_on')
   return sub
 }
 export async function disablePush() {

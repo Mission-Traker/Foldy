@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { speak } from '../lib/speech.js'
 import { meter, openMic, savedMic } from '../lib/mic.js'
+import { track } from '../lib/track.js'
 
 // 내 목소리로 확인하는 발음 연습 — 음성 인식(자동 채점)이 안 되는 곳에서도 되는 방법
 // ① 정답 발음 듣기 → ② 녹음(3초) → ③ 내 목소리와 정답을 번갈아 들어 보고 → ④ '비슷해요'면 통과
@@ -16,7 +17,8 @@ async function getStream() {
   }
 }
 
-export default function SelfPron({ word, onResult, busy }) {
+export default function SelfPron({ word, onResult: done, busy }) {
+  const onResult = (ok) => { track('pron', { via: 'self', ok }); done(ok) }
   const [phase, setPhase] = useState(canRecord() ? 'idle' : 'nomic') // idle · rec · got · nomic
   const [level, setLevel] = useState(0)
   const [url, setUrl] = useState('')

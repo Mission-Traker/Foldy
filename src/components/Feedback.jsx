@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import * as db from '../lib/db.js'
+import { track } from '../lib/track.js'
 
 // 앱 수정요청 — 멘토링대학교 '앱 수정요청하기'·'수정요청함'과 같은 구조(유형·영역 토글 + 상세 글 / 5단계 상태 + 답장)
 export const TYPES = ['🐞 버그·오류', '🧩 화면이 이상해요', '😣 불편해요', '💡 이런 기능 원해요', '🙋 기타']
@@ -32,6 +33,7 @@ export function FeedbackSheet({ memberName, onClose, onSent }) {
     if (!c || busy) return
     setBusy(true); setErr('')
     try {
+      track('feedback', { kind: type.replace(/^\S+\s/, '') })
       const row = await db.addFeedback({ member_name: memberName, category: type.replace(/^\S+\s/, ''), area: area || null, content: c.slice(0, 2000) })
       setSent(true); onSent?.(row)
       setTimeout(onClose, 1400)

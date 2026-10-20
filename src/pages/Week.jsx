@@ -5,6 +5,7 @@ import { familyGoal, liveStreak, statusOf, weekStart, weekSummary, ymd } from '.
 import { Blob, Header } from '../components/ui.jsx'
 import { weekCardBlob } from '../lib/shareCard.js'
 import { FAMILY_GOAL_BONUS, goalBonusReady, withGoalBonus } from '../lib/pet.js'
+import { track } from '../lib/track.js'
 
 const DOW = ['월', '화', '수', '목', '금', '토', '일']
 
@@ -34,6 +35,7 @@ export default function Week() {
   async function wake(m) {
     try {
       const r = await db.nudge(member.id, m.id)
+      track('nudge')
       setNudged((s) => new Set([...s, m.id]))
       showToast(r === 'already' ? `오늘은 이미 ${m.name}를 깨웠어요` : `👏 ${m.name}에게 알림을 보냈어요`)
     } catch (e) { showToast(e.message) }
@@ -42,6 +44,7 @@ export default function Week() {
   // 이미지 카드로 공유(안 되면 글로)
   async function share() {
     if (busy) return
+    track('share_week')
     setBusy(true)
     try {
       const blob = await weekCardBlob({ name: member.name, start, sum, o, streak })

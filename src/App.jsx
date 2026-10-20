@@ -31,6 +31,7 @@ import Sort from './pages/Sort.jsx'
 import Week from './pages/Week.jsx'
 import InAppBanner from './components/InAppBanner.jsx'
 import ProfileSheet from './components/ProfileSheet.jsx'
+import { pagePath, track } from './lib/track.js'
 
 const Ctx = createContext(null)
 export const useApp = () => useContext(Ctx)
@@ -58,6 +59,9 @@ export default function App() {
   const tracker = useRef(new PatchTracker())
   const loc = useLocation()
   const navTo = useNavigate()
+
+  // 화면 이동 기록(분석용)
+  useEffect(() => { track('pv', { p: pagePath(loc.pathname) }) }, [loc.pathname])
 
   const showToast = useCallback((msg) => {
     setToastMsg(msg)
@@ -240,6 +244,7 @@ export default function App() {
 
   const addWords = useCallback(async (entries, source) => {
     const { added, skipped } = await db.addWords(member.id, entries, source)
+    track('add_words', { method: source || 'etc', n: added.length })
     // 연달아 담아도 앞에 담은 단어가 사라지지 않게(최신 목록에 덧붙임)
     setWords((ws) => [...ws, ...added.filter((a) => !ws.some((w) => w.id === a.id))])
     runEnrich(added)

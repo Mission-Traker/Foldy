@@ -5,6 +5,7 @@ import { LEVELS, levelLabel } from '../lib/levels.js'
 import { Blob } from '../components/ui.jsx'
 import PinPad from '../components/PinPad.jsx'
 import { Link } from 'react-router-dom'
+import { track } from '../lib/track.js'
 
 export function MemberForm({ onDone, onCancel }) {
   const { setMembers, showToast } = useApp()
@@ -19,6 +20,7 @@ export function MemberForm({ onDone, onCancel }) {
     try {
       const m = { ...(await db.addMember({ name: name.trim().slice(0, 20), avatar, level })), _new: true }
       setMembers((ms) => [...ms, m])
+      track('member_add', { kind: level })
       onDone?.(m)
     } catch (err) { showToast(err.message) } finally { setBusy(false) }
   }

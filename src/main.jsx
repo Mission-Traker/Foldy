@@ -4,8 +4,10 @@ import { HashRouter } from 'react-router-dom'
 import App from './App.jsx'
 import './index.css'
 import { installErrorLog, report } from './lib/errorlog.js'
+import { startTracking } from './lib/track.js'
 
 installErrorLog()
+startTracking()
 
 // 화면을 그리다 오류가 나면 흰 화면 대신 안내 + 오류 기록
 class ErrorBoundary extends React.Component {

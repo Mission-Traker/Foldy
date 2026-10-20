@@ -247,6 +247,9 @@ async function rpcOrThrow(fn, args) {
   return data
 }
 export const adminOverview = () => rpcOrThrow('foldy_admin_overview')
+export const adminAnalytics = (days = 14, tests = false) => rpcOrThrow('foldy_admin_analytics', { p_days: days, p_tests: tests })
+// 사용 기록 보내기(실패해도 조용히)
+export const trackEvents = (dev, events, test) => client.rpc('foldy_track', { p_dev: dev, p_events: events, p_test: !!test }).then(() => {}, () => {})
 export const adminFamilies = (tests = false) => rpcOrThrow('foldy_admin_families', { p_tests: tests })
 export const adminCleanupTests = () => rpcOrThrow('foldy_admin_cleanup_tests')
 // 관리자 본인(가족 중 관리자로 정한 한 사람)인지 — 수정요청 알림·수정요청함 링크는 이 사람에게만

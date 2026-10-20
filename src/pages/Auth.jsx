@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
 import { Blob } from '../components/ui.jsx'
 import { PrivacySheet } from '../components/Privacy.jsx'
 import { RecoveryCodeCard } from '../components/Account.jsx'
+import { track } from '../lib/track.js'
 
 // preview: 관리자 페이지의 랜딩 미리보기 — 실제 가입·로그인은 하지 않음(지금 로그인이 풀리지 않게)
 export default function Auth({ preview = false }) {
@@ -11,6 +12,7 @@ export default function Auth({ preview = false }) {
   // 친구 가족이 보낸 소개 링크(?from=이름)로 왔으면 가족 만들기부터
   const invitedBy = (() => { try { return (new URLSearchParams(location.search).get('from') || '').replace(/[<>]/g, '').slice(0, 20) } catch { return '' } })()
   const [tab, setTab] = useState(invitedBy ? 'signup' : 'login')
+  useEffect(() => { track('auth_view', { kind: tab }) }, [tab])
   const [f, setF] = useState({ login: '', pw: '', name: '' })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -34,6 +36,7 @@ export default function Auth({ preview = false }) {
     setBusy(true)
     try {
       const s = tab === 'login' ? await db.login(loginId, f.pw) : await db.signup(loginId, f.pw, f.name.trim().slice(0, 30))
+      track(tab === 'login' ? 'login' : 'signup', { kind: invitedBy ? 'invited' : 'direct' })
       if (tab === 'signup') {
         db.markGuardian().catch(() => {})
         if (invitedBy) db.markInvited(invitedBy).catch(() => {})

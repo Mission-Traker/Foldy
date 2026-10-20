@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as db from '../lib/db.js'
 import { daysUntil, ymd } from '../lib/study.js'
+import { track } from '../lib/track.js'
 
 // 베타 설문: 가입 3일째·7일째에 한 번씩 '폴디 어땠어요?'(별점 + 한 줄) → 수정요청함에 '베타 설문'으로 들어감
 const KEY = (id) => `foldy.survey.${id}`
@@ -37,6 +38,7 @@ export default function SurveyPrompt({ member, showToast }) {
     if (!stars || busy) return
     setBusy(true)
     try {
+      track('survey', { kind: `day${n}`, ok: stars })
       await db.addFeedback({ member_name: member.name, category: '베타 설문', area: `${n}일째 · ${'★'.repeat(stars)}`, content: text.trim().slice(0, 300) || `별점 ${stars}점` })
       showToast('고마워요! 더 좋은 폴디로 만들게요 💛')
       close()

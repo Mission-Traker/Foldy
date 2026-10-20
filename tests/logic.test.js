@@ -694,3 +694,18 @@ describe('오답노트는 틀린(모르는) 단어만', () => {
     expect(wrongNotePatch({ wrong_modes: ['en'] }, 'ko', true)).toEqual({})
   })
 })
+
+import { pagePath, sourceOf } from '../src/lib/track.js'
+describe('사용 분석: 개인 값 없이 화면·유입만', () => {
+  it('화면 이름에서 id·숫자는 지움', () => {
+    expect(pagePath('/quiz/ko')).toBe('/quiz/ko')
+    expect(pagePath('/word/3f2a1b4c-1111-2222-3333-444455556666')).toBe('/word/:id')
+    expect(pagePath('/exam/12')).toBe('/exam/:n')
+  })
+  it('들어온 곳', () => {
+    expect(sourceOf('?src=insta_ad', 'x', '')).toBe('insta_ad')
+    expect(sourceOf('?from=김씨네', 'x', '')).toBe('friend')
+    expect(sourceOf('', 'Mozilla KAKAOTALK 10.0', '')).toBe('kakao')
+    expect(sourceOf('', 'Mozilla', '')).toBe('')
+  })
+})

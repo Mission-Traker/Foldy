@@ -12,6 +12,7 @@ import SelfPron from '../components/SelfPron.jsx'
 import MyAnswer from '../components/MyAnswer.jsx'
 import { Blob, Empty, FitWord, Header, Reaction } from '../components/ui.jsx'
 import * as sfx from '../lib/sfx.js'
+import { track } from '../lib/track.js'
 
 // 오답노트 다시 익히기: ① 다시 보기 → ② 쉬운 문제(뜻 고르기) → ③ 원래 틀린 방식으로 다시 풀기
 // ③을 모두 맞히면 '서로 다른 날 3번' 중 1번이 채워지고, 3번 채우면 오답노트에서 졸업
@@ -119,6 +120,7 @@ export default function WrongPractice() {
     .filter((w) => pronOK || w.wrong_modes.some((m) => m !== 'sp'))
     .filter((w) => !list.some((x) => x.id === w.id) || (results[w.id]?.ok === false && !results[w.id]?.partial))
   const grads = list.filter((w) => results[w.id]?.patch?.wrong_grad)
+  if (!session.tracked) { session.tracked = true; track('wrong_end', { n: list.length, kind: `grad${grads.length}` }) }
   return (
     <div>
       <Header noProfile title="다시 익히기" back="/wrong" />

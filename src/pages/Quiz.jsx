@@ -13,6 +13,7 @@ import * as sfx from '../lib/sfx.js'
 import MicPicker from '../components/MicPicker.jsx'
 import PronSheet from '../components/PronSheet.jsx'
 import { savedMic } from '../lib/mic.js'
+import { track } from '../lib/track.js'
 
 // 완료 도전: 오늘의 단어 중 ✕·△ 단어의 아직 못 맞힌 퀴즈만 모아서(단어 하나만 고를 수도 있음)
 function focusQueue(words, ids, setIds) {
@@ -54,6 +55,7 @@ export default function Quiz() {
     setSetIds(ids)
     let q = buildQueue(words, mode, src, params.get('ids')?.split(',').filter(Boolean), ids, seenToday())
     setQueue(q)
+    track('quiz_start', { mode, src: src || '', n: q.length })
   }, [ready]) // eslint-disable-line
   const [idx, setIdx] = useState(0)
   const [input, setInput] = useState('')
@@ -116,6 +118,7 @@ export default function Quiz() {
     const perfect = score.ok === score.total
     if (!endSound.current) {
       endSound.current = true
+      track('quiz_end', { mode, n: score.total, ok: score.ok })
       setTimeout(() => (perfect || mode === 'daily' ? sfx.fanfare() : sfx.correct()), 50)
       if (mode === 'daily') setTimeout(() => updateDaily((d) => (d.run_done ? null : { run_done: true })), 0)
     }
@@ -240,6 +243,7 @@ export default function Quiz() {
       const alts = await listenOnce({ deviceId: savedMic() })
       const score = speechScore(alts, w.word)
       const heard = alts[0]?.t
+      track('pron', { via: 'auto', ok: score >= SPEECH_PASS })
       if (score >= SPEECH_PASS) record(true, { heard, score })
       else { sfx.wrong(); markSeen(w.id); setSpFails((n) => n + 1); setRes({ ok: false, retry: true, heard: heard || '(잘 안 들렸어요)', score }) }
     } catch (err) {

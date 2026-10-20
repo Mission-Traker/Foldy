@@ -21,3 +21,7 @@ where ko_ok and en_ok and not coalesce(sp_ok, false) and coalesce(review_step, 0
 -- alter table foldy_families add column invited_by text;
 -- foldy_mark_invited(p_from): 가입 하루 안, 비어 있을 때만 기록 · foldy_admin_retention에 invited·invited7·inviters 추가
 -- 오답노트 정리: 이미 그 방식으로 맞힌(ko_ok/en_ok/sp_ok) 모드는 wrong_modes에서 뺌(일회성)
+
+-- 2026-10-20: 베타 사용 분석
+-- foldy_events(dev·family_id·member_id·name·props·test, RLS 켬·정책 없음) + foldy_track(p_dev, p_events, p_test): 이름 허용 목록, 기기 하루 800·전체 하루 10만
+-- foldy_admin_analytics(p_days, p_tests): 관리자만. foldy_cleanup에 180일 지난 기록 삭제 추가

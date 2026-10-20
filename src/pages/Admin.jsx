@@ -6,6 +6,7 @@ import { INVITE_URL } from '../components/Account.jsx'
 import * as db from '../lib/db.js'
 import { Header } from '../components/ui.jsx'
 import { FeedbackHead, ReplyBubble } from '../components/Feedback.jsx'
+import AdminStats from './AdminStats.jsx'
 
 // 관리자 페이지: 한눈에(통계) · 가족(현황·테스트 가족 정리) · 수정요청함 · 랜딩 미리보기
 // 관리자 › 수정요청함 — 멘토링대학교 수정요청함과 같은 구조(상태 필터 · 확인/보류/완료 · 답장 · 삭제)
@@ -29,13 +30,14 @@ export default function Admin() {
   return (
     <div>
       <Header title="관리자" back="/me" />
-      <nav className="mb-4 grid grid-cols-5 gap-1 rounded-full bg-paper p-1 ring-1 ring-line" aria-label="관리자 메뉴">
+      <nav className="mb-4 grid grid-cols-3 gap-1 rounded-3xl bg-paper p-1 ring-1 ring-line" aria-label="관리자 메뉴">
         {TABS.map(([k, l]) => (
           <button key={k} onClick={() => setParams({ tab: k }, { replace: true })} aria-pressed={tab === k}
             className={`whitespace-nowrap rounded-full py-2 font-jua text-[13px] ${tab === k ? 'bg-slate-deep text-white' : 'text-soft'}`}>{l}</button>
         ))}
       </nav>
       {tab === 'home' && <Overview go={(k) => setParams({ tab: k }, { replace: true })} />}
+      {tab === 'stats' && <AdminStats />}
       {tab === 'families' && <Families />}
       {tab === 'feedback' && <FeedbackInbox />}
       {tab === 'errors' && <Errors />}
@@ -44,7 +46,7 @@ export default function Admin() {
   )
 }
 
-const TABS = [['home', '한눈에'], ['families', '가족'], ['feedback', '수정요청'], ['errors', '오류'], ['landing', '랜딩']]
+const TABS = [['home', '한눈에'], ['stats', '분석'], ['families', '가족'], ['feedback', '수정요청'], ['errors', '오류'], ['landing', '랜딩']]
 const AI_LABEL = { free_text: '무료 AI 글', free_vision: '무료 AI 사진' }
 const dayLabel = (d) => { if (!d) return '기록 없음'; const [, m, dd] = String(d).slice(0, 10).split('-').map(Number); return `${m}/${dd}` }
 

@@ -5,6 +5,7 @@ import { markKnown, statusOf } from '../lib/study.js'
 import { speak } from '../lib/speech.js'
 import { Blob, Empty, FitWord, Header } from '../components/ui.jsx'
 import * as sfx from '../lib/sfx.js'
+import { track } from '../lib/track.js'
 
 // 쌓인 단어 정리 도우미: 아직 안 배운 단어를 한 장씩 넘기며 '알아요(바로 ○)' · '배울게요' · '지우기'
 export default function Sort() {
@@ -30,6 +31,7 @@ export default function Sort() {
     )
   }
   if (i >= ids.length) {
+    if (!start.tracked) { start.tracked = true; track('sort_end', { n: ids.length, kind: `known${tally.known}` }) }
     return (
       <div className="flex min-h-[70vh] flex-col items-center justify-center gap-3 text-center">
         <Blob i={1} size={96} className="pop" />
