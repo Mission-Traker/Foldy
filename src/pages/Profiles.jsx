@@ -17,7 +17,7 @@ export function MemberForm({ onDone, onCancel }) {
     if (!name.trim()) return showToast('이름을 적어 주세요')
     setBusy(true)
     try {
-      const m = await db.addMember({ name: name.trim().slice(0, 20), avatar, level })
+      const m = { ...(await db.addMember({ name: name.trim().slice(0, 20), avatar, level })), _new: true }
       setMembers((ms) => [...ms, m])
       onDone?.(m)
     } catch (err) { showToast(err.message) } finally { setBusy(false) }

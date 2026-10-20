@@ -93,13 +93,14 @@ export default function App() {
     }).then((ms) => {
       // 구성원이 하나도 안 보이면: 다른 기기에서 비밀번호를 바꿔 이 기기 로그인이 끝난 경우만 로그아웃
       if (!ms.length) db.sessionAlive().then(async (ok) => { if (ok === false) { await db.logout(); setSession(null); showToast('가족 비밀번호가 바뀌어서 다시 로그인해 주세요') } })
-      setMembers(ms)
+      // 이 목록을 받는 사이에 방금 추가한 구성원(_new)은 지우지 않음 — 느린 망에서 빈 목록이 늦게 와서 첫 구성원이 사라지던 문제
+      setMembers((cur) => [...ms, ...cur.filter((x) => x._new && !ms.some((y) => y.id === x.id))])
       const saved = db.savedMemberId()
       const found = ms.find((x) => x.id === saved)
       // 다른 기기에서 숫자 비밀번호가 걸렸는데 이 기기는 아직 안 열었으면: 프로필 고르기(비밀번호 입력)로
       const m = found && found.has_pin && !db.hasMemberToken(found.id) ? null : found
       // 같은 사람이면 새 정보만 덮고(단어를 다시 불러오지 않게), 없어진 사람이면 프로필 고르기로
-      setMember((cur) => (m ? (cur && cur.id === m.id ? { ...cur, ...m } : m) : null))
+      setMember((cur) => (m ? (cur && cur.id === m.id ? { ...cur, ...m } : m) : cur && cur._new ? cur : null))
       setMembersReady(true)
     }).catch((e) => {
       setMembersReady(true)
