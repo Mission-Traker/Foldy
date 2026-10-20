@@ -268,6 +268,13 @@ export default function Wordbook() {
         ))}
       </div>
 
+      {ready && filter === 'x' && counts.x >= 10 && (
+        <Link to="/sort" className="mb-3 flex items-center gap-3 rounded-2xl border border-line bg-paper px-4 py-3">
+          <span className="text-2xl">🧹</span>
+          <span className="flex-1 text-sm"><b className="font-jua text-slate-deep">아는 단어 빨리 거르기</b><span className="block text-xs text-soft">한 장씩 넘기며 ‘알아요’면 바로 ○</span></span>
+          <span className="text-soft">›</span>
+        </Link>
+      )}
       {ready && (counts.t + counts.x) > 0 && filter !== 'o' && (
         <Link to="/quiz/focus" className="mb-3 flex items-center gap-3 rounded-2xl border border-line bg-paper px-4 py-3">
           <span className="text-2xl">🎯</span>

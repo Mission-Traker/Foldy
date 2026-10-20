@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
 import { levelLabel } from '../lib/levels.js'
@@ -35,6 +36,13 @@ export default function Family() {
     <div>
       <Header title="가족 학습현황" back />
       <p className="mb-3 text-sm text-soft">서로의 공부 현황을 볼 수 있어요. 다른 가족의 단어장은 고칠 수 없어요.</p>
+      {members.length > 1 && (
+        <Link to="/week" className="mb-4 flex items-center gap-3 rounded-2xl border border-line bg-paper px-4 py-3">
+          <span className="text-2xl">👨‍👩‍👧</span>
+          <span className="flex-1"><b className="font-jua text-slate-deep">가족 공동 목표</b><span className="block text-xs text-soft">이번 주 모두 5일 공부하기 · 👏 깨우기</span></span>
+          <span className="text-soft">›</span>
+        </Link>
+      )}
       {rank && (
         <section className="card mb-4 p-4">
           <h2 className="font-jua text-lg text-slate-deep">🏆 이번 주 가족 순위</h2>

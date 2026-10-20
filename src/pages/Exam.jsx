@@ -123,6 +123,8 @@ function ExamDetail({ id }) {
     )
   }
 
+  // 총정리: 아직 준비 안 된 단어 먼저, 그다음 나머지(섞어서)
+  const startReview = () => { setResult(null); setMock([...shuffle(list.filter((w) => !examReady(w))), ...shuffle(list.filter(examReady))].slice(0, 40).map((w) => ({ word: w.word, meaning: w.meaning }))) }
   const startMock = () => { setResult(null); setMock(shuffle(list).slice(0, 40).map((w) => ({ word: w.word, meaning: w.meaning }))) }
   async function remove() {
     if (!del) return setDel(true)
@@ -147,6 +149,13 @@ function ExamDetail({ id }) {
         {p.missing > 0 && <p className="mt-2 text-xs text-soft">단어장에서 지운 단어 {p.missing}개는 빼고 셌어요.</p>}
       </section>
 
+      {(p.dday === 0 || p.dday === 1) && list.length > 0 && (
+        <section className="mb-4 rounded-3xl bg-coral p-4 text-white">
+          <h2 className="font-jua text-lg">🔥 {p.dday === 0 ? '오늘 시험!' : '내일 시험!'} 총정리</h2>
+          <p className="mb-3 break-keep text-sm text-white/85">범위 전체를 뜻 → 영어로 한 번 더. 아직 헷갈리는 단어부터 나와요.</p>
+          <button className="w-full rounded-full bg-paper py-2.5 font-jua text-coral" onClick={startReview}>총정리 {Math.min(40, list.length)}문제 시작</button>
+        </section>
+      )}
       {p.dday >= 0 && (
         <section className="card mb-4 p-4">
           <h2 className="mb-1 font-jua text-lg text-slate-deep">오늘 할 분량</h2>

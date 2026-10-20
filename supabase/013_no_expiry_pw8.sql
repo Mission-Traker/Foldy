@@ -10,3 +10,6 @@ alter table public.foldy_members add column if not exists rest_day date;
 grant select (rest_day), update (rest_day) on public.foldy_members to anon, authenticated;
 update public.foldy_words set review_step = 1, next_review = current_date + 1
 where ko_ok and en_ok and not coalesce(sp_ok, false) and coalesce(review_step, 0) = 0;
+
+-- 2026-10-20 (적용 이름: foldy_engagement_features): 복습 간격(ease·ivl), 복습 기억률(rev_ok·rev_n), 오늘의 한 판(run_done),
+-- 저녁 알림(last_evening, cron foldy-evening 7 11 * * *), 가족 깨우기(foldy_nudges·foldy_nudge), 관리자 지표(foldy_admin_retention)

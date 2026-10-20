@@ -69,7 +69,7 @@ describe('답 반영·복습 일정', () => {
     expect(p.wrong_modes).toBeUndefined()
   })
   it('복습 정답이면 간격이 늘어남(1→3일)', () => {
-    expect(applyReview({ review_step: 1 }, 'ko', true, '2026-10-15')).toEqual({ review_step: 2, next_review: '2026-10-18' })
+    expect(applyReview({ review_step: 1 }, 'ko', true, '2026-10-15')).toMatchObject({ review_step: 2, ivl: 3, next_review: '2026-10-18' })
   })
   it('복습 대상 판정', () => {
     const w = { ...base, en_ok: true, ko_ok: true, sp_ok: true, next_review: '2026-10-15' }
@@ -628,5 +628,41 @@ describe('연속 학습 쉼표·연습 퀴즈', async () => {
     const ws = [{ id: 'a', word: 'apple', example: { en: 'I eat an apple.' } }, { id: 'b', word: 'go' }]
     expect(practiceQueue(ws, ['a', 'b'], 'cloze').map((x) => x.id)).toEqual(['a'])
     expect(practiceQueue(ws, ['a', 'b'], 'dict').every((x) => x.practice)).toBe(true)
+  })
+})
+
+describe('똑똑한 복습·오늘의 한 판·주간 성장·가족 목표', async () => {
+  const S = await import('../src/lib/study.js')
+  const T = '2026-10-20'
+  it('복습 간격이 단어마다 ease로 늘어남, 틀리면 ease 낮춤', () => {
+    const a = S.applyReview({ ko_ok: true, en_ok: true, ivl: 1, ease: 2.5, review_step: 1 }, 'ko', true, T)
+    expect(a).toMatchObject({ ivl: 3, next_review: '2026-10-23' })
+    const b = S.applyReview({ ko_ok: true, en_ok: true, ivl: 10, ease: 2.0, review_step: 3 }, 'en', true, T)
+    expect(b.ivl).toBe(20)
+    expect(S.applyReview({ ko_ok: true, en_ok: true, ivl: 150, ease: 3 }, 'ko', true, T).ivl).toBe(180)
+    const c = S.applyReview({ ko_ok: true, en_ok: true, ivl: 10, ease: 2.5 }, 'ko', false, T)
+    expect(c).toMatchObject({ ko_ok: false, ivl: 0, ease: 2.3, next_review: null })
+  })
+  it('알아요 → 바로 ○, 3일 뒤 복습', () => {
+    expect(S.statusOf({ ...S.markKnown({}, T) })).toBe('o')
+    expect(S.markKnown({}, T).next_review).toBe('2026-10-23')
+  })
+  it('오늘의 한 판: 복습 먼저, 그다음 오늘의 단어 뜻·철자', () => {
+    const ws = [
+      { id: 'r', ko_ok: true, en_ok: true, next_review: '2026-10-19' },
+      { id: 'a', ko_ok: false, en_ok: false },
+      { id: 'b', ko_ok: true, en_ok: false },
+    ]
+    const q = S.dailyRunQueue(ws, ['a', 'b'], T, () => 0.1)
+    expect(q[0]).toMatchObject({ id: 'r', review: true })
+    expect(q.filter((x) => !x.review).map((x) => `${x.id}${x.mode}`).sort()).toEqual(['aen', 'ako', 'ben'])
+    expect(S.dailyRunQueue([{ id: 'a', ko_ok: true, en_ok: true }], ['a'], T).every((x) => x.practice)).toBe(true)
+  })
+  it('이번 주 성장·가족 목표', () => {
+    const rows = [{ day: '2026-10-19', done: 5, rev_ok: 3, rev_n: 4, run_done: true }, { day: '2026-10-20', done: 2 }]
+    const w = S.weekSummary(rows, T)
+    expect(w).toMatchObject({ start: '2026-10-19', studied: 2, answers: 7, review: 75, runs: 1 })
+    const g = S.familyGoal([{ id: 'x' }, { id: 'y' }], [{ member_id: 'x', day: '2026-10-19', done: 1 }], T)
+    expect(g.per.map((p) => p.days)).toEqual([1, 0]); expect(g.done).toBe(false)
   })
 })

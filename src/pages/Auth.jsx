@@ -8,7 +8,9 @@ import { RecoveryCodeCard } from '../components/Account.jsx'
 // preview: 관리자 페이지의 랜딩 미리보기 — 실제 가입·로그인은 하지 않음(지금 로그인이 풀리지 않게)
 export default function Auth({ preview = false }) {
   const { setSession } = useApp()
-  const [tab, setTab] = useState('login')
+  // 친구 가족이 보낸 소개 링크(?from=이름)로 왔으면 가족 만들기부터
+  const invitedBy = (() => { try { return (new URLSearchParams(location.search).get('from') || '').replace(/[<>]/g, '').slice(0, 20) } catch { return '' } })()
+  const [tab, setTab] = useState(invitedBy ? 'signup' : 'login')
   const [f, setF] = useState({ login: '', pw: '', name: '' })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -66,6 +68,9 @@ export default function Auth({ preview = false }) {
         <p className="mt-1 rounded-full bg-slate-deep px-4 py-1 font-jua text-white">접어서 외우는 우리 가족 단어장</p>
       </div>
 
+      {invitedBy && (
+        <p className="mb-3 break-keep rounded-2xl bg-tang/15 px-4 py-3 text-center text-sm text-slate-deep">💌 <b className="font-jua">{invitedBy}</b> 가족이 폴디를 소개했어요. ‘가족 만들기’로 우리 가족 단어장을 시작해요!</p>
+      )}
       <div className="card p-5">
         <div className="mb-4 grid grid-cols-2 gap-2 rounded-full bg-cream p-1">
           {[['login', '로그인'], ['signup', '가족 만들기']].map(([k, l]) => (

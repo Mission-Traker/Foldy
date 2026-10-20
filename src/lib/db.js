@@ -326,6 +326,11 @@ export async function finishChallenge(id, score, total, results) {
 }
 export const deleteChallenge = (id) => q(client.from('foldy_challenges').delete().eq('id', id).select('id'))
 // 이번 주 가족 기록(월요일부터)
+export const myWeek = (memberId, fromDay) => q(client.from('foldy_daily').select('day,done,rev_ok,rev_n,run_done').eq('member_id', memberId).gte('day', fromDay))
+// 가족 깨우기(👏) — 같은 사람에게 하루 한 번, 알림을 켠 사람에게 푸시 → 'sent' | 'already'
+export const nudge = (fromId, toId) => rpcJson('foldy_nudge', { p_from: fromId, p_to: toId })
+export const nudgesToday = (day) => q(client.from('foldy_nudges').select('from_member,to_member').eq('day', day))
+export const adminRetention = () => rpcOrThrow('foldy_admin_retention')
 export const familyWeek = (fromDay) => q(client.from('foldy_daily').select('member_id,day,done').gte('day', fromDay))
 export const memberWords = (memberId) => q(client.from('foldy_words').select('id,word,meaning,en_ok,ko_ok,sp_ok').eq('member_id', memberId).order('seq').limit(5000))
 

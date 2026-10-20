@@ -25,6 +25,8 @@ import Intro, { introSeen } from './components/Intro.jsx'
 import GnawIntro from './components/GnawIntro.jsx'
 import Challenge from './pages/Challenge.jsx'
 import Exam from './pages/Exam.jsx'
+import Sort from './pages/Sort.jsx'
+import Week from './pages/Week.jsx'
 import InAppBanner from './components/InAppBanner.jsx'
 import ProfileSheet from './components/ProfileSheet.jsx'
 
@@ -355,7 +357,7 @@ export default function App() {
     setGnaw({ days, words: picks.map((w) => ({ word: w.word, meaning: w.meaning })) })
   }, [member, membersReady, loadedFor, introOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fullScreen = /^\/(quiz|expand|add|level-test|exam\/new|wrong\/practice|admin\/landing)/.test(loc.pathname)
+  const fullScreen = /^\/(quiz|expand|add|level-test|exam\/new|wrong\/practice|admin\/landing|sort)/.test(loc.pathname)
 
   return (
     <Ctx.Provider value={value}>
@@ -398,6 +400,8 @@ export default function App() {
             <Route path="/admin/landing" element={<LandingPreview />} />
             <Route path="/challenge/:id" element={<Challenge />} />
             <Route path="/exam/:id" element={<Exam />} />
+            <Route path="/sort" element={<Sort />} />
+            <Route path="/week" element={<Week />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}

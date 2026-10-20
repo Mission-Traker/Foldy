@@ -67,21 +67,87 @@ export function applyAnswer(w, mode, ok, today = ymd()) {
   const isO = statusOf(next) === 'o'
   if (!wasO && isO) {
     patch.review_step = 1
-    patch.next_review = addDays(today, REVIEW_GAPS[0])
+    patch.ivl = 1
+    patch.next_review = addDays(today, 1)
   }
   if (wasO && !isO) {
+    // 잊어버린 단어: 다음엔 간격이 덜 벌어지게(ease를 낮춤)
     patch.review_step = 0
     patch.next_review = null
+    patch.ivl = 0
+    patch.ease = Math.max(EASE_MIN, Math.round(((w.ease || EASE_START) - 0.2) * 100) / 100)
   }
   // 오답노트 단어는 일반 퀴즈에서 한 번 맞혀도 빠지지 않음 — 오답노트 '다시 익히기'에서 서로 다른 날 3번 맞혀야 졸업
   return patch
 }
 
+// 똑똑한 복습 간격: 단어마다 ease(배율)를 기억. 맞히면 간격 × ease로 늘고(최대 180일), 틀리면 ease를 낮추고 처음부터
+export const EASE_START = 2.5
+export const EASE_MIN = 1.3
+export const IVL_MAX = 180
+export function nextInterval(w) {
+  const ivl = Math.max(1, w.ivl || REVIEW_GAPS[Math.max(0, (w.review_step || 1) - 1)] || 1)
+  return Math.min(IVL_MAX, Math.max(ivl + 1, Math.round(ivl * (w.ease || EASE_START))))
+}
 // 복습 결과(○ 단어 재출제)
 export function applyReview(w, mode, ok, today = ymd()) {
   if (!ok) return { ...applyAnswer(w, mode, false, today) }
-  const step = Math.min((w.review_step || 1) + 1, REVIEW_GAPS.length)
-  return { review_step: step, next_review: addDays(today, REVIEW_GAPS[step - 1]) }
+  const ivl = nextInterval(w)
+  return {
+    review_step: Math.min((w.review_step || 1) + 1, REVIEW_GAPS.length),
+    ivl,
+    ease: Math.min(3, Math.round(((w.ease || EASE_START) + 0.05) * 100) / 100),
+    next_review: addDays(today, ivl),
+  }
+}
+
+// 이미 아는 단어: 바로 ○(뜻·철자) + 3일 뒤 첫 복습
+export function markKnown(w, today = ymd()) {
+  return { attempted: true, ko_ok: true, en_ok: true, review_step: 1, ivl: 3, next_review: addDays(today, 3) }
+}
+
+// 오늘의 한 판: 복습할 단어 먼저(최대 5) → 오늘의 단어 중 못 맞힌 뜻·철자(최대 10). 둘 다 없으면 오늘의 단어로 연습
+export const RUN_REVIEW = 5
+export const RUN_MAX = 15
+export function dailyRunQueue(words, setIds, today = ymd(), rand = Math.random) {
+  const out = []
+  const due = words.filter((w) => isDue(w, today)).sort((a, b) => (a.next_review < b.next_review ? -1 : 1)).slice(0, RUN_REVIEW)
+  for (const w of due) out.push({ id: w.id, mode: rand() < 0.5 ? 'ko' : 'en', review: true })
+  const set = setIds.map((id) => words.find((w) => w.id === id)).filter(Boolean)
+  const learn = []
+  for (const m of ['ko', 'en']) for (const w of set) if (!w[MODE_FIELD[m]] && !due.includes(w)) learn.push({ id: w.id, mode: m })
+  out.push(...shuffle(learn, rand).sort((a, b) => (a.mode === b.mode ? 0 : a.mode === 'ko' ? -1 : 1)).slice(0, RUN_MAX - out.length))
+  if (!out.length) for (const w of shuffle(set, rand).slice(0, 10)) out.push({ id: w.id, mode: rand() < 0.5 ? 'ko' : 'en', practice: true })
+  return out
+}
+
+// 이번 주 성장(월요일부터): 공부한 날·맞힌 수·복습 기억률·한 판 완료
+export function weekSummary(rows, today = ymd()) {
+  const start = weekStart(today)
+  const days = []
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(start, i)
+    const r = rows.find((x) => x.day === d)
+    days.push({ day: d, done: r?.done || 0, future: d > today })
+  }
+  const inWeek = rows.filter((r) => r.day >= start && r.day <= today)
+  const sum = (k) => inWeek.reduce((a, r) => a + (r[k] || 0), 0)
+  const revN = sum('rev_n')
+  return {
+    start, days,
+    studied: days.filter((d) => d.done > 0).length,
+    answers: sum('done'),
+    review: revN ? Math.round((sum('rev_ok') / revN) * 100) : null,
+    runs: inWeek.filter((r) => r.run_done).length,
+  }
+}
+
+// 가족 공동 목표: 이번 주 모두 N일 이상 공부
+export const FAMILY_GOAL_DAYS = 5
+export function familyGoal(members, rows, today = ymd()) {
+  const start = weekStart(today)
+  const per = members.map((m) => ({ m, days: new Set(rows.filter((r) => r.member_id === m.id && r.day >= start && r.day <= today && r.done > 0).map((r) => r.day)).size }))
+  return { per, done: per.length > 0 && per.every((x) => x.days >= FAMILY_GOAL_DAYS), goal: FAMILY_GOAL_DAYS }
 }
 
 export function isDue(w, today = ymd()) {

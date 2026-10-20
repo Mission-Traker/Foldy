@@ -10,7 +10,7 @@ import { soundOn, setSoundOn, correct } from '../lib/sfx.js'
 import MicPicker from '../components/MicPicker.jsx'
 import MyFeedback from '../components/MyFeedback.jsx'
 import StorySection from '../components/StorySection.jsx'
-import { AccountSection, InviteSection, NotifySection } from '../components/Account.jsx'
+import { AccountSection, InviteSection, NotifySection, FriendInviteSection } from '../components/Account.jsx'
 import { PrivacySheet } from '../components/Privacy.jsx'
 
 export default function Me() {
@@ -125,6 +125,7 @@ export default function Me() {
       <NotifySection member={member} admin={admin} showToast={showToast} />
 
       <InviteSection session={session} showToast={showToast} />
+      <FriendInviteSection session={session} showToast={showToast} />
 
       <MyFeedback memberName={member.name} memberId={member.id} />
 

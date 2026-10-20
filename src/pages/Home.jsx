@@ -89,6 +89,7 @@ export default function Home() {
   }
 
   const goalMet = done >= member.daily_goal
+  const runDone = daily?.day === today && !!daily.run_done
   const enough = done >= member.daily_goal * ENOUGH_X
   const total = words.length
   return (
@@ -113,11 +114,12 @@ export default function Home() {
             <p className="text-sm text-white/75"><span className="block">문제 {member.daily_goal}개 맞히기{again > 0 && <> + 다시 볼 단어 {again}개</>}</span><span className="block">{enough ? `${done}개 맞혔어요 · 내일 이어서 하면 더 오래 기억나요` : `지금 ${done}개 맞혔어요`}</span></p>
           </div>
         </div>
-        <Link to={!total ? '/add' : goalMet && again > 0 ? '/wrong/practice' : goalMet && due > 0 ? '/quiz/review' : '/study'}
+        <Link to={!total ? '/add' : '/quiz/daily'}
           className="mt-4 flex w-full items-center justify-center rounded-full bg-paper py-3 font-jua text-lg text-slate-deep shadow-[0_3px_0_rgba(0,0,0,.18)] active:translate-y-[2px] active:shadow-none">
-          {!total ? '첫 단어 넣기' : goalMet ? (again > 0 ? `다시 볼 단어 ${again}개 하기` : due > 0 ? `복습 ${due}개 하기` : '한 번 더 학습하기') : done > 0 ? '이어서 학습하기' : '학습 시작하기'}
+          {!total ? '첫 단어 넣기' : runDone ? '✓ 오늘의 한 판 완료 · 한 판 더' : '▶ 오늘의 한 판'}
         </Link>
-        {!goalMet && again > 0 && total > 0 && (
+        {total > 0 && !runDone && <p className="mt-1.5 text-center text-xs text-white/70">복습 → 오늘의 단어를 한 번에, 5분이면 끝나요</p>}
+        {again > 0 && total > 0 && (
           <Link to="/wrong/practice" className="mt-2 block text-center text-sm text-white/85">📌 다시 볼 단어 {again}개 먼저 하기 ›</Link>
         )}
         <button onClick={() => setGoalEdit((v) => !v)} className="mx-auto mt-2 block text-xs text-white/70 underline">✎ 목표 바꾸기</button>
@@ -136,6 +138,8 @@ export default function Home() {
       <nav className="mb-4 overflow-hidden rounded-3xl border border-line bg-paper" aria-label="더 할 수 있는 것">
         <Row to="/quiz/review" icon="⏰" title={`복습 ${due}개`} sub={due > 0 ? '오늘 푼 단어 한 번 더' : '오늘 복습 끝!'} />
         <Row to="/expand" icon="🌱" title={`확장 ${expandTodo}개`} sub={expandTodo > 0 ? '유의어·반의어' : expandDone > 0 ? `${expandDone}개 확장 완료 ✓` : '○ 단어부터 열려요'} />
+        {counts.x >= Math.max(20, member.daily_goal * 4) && <Row to="/sort" icon="🧹" title={`안 배운 단어 ${counts.x}개`} sub="아는 단어는 빨리 거르기" />}
+        <Row to="/week" icon="📈" title="이번 주 성장" sub="공부한 날 · 기억률 · 가족 목표" />
         <Row to="/book" icon="📒" title={`내 단어 ${total}개`} sub={<><span className="text-sage">○{counts.o}</span> · <span className="text-mustard">△{counts.t}</span> · <span className="text-coral">✕{counts.x}</span></>} last />
       </nav>
 

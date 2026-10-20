@@ -57,6 +57,29 @@ function Stat({ label, value, sub }) {
   )
 }
 
+// 재방문·기억 지표(테스트 가족 제외)
+function Retention() {
+  const [r, setR] = useState(null)
+  useEffect(() => { db.adminRetention().then(setR).catch(() => setR({})) }, [])
+  const pct = (v) => (v == null ? '—' : `${v}%`)
+  return (
+    <section className="rounded-3xl border border-line bg-paper p-4">
+      <h2 className="mb-2 font-jua text-slate-deep">재방문·기억</h2>
+      {!r ? <p className="text-sm text-soft">불러오는 중…</p> : (
+        <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+          <li className="flex justify-between gap-2"><span className="text-soft">최근 7일 공부한 사람</span><b className="font-jua text-slate-deep">{r.active7 ?? '—'}/{r.members ?? '—'}</b></li>
+          <li className="flex justify-between gap-2"><span className="text-soft">주 4일 이상</span><b className="font-jua text-slate-deep">{r.regular7 ?? '—'}</b></li>
+          <li className="flex justify-between gap-2"><span className="text-soft">다음 날 다시 옴</span><b className="font-jua text-slate-deep">{pct(r.next_day)}</b></li>
+          <li className="flex justify-between gap-2"><span className="text-soft">복습 기억률(7일)</span><b className="font-jua text-slate-deep">{pct(r.review7)}</b></li>
+          <li className="flex justify-between gap-2"><span className="text-soft">오늘의 한 판(7일)</span><b className="font-jua text-slate-deep">{r.runs7 ?? '—'}번</b></li>
+          <li className="flex justify-between gap-2"><span className="text-soft">○ 단어 비율</span><b className="font-jua text-slate-deep">{pct(r.o_pct)}</b></li>
+        </ul>
+      )}
+      <p className="mt-2 text-[11px] text-soft">다음 날 다시 옴: 최근 2주, 공부한 날 다음 날에도 공부한 비율</p>
+    </section>
+  )
+}
+
 function Overview({ go }) {
   const [o, setO] = useState(null)
   const [err, setErr] = useState('')
@@ -77,6 +100,7 @@ function Overview({ go }) {
         <Stat label="단어" value={o.words} />
         <button onClick={() => go('feedback')} className="text-left"><Stat label="처리할 수정요청" value={o.feedback_open} sub="신규·수정진행 ›" /></button>
       </div>
+      <Retention />
       <section className="rounded-3xl border border-line bg-paper p-4">
         <h2 className="mb-2 font-jua text-slate-deep">오늘 AI 사용</h2>
         <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">

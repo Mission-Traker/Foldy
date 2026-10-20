@@ -62,6 +62,16 @@
 - 😱 갉아먹기 장면: 이틀 이상 쉬었거나 학습 알림으로 들어오면 하루 한 번, 캐릭터들이 단어 3개를 갉아먹는 연출 → '복습하고 되찾기'. 단어장 내용은 바뀌지 않음
 - 연속 학습일(🔥, 하루라도 빠지면 0으로 표시), 하루 목표 기본 5개(홈 '✎ 목표 바꾸기'·내 정보에서 1~50개로 조절) — 목표 수만큼 오늘의 추천 단어가 나옴
 
+## 재방문·기억 기능 (2026-10-20)
+- **오늘의 한 판**(홈 큰 버튼 → `/#/quiz/daily`): 복습할 단어(최대 5, 복습 날짜 지난 순) → 오늘의 단어 중 못 맞힌 뜻·철자(합계 최대 15). 둘 다 없으면 오늘의 단어로 연습. 끝나면 `foldy_daily.run_done`, 홈에 '✓ 오늘의 한 판 완료'
+- **똑똑한 복습 간격**: 단어마다 `ease`(시작 2.5, 1.3~3.0)·`ivl`(일). 복습에서 맞히면 간격 × ease(최대 180일), 잊어버리면 ease −0.2 후 처음부터. 복습 정답·문제 수는 `foldy_daily.rev_ok/rev_n`(기억률)
+- **아는 단어 거르기**(`/#/sort`): 미학습 단어를 한 장씩 — ✅ 알아요(바로 ○, 3일 뒤 복습) · 📖 배울게요 · 🗑 지우기. 홈(미학습이 많을 때)·단어장 미학습 필터에서 들어감
+- **이번 주 성장**(`/#/week`): 요일별 공부, 맞힌 문제, 복습 기억률, ○ 단어, 연속일·한 판 횟수 + 공유. **가족 공동 목표**: 이번 주 모두 5일 공부, 오늘 아직인 가족은 👏 깨우기(하루 한 번 푸시, `foldy_nudges`·`foldy_nudge()`)
+- **저녁 알림**(20:07 KST): 연속일이 끊기기 직전이면 '1분만 하면 N일째', 내일 시험이면 '총정리' — 알림을 켠 사람만
+- **시험 총정리**: 시험 전날·당일 시험 화면 맨 위에 범위 전체(헷갈리는 단어 먼저) 40문제
+- **친구 가족 소개**(내 정보): `/?from=가족이름` 링크 → 첫 화면에 '○○ 가족이 소개했어요' + 가족 만들기 탭
+- **관리자 › 한눈에 › 재방문·기억**: 최근 7일 공부한 사람, 주 4일 이상, 다음 날 다시 옴 %, 복습 기억률, 한 판 횟수, ○ 비율(`foldy_admin_retention()`)
+
 ## ○ 기준·연습·하루 상한·쉼표 (2026-10-20)
 - ○ = 뜻 + 철자. 발음은 ○를 막지 않고 🎤 발음 배지로 따로 모음(학습 화면에 개수 표시). 기존 단어 중 뜻·철자를 맞힌 단어는 ○로 바뀌며 복습 일정이 시작됨
 - 연습하기(학습 화면): 🎧 듣고 쓰기(소리만 듣고 철자) · 🧩 빈칸 채우기(내장 예문 속 빈칸, 2,898개 중 2,888개 가능). ○·복습 기록은 바꾸지 않고 맞힌 수·연속 학습일에만 들어감
@@ -140,7 +150,7 @@ npx vercel dev       # AI 경로까지 (Vercel CLI 로그인 + GEMINI_API_KEY �
 ## 테스트
 
 ```bash
-npm test                                   # 단위 테스트 158개(채점·상태·복습·정렬·레벨·게이지·발음기호·갉아먹기·주간 순위·시험 분량·캐릭터·AI 범위)
+npm test                                   # 단위 테스트 162개(채점·상태·복습·정렬·레벨·게이지·발음기호·갉아먹기·주간 순위·시험 분량·캐릭터·AI 범위)
 npm run build && npx vite preview --port 4173 &
 BASE=http://localhost:4173 node tests/e2e.mjs   # 브라우저 자동 점검 52개(390px)
 BASE=http://localhost:4173 node tests/e2e-retry.mjs  # '한 번 더'·오늘의 단어 반복·오늘 복습 13개(느린 인터넷 흉내)
@@ -150,9 +160,10 @@ BASE=http://localhost:4173 node tests/linebreak.mjs    # 줄바꿈 점검(360·3
 BASE=http://localhost:4173 node tests/e2e-send.mjs     # 레벨 표기·➜ 보내기·발음기호·새로고침 깜빡임·게이지 18개
 BASE=http://localhost:4173 node tests/e2e-gnaw.mjs     # 갉아먹기 장면 12개(단어장 훼손 없음 확인)
 BASE=http://localhost:4173 node tests/e2e-handoff.mjs  # 카톡 → 사파리 자동 채점 이어받기 4개
+BASE=http://localhost:4173 node tests/e2e-engage.mjs   # 오늘의 한 판·거르기·이번 주 성장·가족 깨우기·친구 소개 14개
 BASE=http://localhost:4173 node tests/e2e-pron.mjs     # 소개 건너뛰기·비밀번호 8자·내 목소리로 확인 발음·AI 없이 발음 요령·예문·내가 쓴 답·연습 퀴즈 16개
 PHASE=a FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 아니면 잠김 5개 → SQL로 그 가족 구성원을 foldy_admins에 넣고
-PHASE=b FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 페이지 4개 탭·유료 AI 없음·랜딩 미리보기·숫자 비밀번호 17개
+PHASE=b FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 페이지 4개 탭·유료 AI 없음·랜딩 미리보기·숫자 비밀번호·재방문 지표 18개
 BASE=http://localhost:4173 node tests/e2e-streak.mjs   # 연속 학습일 9개
 BASE=http://localhost:4173 node tests/e2e-today.mjs    # 오늘의 단어 수·날짜 바뀜·➜ 보내기 7개
 BASE=http://localhost:4173 node tests/e2e-pinlock.mjs  # 다른 기기에서 숫자 비밀번호를 걸면 다시 묻기 5개

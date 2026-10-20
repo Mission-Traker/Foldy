@@ -56,6 +56,7 @@ try {
     check('관리자: 내 정보 맨 위에 관리자 페이지', await link.waitFor({ timeout: 8000 }).then(() => true, () => false))
     await link.click()
     check('한눈에: 오늘 공부한 가족', await seen('오늘 공부한 가족'))
+    check('한눈에: 재방문·기억 지표', await seen('재방문·기억') && await seen('다음 날 다시 옴'))
     check('한눈에: AI 사용(무료만)', await seen('오늘 AI 사용') && await seen('유료 AI는 쓰지 않아요'))
     await shot('home')
     await page.getByRole('button', { name: '가족', exact: true }).click()

@@ -196,6 +196,25 @@ export function inviteText(familyName, loginId) {
     '· 열고 나서 ‘홈 화면에 추가’를 하면 앱처럼 쓸 수 있어요.',
   ].join('\n')
 }
+// 친구 가족에게 폴디 소개(새 가족으로 가입) — 링크를 열면 'OO 가족이 초대했어요' 안내가 보임
+export function FriendInviteSection({ session, showToast }) {
+  const url = `${location.origin}/?from=${encodeURIComponent(String(session?.name || '').slice(0, 20))}`
+  const text = `우리 가족은 폴디로 영어 단어를 외워요 📒\n사진 한 장으로 단어를 넣고, 하루 5분 한 판이면 끝나요. 무료예요!\n${url}\n(카톡에서 열리면 오른쪽 위 ⋯ → 다른 브라우저로 열기)`
+  async function share() {
+    if (navigator.share && /Android|iPhone|iPad/.test(navigator.userAgent)) {
+      try { await navigator.share({ text }); return } catch (e) { if (e?.name === 'AbortError') return }
+    }
+    if (await copy(text)) showToast('소개 글을 복사했어요. 카톡에 붙여넣어 보내세요')
+  }
+  return (
+    <section className="card mb-4 p-4">
+      <h2 className="mb-1 font-jua text-lg text-slate-deep">💌 친구 가족에게 소개하기</h2>
+      <p className="mb-3 break-keep text-xs text-soft">친구 가족은 자기 가족 단어장을 따로 만들어요. 우리 가족 단어장은 보이지 않아요.</p>
+      <button className="btn-ghost w-full" onClick={share}>소개 글 보내기</button>
+    </section>
+  )
+}
+
 export function InviteSection({ session, showToast }) {
   const text = inviteText(session?.name, session?.login_id)
   async function share() {

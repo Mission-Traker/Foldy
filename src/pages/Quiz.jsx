@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
 import { gradeMeaning, gradeSpelling, speechScore, SPEECH_PASS } from '../lib/grading.js'
-import { applyAnswer, applyReview, clozeOf, ENOUGH_X, MODE_FIELD, MODE_LABEL, nextCandidates, PRACTICE_MODES, practiceQueue, reviewQueue, sendToWrongNote, shuffle, statusOf, todayQueue, ymd } from '../lib/study.js'
+import { applyAnswer, applyReview, clozeOf, dailyRunQueue, wrongDueList, WRONG_DAILY, ENOUGH_X, MODE_FIELD, MODE_LABEL, nextCandidates, PRACTICE_MODES, practiceQueue, reviewQueue, sendToWrongNote, shuffle, statusOf, todayQueue, ymd } from '../lib/study.js'
 import { canListen, listenOnce, speak, speakTTS } from '../lib/speech.js'
 import { isIOS, openOutside, pronHereOK } from '../lib/browser.js'
 import SelfPron from '../components/SelfPron.jsx'
@@ -28,6 +28,7 @@ function buildQueue(words, mode, src, ids, setIds, seenIds) {
   if (mode === 'focus') return focusQueue(words, ids, setIds)
   if (mode === 'review') return reviewQueue(words, seenIds)
   if (PRACTICE_MODES.includes(mode)) return practiceQueue(words, setIds, mode)
+  if (mode === 'daily') return dailyRunQueue(words, setIds)
   if (src === 'wrong') {
     return shuffle(words.filter((w) => (w.wrong_modes || []).includes(mode))).slice(0, 20).map((w) => ({ id: w.id, mode }))
   }
@@ -39,7 +40,7 @@ export default function Quiz() {
   const [params] = useSearchParams()
   const src = params.get('src') || 'all'
   const nav = useNavigate()
-  const { words, ready, patchWord, bumpDaily, markSeen, daily, ensureTodaySet, extendTodaySet, member, showToast } = useApp()
+  const { words, ready, patchWord, bumpDaily, markSeen, daily, ensureTodaySet, extendTodaySet, member, showToast, updateDaily } = useApp()
   const [queue, setQueue] = useState(null)
   const [setIds, setSetIds] = useState([])
   const [round, setRound] = useState(1)
@@ -78,10 +79,10 @@ export default function Quiz() {
   }, [idx, queue])
 
   if (!queue) return <p className="py-20 text-center text-soft">불러오는 중…</p>
-  if (!['ko', 'en', 'sp', 'review', 'focus', ...PRACTICE_MODES].includes(mode)) return <Empty title="없는 퀴즈예요"><Link to="/study" className="btn-main mt-2">돌아가기</Link></Empty>
+  if (!['ko', 'en', 'sp', 'review', 'focus', 'daily', ...PRACTICE_MODES].includes(mode)) return <Empty title="없는 퀴즈예요"><Link to="/study" className="btn-main mt-2">돌아가기</Link></Empty>
 
   const practiceRound = ['ko', 'en', 'sp'].includes(mode) && queue[0]?.practice
-  const title = mode === 'review' ? '오늘 복습' : mode === 'focus' ? `○ 만들기 · ${MODE_LABEL[qmode] || ''}` : `${src === 'wrong' ? '오답노트 · ' : ''}${MODE_LABEL[mode]}${practiceRound ? ' · 다시 외우기' : ''}`
+  const title = mode === 'daily' ? `오늘의 한 판 · ${item?.review ? '복습' : MODE_LABEL[qmode] || ''}` : mode === 'review' ? '오늘 복습' : mode === 'focus' ? `○ 만들기 · ${MODE_LABEL[qmode] || ''}` : `${src === 'wrong' ? '오답노트 · ' : ''}${MODE_LABEL[mode]}${practiceRound ? ' · 다시 외우기' : ''}`
 
   if (!queue.length && ['ko', 'en', 'sp'].includes(mode) && src !== 'wrong' && words.length) {
     // 이 퀴즈는 모든 단어를 이미 통과함
@@ -114,7 +115,27 @@ export default function Quiz() {
 
   if (idx >= queue.length || !w) {
     const perfect = score.ok === score.total
-    if (!endSound.current) { endSound.current = true; setTimeout(() => (perfect ? sfx.fanfare() : sfx.correct()), 50) }
+    if (!endSound.current) {
+      endSound.current = true
+      setTimeout(() => (perfect || mode === 'daily' ? sfx.fanfare() : sfx.correct()), 50)
+      if (mode === 'daily') setTimeout(() => updateDaily((d) => (d.run_done ? null : { run_done: true })), 0)
+    }
+    if (mode === 'daily') {
+      const again = Math.min(wrongDueList(words, ymd()).length, WRONG_DAILY)
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-center">
+          <Blob i={1} size={110} className="pop" />
+          <h2 className="h-title text-3xl">오늘의 한 판 끝! 🎉</h2>
+          <p className="font-jua text-xl text-slate-deep">{score.total}문제 중 {score.ok}개 정답</p>
+          <p className="text-sm text-soft">내일 또 한 판이면 기억이 훨씬 오래가요</p>
+          <div className="mt-2 flex w-full max-w-xs flex-col gap-2">
+            {again > 0 && <button className="btn-main" onClick={() => nav('/wrong/practice')}>📌 다시 볼 단어 {again}개</button>}
+            <button className={again > 0 ? 'btn-ghost' : 'btn-main'} onClick={() => nav('/quiz/dict')}>🎧 듣고 쓰기로 연습하기</button>
+            <button className="text-sm text-soft underline" onClick={() => nav('/')}>홈으로</button>
+          </div>
+        </div>
+      )
+    }
     const ids = params.get('ids')?.split(',').filter(Boolean)
     const daily3 = ['ko', 'en', 'sp'].includes(mode) && src !== 'wrong'
     const setWords = setIds.map((id) => words.find((x) => x.id === id)).filter(Boolean)
@@ -193,6 +214,7 @@ export default function Quiz() {
     markSeen(w.id)
     if (ok) setTimeout(() => setIdx((i) => i + 1), 900)
     // 다시 외우기·오늘 복습(이미 푼 단어)에서 틀려도 맞힌 기록은 그대로 둠 — 연습이니까
+    if (item.review) updateDaily((d) => ({ rev_ok: (d.rev_ok || 0) + (ok ? 1 : 0), rev_n: (d.rev_n || 0) + 1 }))
     if (!(item.practice && !ok)) {
       const patch = item.review ? applyReview(w, qmode, ok) : item.practice ? {} : applyAnswer(w, qmode, ok)
       if (Object.keys(patch).length) await patchWord(w.id, patch)
