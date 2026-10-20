@@ -29,6 +29,7 @@ import Challenge from './pages/Challenge.jsx'
 import Exam from './pages/Exam.jsx'
 import Sort from './pages/Sort.jsx'
 import Week from './pages/Week.jsx'
+import FamilyPet from './pages/FamilyPet.jsx'
 import InAppBanner from './components/InAppBanner.jsx'
 import ProfileSheet from './components/ProfileSheet.jsx'
 import { pagePath, track } from './lib/track.js'
@@ -418,6 +419,7 @@ export default function App() {
             <Route path="/exam/:id" element={<Exam />} />
             <Route path="/sort" element={<Sort />} />
             <Route path="/week" element={<Week />} />
+            <Route path="/pet" element={<FamilyPet />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         )}

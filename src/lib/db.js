@@ -48,6 +48,7 @@ export const saveMemberId = (id) => { store(MEMBER_KEY, id); activeMember = id; 
 
 const ERR = {
   not_admin: '관리자만 할 수 있어요',
+  NO_TICKET: '돌봄권이 없어요. 공부하면 생겨요',
   SIGNUP_BUSY: '지금 가입이 많아요. 잠시 뒤 다시 해 주세요',
   LOGIN_TAKEN: '이미 쓰고 있는 아이디예요',
   LOGIN_FAILED: '아이디 또는 비밀번호가 맞지 않아요',
@@ -247,6 +248,11 @@ async function rpcOrThrow(fn, args) {
   return data
 }
 export const adminOverview = () => rpcOrThrow('foldy_admin_overview')
+// 가족 펫
+export const petGet = (memberId) => rpcOrThrow('foldy_pet_get', { p_member: memberId || null })
+export const petAdopt = (species, name) => rpcOrThrow('foldy_pet_adopt', { p_species: species, p_name: name })
+export const petRename = (name) => rpcOrThrow('foldy_pet_rename', { p_name: name })
+export const petCare = (memberId, action) => rpcOrThrow('foldy_pet_care', { p_member: memberId, p_action: action })
 export const adminAnalytics = (days = 14, tests = false) => rpcOrThrow('foldy_admin_analytics', { p_days: days, p_tests: tests })
 // 사용 기록 보내기(실패해도 조용히)
 export const trackEvents = (dev, events, test) => client.rpc('foldy_track', { p_dev: dev, p_events: events, p_test: !!test }).then(() => {}, () => {})

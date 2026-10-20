@@ -6,17 +6,17 @@ const EVENT = {
   intro: '소개 슬라이드', auth_view: '가입·로그인 화면', signup: '가족 만들기', login: '로그인', member_add: '구성원 추가',
   add_words: '단어 담기', photo: '사진으로 단어', quiz_start: '퀴즈 시작', quiz_end: '퀴즈 끝까지', wrong_end: '다시 익히기 끝',
   sort_end: '아는 단어 거르기 끝', share_week: '성장 카드 공유', pron: '발음 연습', push_on: '알림 켜기', survey: '베타 설문',
-  feedback: '수정요청 보냄', nudge: '가족 깨우기',
+  feedback: '수정요청 보냄', nudge: '가족 깨우기', pet: '가족 펫',
 }
 const SUB = {
   skip: '건너뜀', done: '끝까지', direct: '직접', invited: '소개', photo: '사진', manual: '직접 적기', recommend: '추천 단어', family: '가족 단어',
   ai: 'AI', ocr: '기기 글자 인식', self: '내 목소리', auto: '자동 채점', ko: '뜻 쓰기', en: '철자 쓰기', sp: '발음', daily: '오늘의 한 판',
-  review: '복습', focus: '오늘의 단어', dict: '듣고 쓰기', cloze: '빈칸 채우기', login: '로그인 탭', signup: '가입 탭', forgot: '비밀번호 찾기',
+  review: '복습', feed: '밥', walk: '산책', bath: '목욕', focus: '오늘의 단어', dict: '듣고 쓰기', cloze: '빈칸 채우기', login: '로그인 탭', signup: '가입 탭', forgot: '비밀번호 찾기',
 }
 const PAGE = {
   '/': '홈', '/book': '단어장', '/add': '단어 추가', '/study': '학습', '/wrong': '오답노트', '/wrong/practice': '다시 익히기', '/me': '내 정보',
   '/family': '가족', '/week': '이번 주 성장', '/sort': '아는 단어 거르기', '/expand': '확장 학습', '/exam': '시험 대비', '/level': '레벨 진단',
-  '/challenge': '가족 도전', '/admin': '관리자',
+  '/challenge': '가족 도전', '/pet': '가족 펫', '/admin': '관리자',
 }
 const SRC = { '': '직접(주소·북마크)', 직접: '직접(주소·북마크)', friend: '친구 소개 링크', kakao: '카톡 안에서', instagram: '인스타그램', naver: '네이버 앱' }
 const featLabel = (k) => { const [a, b] = String(k).split(' · '); return (EVENT[a] || a) + (b ? ` · ${SUB[b] || b}` : '') }

@@ -9,6 +9,7 @@ import { Blob, Ring, Speak, GoalStepper, FitWord } from '../components/ui.jsx'
 import LevelBar from '../components/LevelBar.jsx'
 import { usePet, PetSheet } from '../components/PetCard.jsx'
 import HomeNotices from '../components/HomeNotices.jsx'
+import FamilyPetCard from '../components/FamilyPetCard.jsx'
 
 export default function Home() {
   const { member, words, daily, updateDaily, addWords, showToast, aiState, ready, openProfile, updateMember, patchMemberLocal } = useApp()
@@ -134,6 +135,7 @@ export default function Home() {
       </section>
 
       {ready && <HomeNotices />}
+      {ready && <FamilyPetCard memberId={member.id} refreshKey={`${done}-${runDone}`} />}
 
       {/* 나머지는 조용한 목록으로 */}
       <nav className="mb-4 overflow-hidden rounded-3xl border border-line bg-paper" aria-label="더 할 수 있는 것">

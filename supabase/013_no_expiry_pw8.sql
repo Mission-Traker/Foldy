@@ -25,3 +25,8 @@ where ko_ok and en_ok and not coalesce(sp_ok, false) and coalesce(review_step, 0
 -- 2026-10-20: 베타 사용 분석
 -- foldy_events(dev·family_id·member_id·name·props·test, RLS 켬·정책 없음) + foldy_track(p_dev, p_events, p_test): 이름 허용 목록, 기기 하루 800·전체 하루 10만
 -- foldy_admin_analytics(p_days, p_tests): 관리자만. foldy_cleanup에 180일 지난 기록 삭제 추가
+
+-- 2026-10-20: 우리 가족 펫
+-- foldy_family_pet(family_id pk, species, name, hunger·fun·clean, xp, updated_at) · foldy_pet_log(family_id, member_id, action, day)
+-- foldy_pet_now(하루 20씩 감소 계산) · foldy_pet_tickets(구성원별 오늘 돌봄권: 밥=done/10 최대 3, 산책=run_done, 목욕=rev_n≥3 또는 연속 2일)
+-- foldy_pet_get / foldy_pet_adopt / foldy_pet_rename / foldy_pet_care(+35, xp+5) · foldy_track 허용 이름에 'pet'

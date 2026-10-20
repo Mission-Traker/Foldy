@@ -134,3 +134,12 @@ input, button, textarea, select { font: inherit; }
 }
 @media (hover: hover) { .tip:hover::after { opacity: 1; transform: translateY(-50%); } }
 .tip:focus-visible::after { opacity: 1; transform: translateY(-50%); }
+
+/* 가족 펫 */
+@keyframes petJoy { 0%,100% { transform: none } 20% { transform: translateY(-14px) scale(.96,1.06) } 40% { transform: scale(1.06,.94) } 60% { transform: translateY(-8px) } 80% { transform: scale(1.03,.97) } }
+.pet-joy { animation: petJoy 1.2s ease-in-out; }
+@keyframes petWalk { 0% { transform: translateX(0) } 25% { transform: translateX(-46px) rotate(-4deg) } 50% { transform: translateX(0) } 75% { transform: translateX(46px) scaleX(-1) rotate(-4deg) } 100% { transform: translateX(0) } }
+.pet-walk { animation: petWalk 1.6s ease-in-out; }
+@keyframes petFx { 0% { opacity: 0; transform: translateY(10px) scale(.6) } 25% { opacity: 1; transform: none } 100% { opacity: 0; transform: translateY(-46px) } }
+.pet-fx { animation: petFx 1.4s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .pet-joy, .pet-walk, .pet-fx { animation: none } }

@@ -62,6 +62,15 @@
 - 😱 갉아먹기 장면: 이틀 이상 쉬었거나 학습 알림으로 들어오면 하루 한 번, 캐릭터들이 단어 3개를 갉아먹는 연출 → '복습하고 되찾기'. 단어장 내용은 바뀌지 않음
 - 연속 학습일(🔥, 하루라도 빠지면 0으로 표시), 하루 목표 기본 5개(홈 '✎ 목표 바꾸기'·내 정보에서 1~50개로 조절) — 목표 수만큼 오늘의 추천 단어가 나옴
 
+## 우리 가족 펫 (`/#/pet`)
+- 가족이 한 마리를 함께 키움: 강아지·고양이·새·돼지·토끼·햄스터(지금 캐릭터와 같은 동글동글한 그림체, `src/components/PetArt.jsx`)
+- 상태 3칸(배부름·신남·깨끗함, 0~100): 하루마다 20씩 줄고, 아프거나 죽지 않음(오래 못 돌보면 졸려 할 뿐)
+- 돌봄권은 공부해야 생김(구성원별·하루): 🍖 밥 = 문제 10개 맞힐 때마다 1개(최대 3) · 🦮 산책 = 오늘의 한 판 끝내기 · 🛁 목욕 = 복습 3문제 또는 이틀 연속 공부
+- 돌보면 그 칸 +35, 자람 +5 → 아기·꼬마(50)·어린이(200)·청소년(500)·어른(1200, 왕관)
+- 오늘 누가 돌봤는지·이번 주 가장 많이 돌본 가족 표시, 홈에 펫 기분과 돌봄권 수
+- 서버가 돌봄권을 다시 계산해서 화면을 건너뛰어도 못 씀(`foldy_pet_care` → NO_TICKET)
+- DB: `foldy_family_pet`(가족당 1마리), `foldy_pet_log`(돌봄 기록) · 함수 `foldy_pet_get/adopt/rename/care` · 지금은 모두 무료(꾸미기·두 번째 펫은 유료 후보)
+
 ## 베타 사용 분석 (관리자 › 분석)
 - 앱이 `foldy_track`으로 사용 기록을 묶어 보냄(`src/lib/track.js`): 방문(유입 경로·카톡 안 여부·휴대폰·홈 화면 앱), 화면 이동, 소개 슬라이드, 가입·로그인, 구성원 추가, 단어 담기(방식·개수), 사진 인식(성공·AI/기기), 퀴즈 시작·끝(방식), 다시 익히기·거르기 끝, 발음 연습, 알림 켜기, 설문·수정요청, 가족 깨우기, 성장 카드 공유
 - 개인정보 없음: 기기 무작위 번호(`foldy.dev`)·화면 이름·버튼 종류·개수만. 이름·단어·뜻은 보내지 않음. 180일 뒤 삭제(`foldy_cleanup`)
@@ -189,6 +198,7 @@ BASE=http://localhost:4173 node tests/e2e-pron.mjs     # 소개 건너뛰기·�
 PHASE=a FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 아니면 잠김 5개 → SQL로 그 가족 구성원을 foldy_admins에 넣고
 PHASE=b FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 페이지 4개 탭·유료 AI 없음·랜딩 미리보기·숫자 비밀번호·재방문 지표 18개
 BASE=http://localhost:4173 node tests/e2e-streak.mjs   # 연속 학습일 9개
+BASE=http://localhost:4173 node tests/e2e-pet.mjs      # 가족 펫: 데려오기·돌봄권·돌보기·같은 펫·서버 거절·이름 바꾸기 21개
 BASE=http://localhost:4173 node tests/e2e-race.mjs     # 느린 망: 가입 직후 첫 구성원이 사라지지 않음 1개
 STATE=/tmp/admin-state.json node tests/shot-admin.mjs   # 관리자 재방문 지표·설문 요약 화면 확인(e2e-admin b단계 뒤)
 BASE=http://localhost:4173 node tests/e2e-today.mjs    # 오늘의 단어 수·날짜 바뀜·➜ 보내기 7개

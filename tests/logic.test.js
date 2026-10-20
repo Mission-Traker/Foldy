@@ -709,3 +709,24 @@ describe('사용 분석: 개인 값 없이 화면·유입만', () => {
     expect(sourceOf('', 'Mozilla', '')).toBe('')
   })
 })
+
+import { petMood, petStage, ticketHint, ticketTotal } from '../src/lib/familyPet.js'
+describe('가족 펫', () => {
+  it('기분: 셋의 평균으로, 아프거나 죽지 않음', () => {
+    expect(petMood({ hunger: 90, fun: 80, clean: 70 })).toBe('happy')
+    expect(petMood({ hunger: 50, fun: 40, clean: 40 })).toBe('ok')
+    expect(petMood({ hunger: 20, fun: 20, clean: 10 })).toBe('bored')
+    expect(petMood({ hunger: 0, fun: 0, clean: 0 })).toBe('sleepy')
+  })
+  it('자람 단계', () => {
+    expect(petStage(0).name).toBe('아기')
+    expect(petStage(55).name).toBe('꼬마')
+    expect(petStage(1200).name).toBe('어른')
+    expect(petStage(1200).next).toBe(null)
+  })
+  it('돌봄권 안내', () => {
+    expect(ticketTotal({ feed: 2, walk: 1, bath: 0 })).toBe(3)
+    expect(ticketHint('feed', { done: 13 })).toBe('문제 7개 더 맞히면 1개')
+    expect(ticketHint('feed', { done: 35 })).toBe('오늘 밥은 다 모았어요')
+  })
+})
