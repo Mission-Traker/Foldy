@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import { dailyPick, levelLabel, relatedPick } from '../lib/levels.js'
 import { meaningsFor } from '../lib/enrich.js'
+import SurveyPrompt from '../components/SurveyPrompt.jsx'
 import { expandStage, reviewCount, statusOf, ymd, liveStreak, wrongDueList, WRONG_DAILY , onRest, addDays, ENOUGH_X} from '../lib/study.js'
 import { Blob, Ring, Speak, GoalStepper, FitWord } from '../components/ui.jsx'
 import LevelBar from '../components/LevelBar.jsx'
@@ -182,6 +183,7 @@ export default function Home() {
       {aiState === 'nokey' && (
         <p className="mt-3 text-center text-xs text-soft">AI 기능을 준비하고 있어서 사진 읽기·유의어·예문이 잠시 꺼져 있어요.</p>
       )}
+      {ready && !petOpen && <SurveyPrompt member={member} showToast={showToast} />}
       {petOpen && <PetSheet onClose={() => setPetOpen(false)} onProfile={() => { setPetOpen(false); openProfile() }} />}
     </div>
   )

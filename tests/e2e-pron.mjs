@@ -25,7 +25,7 @@ try {
   await page.getByLabel('가족 이름').fill('발음')
   await page.getByLabel('가족 아이디').fill(id)
   await page.getByLabel('비밀번호').fill('1234567')
-  await page.getByLabel('개인정보 처리방침 동의').check()
+  await page.getByLabel('보호자 확인').check(); await page.getByLabel('개인정보 처리방침 동의').check()
   await page.getByRole('button', { name: '우리 가족 단어장 만들기' }).click()
   check('가족 비밀번호 7자는 거절', await page.getByText('비밀번호는 8자 이상이에요').isVisible())
   await page.getByLabel('비밀번호').fill('12345678')

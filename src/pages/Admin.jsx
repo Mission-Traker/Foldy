@@ -29,21 +29,22 @@ export default function Admin() {
   return (
     <div>
       <Header title="관리자" back="/me" />
-      <nav className="mb-4 grid grid-cols-4 gap-1 rounded-full bg-paper p-1 ring-1 ring-line" aria-label="관리자 메뉴">
+      <nav className="mb-4 grid grid-cols-5 gap-1 rounded-full bg-paper p-1 ring-1 ring-line" aria-label="관리자 메뉴">
         {TABS.map(([k, l]) => (
           <button key={k} onClick={() => setParams({ tab: k }, { replace: true })} aria-pressed={tab === k}
-            className={`whitespace-nowrap rounded-full py-2 font-jua text-sm ${tab === k ? 'bg-slate-deep text-white' : 'text-soft'}`}>{l}</button>
+            className={`whitespace-nowrap rounded-full py-2 font-jua text-[13px] ${tab === k ? 'bg-slate-deep text-white' : 'text-soft'}`}>{l}</button>
         ))}
       </nav>
       {tab === 'home' && <Overview go={(k) => setParams({ tab: k }, { replace: true })} />}
       {tab === 'families' && <Families />}
       {tab === 'feedback' && <FeedbackInbox />}
+      {tab === 'errors' && <Errors />}
       {tab === 'landing' && <Landing />}
     </div>
   )
 }
 
-const TABS = [['home', '한눈에'], ['families', '가족'], ['feedback', '수정요청'], ['landing', '랜딩']]
+const TABS = [['home', '한눈에'], ['families', '가족'], ['feedback', '수정요청'], ['errors', '오류'], ['landing', '랜딩']]
 const AI_LABEL = { free_text: '무료 AI 글', free_vision: '무료 AI 사진' }
 const dayLabel = (d) => { if (!d) return '기록 없음'; const [, m, dd] = String(d).slice(0, 10).split('-').map(Number); return `${m}/${dd}` }
 
@@ -53,6 +54,45 @@ function Stat({ label, value, sub }) {
       <p className="text-xs text-soft">{label}</p>
       <p className="font-jua text-2xl text-slate-deep">{value}</p>
       {sub && <p className="text-[11px] text-soft">{sub}</p>}
+    </div>
+  )
+}
+
+// 앱 오류 기록(사용자 화면에서 난 오류가 자동으로 쌓임)
+function Errors() {
+  const [rows, setRows] = useState(null)
+  const [open, setOpen] = useState(null)
+  const [arm, setArm] = useState(false)
+  const [msg, setMsg] = useState('')
+  const load = () => db.adminErrors().then(setRows).catch((e) => { setMsg(e.message); setRows([]) })
+  useEffect(() => { load() }, [])
+  async function clear() {
+    if (!arm) { setArm(true); setTimeout(() => setArm(false), 4000); return }
+    setArm(false)
+    try { const n = await db.adminClearErrors(); setMsg(`오류 기록 ${n}개를 지웠어요`); load() } catch (e) { setMsg(e.message) }
+  }
+  const t = (s) => { const d = new Date(s); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
+  const dev = (ua) => (/iPhone|iPad/.test(ua) ? '아이폰' : /Android/.test(ua) ? '안드로이드' : /Mac/.test(ua) ? '맥' : /Windows/.test(ua) ? '윈도' : '기타') + (/KAKAOTALK/i.test(ua) ? '·카톡' : '')
+  return (
+    <div>
+      <p className="mb-3 break-keep text-sm text-soft">사용자 화면에서 난 오류가 자동으로 쌓여요(같은 오류는 한 사람에 한 번). 이름·단어 같은 내용은 담지 않아요.</p>
+      {msg && <p className="mb-2 text-sm text-slate-deep">{msg}</p>}
+      {!rows ? <p className="py-10 text-center text-soft">불러오는 중…</p> : !rows.length ? <p className="card p-6 text-center text-sm text-soft">아직 오류 기록이 없어요 🎉</p> : (
+        <ul className="divide-y divide-line rounded-3xl border border-line bg-paper px-4">
+          {rows.map((r) => (
+            <li key={r.id} className="py-3">
+              <button className="w-full text-left" onClick={() => setOpen(open === r.id ? null : r.id)}>
+                <p className="break-words font-title text-sm text-coral">{r.message}</p>
+                <p className="mt-0.5 flex flex-wrap gap-x-1.5 text-xs text-soft">
+                  {[t(r.at), r.path, dev(r.ua || ''), r.family ? `${r.family}(${r.login_id})` : '로그인 전', r.build].filter(Boolean).map((x, i) => <span key={i} className="whitespace-nowrap">{i ? '· ' : ''}{x}</span>)}
+                </p>
+              </button>
+              {open === r.id && r.stack && <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-xl bg-cream p-2 text-[11px] text-ink">{r.stack}</pre>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {rows?.length > 0 && <button onClick={clear} className={`mt-4 w-full rounded-full border py-2.5 font-jua text-sm ${arm ? 'border-coral text-coral' : 'border-line text-soft'}`}>{arm ? '한 번 더 누르면 오류 기록을 모두 지워요' : '오류 기록 모두 지우기'}</button>}
     </div>
   )
 }

@@ -124,7 +124,7 @@ for (const W of WIDTHS) {
   await page.getByLabel('가족 이름').fill('줄바꿈점검가족')
   await page.getByLabel('가족 아이디').fill(id + W)
   await page.getByLabel('비밀번호').fill('pass1234')
-  await page.getByLabel('개인정보 처리방침 동의').check()
+  await page.getByLabel('보호자 확인').check(); await page.getByLabel('개인정보 처리방침 동의').check()
   await page.getByRole('button', { name: '우리 가족 단어장 만들기' }).click()
   await page.getByText('비밀번호 복구 코드').waitFor()
   await page.getByRole('button', { name: '저장했어요, 시작하기' }).click()

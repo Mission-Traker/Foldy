@@ -15,6 +15,7 @@ export default function Auth({ preview = false }) {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [agree, setAgree] = useState(false)
+  const [guardian, setGuardian] = useState(false)
   const [privacy, setPrivacy] = useState(false)
   const [code, setCode] = useState(null) // 가입 직후 보여줄 복구 코드
   const [pending, setPending] = useState(null)
@@ -27,12 +28,14 @@ export default function Auth({ preview = false }) {
     if (!/^[a-z0-9_]{3,30}$/.test(loginId)) return setErr('아이디는 영어 소문자·숫자·_ 로 3~30자예요')
     if (f.pw.length < 8) return setErr('비밀번호는 8자 이상이에요')
     if (tab === 'signup' && !f.name.trim()) return setErr('가족 이름을 적어 주세요')
+    if (tab === 'signup' && !guardian) return setErr('가족 계정은 만 14세 이상 보호자가 만들어요')
     if (tab === 'signup' && !agree) return setErr('개인정보 처리방침에 동의해 주세요')
     if (preview) return setErr('미리보기에서는 실제로 가입·로그인되지 않아요')
     setBusy(true)
     try {
       const s = tab === 'login' ? await db.login(loginId, f.pw) : await db.signup(loginId, f.pw, f.name.trim().slice(0, 30))
       if (tab === 'signup') {
+        db.markGuardian().catch(() => {})
         // 비밀번호를 잊었을 때 쓸 복구 코드를 먼저 보여 줌
         const c = await db.recoveryNew().catch(() => null)
         if (c) { setPending({ ...s, login_id: loginId }); setCode(c); return }
@@ -94,6 +97,12 @@ export default function Auth({ preview = false }) {
             <label className="label" htmlFor="pw">비밀번호</label>
             <input id="pw" className="field" type="password" placeholder="8자 이상" value={f.pw} onChange={set('pw')} maxLength={64} />
           </div>
+          {tab === 'signup' && (
+            <label className="flex items-start gap-2 text-sm text-ink">
+              <input type="checkbox" checked={guardian} onChange={(e) => setGuardian(e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-[#3E5486]" aria-label="보호자 확인" />
+              <span>[필수] 저는 만 14세 이상이고, 이 가족 계정을 만드는 보호자예요.</span>
+            </label>
+          )}
           {tab === 'signup' && (
             <label className="flex items-start gap-2 text-sm text-ink">
               <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-[#3E5486]" aria-label="개인정보 처리방침 동의" />

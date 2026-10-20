@@ -13,3 +13,6 @@ where ko_ok and en_ok and not coalesce(sp_ok, false) and coalesce(review_step, 0
 
 -- 2026-10-20 (적용 이름: foldy_engagement_features): 복습 간격(ease·ivl), 복습 기억률(rev_ok·rev_n), 오늘의 한 판(run_done),
 -- 저녁 알림(last_evening, cron foldy-evening 7 11 * * *), 가족 깨우기(foldy_nudges·foldy_nudge), 관리자 지표(foldy_admin_retention)
+
+-- 2026-10-20 (적용 이름: foldy_beta_guardian_errors): 보호자 동의 시각(guardian_at·privacy_at, foldy_mark_guardian),
+-- 오류 기록(foldy_errors, foldy_log_error·foldy_admin_errors·foldy_admin_clear_errors), foldy_cleanup에 오류 90일·깨우기 30일 정리 추가

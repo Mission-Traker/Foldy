@@ -331,6 +331,15 @@ export const myWeek = (memberId, fromDay) => q(client.from('foldy_daily').select
 export const nudge = (fromId, toId) => rpcJson('foldy_nudge', { p_from: fromId, p_to: toId })
 export const nudgesToday = (day) => q(client.from('foldy_nudges').select('from_member,to_member').eq('day', day))
 export const adminRetention = () => rpcOrThrow('foldy_admin_retention')
+export const markGuardian = () => rpcOrThrow('foldy_mark_guardian')
+export const adminErrors = () => rpcOrThrow('foldy_admin_errors', { p_limit: 60 })
+export const adminClearErrors = () => rpcOrThrow('foldy_admin_clear_errors')
+// 앱 오류 자동 기록(실패해도 조용히)
+export function logError(e) {
+  try {
+    client.rpc('foldy_log_error', { p_message: String(e.message || '').slice(0, 500), p_stack: e.stack ? String(e.stack).slice(0, 2000) : null, p_path: String(e.path || '').slice(0, 200), p_ua: String(e.ua || '').slice(0, 300), p_build: String(e.build || '').slice(0, 40) }).then(() => {}, () => {})
+  } catch { /* */ }
+}
 export const familyWeek = (fromDay) => q(client.from('foldy_daily').select('member_id,day,done').gte('day', fromDay))
 export const memberWords = (memberId) => q(client.from('foldy_words').select('id,word,meaning,en_ok,ko_ok,sp_ok').eq('member_id', memberId).order('seq').limit(5000))
 

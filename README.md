@@ -62,6 +62,11 @@
 - 😱 갉아먹기 장면: 이틀 이상 쉬었거나 학습 알림으로 들어오면 하루 한 번, 캐릭터들이 단어 3개를 갉아먹는 연출 → '복습하고 되찾기'. 단어장 내용은 바뀌지 않음
 - 연속 학습일(🔥, 하루라도 빠지면 0으로 표시), 하루 목표 기본 5개(홈 '✎ 목표 바꾸기'·내 정보에서 1~50개로 조절) — 목표 수만큼 오늘의 추천 단어가 나옴
 
+## 베타 준비 (2026-10-20)
+- **보호자 확인**: 가족 만들기에 '[필수] 만 14세 이상 보호자' 체크 → `foldy_families.guardian_at`·`privacy_at`에 동의 시각 기록(`foldy_mark_guardian()`). 개인정보 처리방침 2026-10-20판
+- **오류 자동 기록**: 배포판에서 화면 오류·처리 안 된 오류를 `foldy_errors`에(같은 오류는 한 번, 가족당 하루 50건·전체 3,000건, 이름·단어 미포함, 90일 뒤 삭제). 화면이 깨지면 '다시 열기' 안내. 관리자 › 오류 탭에서 보고 지우기
+- **베타 설문**: 가입 3일째·7일째 홈에서 한 번씩 '폴디 어땠어요?'(별점 + 한 줄) → 수정요청함에 '베타 설문'으로(기기별 한 번)
+
 ## 재방문·기억 기능 (2026-10-20)
 - **오늘의 한 판**(홈 큰 버튼 → `/#/quiz/daily`): 복습할 단어(최대 5, 복습 날짜 지난 순) → 오늘의 단어 중 못 맞힌 뜻·철자(합계 최대 15). 둘 다 없으면 오늘의 단어로 연습. 끝나면 `foldy_daily.run_done`, 홈에 '✓ 오늘의 한 판 완료'
 - **똑똑한 복습 간격**: 단어마다 `ease`(시작 2.5, 1.3~3.0)·`ivl`(일). 복습에서 맞히면 간격 × ease(최대 180일), 잊어버리면 ease −0.2 후 처음부터. 복습 정답·문제 수는 `foldy_daily.rev_ok/rev_n`(기억률)
@@ -160,7 +165,8 @@ BASE=http://localhost:4173 node tests/linebreak.mjs    # 줄바꿈 점검(360·3
 BASE=http://localhost:4173 node tests/e2e-send.mjs     # 레벨 표기·➜ 보내기·발음기호·새로고침 깜빡임·게이지 18개
 BASE=http://localhost:4173 node tests/e2e-gnaw.mjs     # 갉아먹기 장면 12개(단어장 훼손 없음 확인)
 BASE=http://localhost:4173 node tests/e2e-handoff.mjs  # 카톡 → 사파리 자동 채점 이어받기 4개
-BASE=http://localhost:4173 node tests/e2e-engage.mjs   # 오늘의 한 판·거르기·이번 주 성장·가족 깨우기·친구 소개 14개
+BASE=http://localhost:4173 node tests/e2e-engage.mjs   # 보호자 확인·오늘의 한 판·거르기·이번 주 성장·가족 깨우기·오류 기록·친구 소개 15개
+FID=아이디 MEMBER=이름 node tests/e2e-survey.mjs       # 가입 3일 지난 구성원으로 베타 설문 3개
 BASE=http://localhost:4173 node tests/e2e-pron.mjs     # 소개 건너뛰기·비밀번호 8자·내 목소리로 확인 발음·AI 없이 발음 요령·예문·내가 쓴 답·연습 퀴즈 16개
 PHASE=a FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 아니면 잠김 5개 → SQL로 그 가족 구성원을 foldy_admins에 넣고
 PHASE=b FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 페이지 4개 탭·유료 AI 없음·랜딩 미리보기·숫자 비밀번호·재방문 지표 18개
