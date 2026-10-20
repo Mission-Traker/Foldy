@@ -57,7 +57,7 @@ try {
   const q1 = (await page.locator('.card p.font-title').first().textContent()).trim()
   await page.getByRole('button', { name: '🔄 다른 단어로 바꾸기' }).click()
   await page.getByRole('button', { name: /그냥 다른 단어로/ }).click()
-  await page.waitForTimeout(800)
+  await page.waitForFunction((a) => document.querySelector('.card p.font-title')?.textContent.trim() !== a, q1, { timeout: 5000 }).catch(() => {})
   const q2 = (await page.locator('.card p.font-title').first().textContent()).trim()
   check('퀴즈: 지금 문제가 다른 단어로 바뀜', q2 !== q1 && !!W[q2], `${q1} → ${q2}`)
   const asked = new Set([q2])

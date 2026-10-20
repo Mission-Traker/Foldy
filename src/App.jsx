@@ -351,11 +351,11 @@ export default function App() {
     if (!cand) return null
     swapped.current.ids.add(id)
     const w = words.find((x) => x.id === id)
-    if (known && w) await patchWord(id, markKnown(w))
+    // 화면은 바로 바꾸고 저장은 뒤에서(기다리지 않음)
     updateDaily(() => ({ set_ids: cur.map((x) => (x === id ? cand.id : x)) }))
-    await dailySave.current
+    if (known && w) patchWord(id, markKnown(w)).catch((e) => showToast(e.message))
     return cand
-  }, [todayIds, words, prevSet, patchWord, updateDaily])
+  }, [todayIds, words, prevSet, patchWord, updateDaily, showToast])
 
   // 저장이 끝날 때까지 기다림(바로 앱을 닫거나 새로고침해도 고른 단어가 남게)
   const chooseToday = useCallback(async (ids) => {
