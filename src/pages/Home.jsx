@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import { dailyPick, levelLabel, relatedPick } from '../lib/levels.js'
 import { meaningsFor } from '../lib/enrich.js'
-import { expandStage, reviewCount, statusOf, ymd, liveStreak, wrongDueList, WRONG_DAILY } from '../lib/study.js'
+import { expandStage, reviewCount, statusOf, ymd, liveStreak, wrongDueList, WRONG_DAILY , onRest, addDays, ENOUGH_X} from '../lib/study.js'
 import { Blob, Ring, Speak, GoalStepper, FitWord } from '../components/ui.jsx'
 import LevelBar from '../components/LevelBar.jsx'
 import { usePet, PetSheet } from '../components/PetCard.jsx'
@@ -89,6 +89,7 @@ export default function Home() {
   }
 
   const goalMet = done >= member.daily_goal
+  const enough = done >= member.daily_goal * ENOUGH_X
   const total = words.length
   return (
     <div className="pt-[max(env(safe-area-inset-top),16px)]">
@@ -108,8 +109,8 @@ export default function Home() {
         <div className="flex items-center gap-4">
           <Ring value={Math.min(done, member.daily_goal)} max={member.daily_goal} size={72} color="#E9954B" track="rgba(255,255,255,.18)" text="#fff" />
           <div className="min-w-0 flex-1">
-            <p className="font-jua text-xl">{goalMet ? '오늘 목표 달성! 🎉' : '오늘의 목표'}</p>
-            <p className="text-sm text-white/75"><span className="block">문제 {member.daily_goal}개 맞히기{again > 0 && <> + 다시 볼 단어 {again}개</>}</span><span className="block">지금 {done}개 맞혔어요</span></p>
+            <p className="font-jua text-xl">{enough ? '오늘은 충분히 했어요 🌙' : goalMet ? '오늘 목표 달성! 🎉' : '오늘의 목표'}</p>
+            <p className="text-sm text-white/75"><span className="block">문제 {member.daily_goal}개 맞히기{again > 0 && <> + 다시 볼 단어 {again}개</>}</span><span className="block">{enough ? `${done}개 맞혔어요 · 내일 이어서 하면 더 오래 기억나요` : `지금 ${done}개 맞혔어요`}</span></p>
           </div>
         </div>
         <Link to={!total ? '/add' : goalMet && again > 0 ? '/wrong/practice' : goalMet && due > 0 ? '/quiz/review' : '/study'}
@@ -186,7 +187,8 @@ export default function Home() {
 function StreakBadge({ member, today }) {
   const n = liveStreak(member, today)
   const doneToday = member.last_study === today
-  const sub = doneToday ? '오늘 학습 완료' : n > 0 ? `오늘 하면 ${n + 1}일째` : '오늘 시작해요'
+  const rest = onRest(member, today)
+  const sub = doneToday ? (member.rest_day === addDays(today, -1) ? '쉼표로 이어졌어요' : '오늘 학습 완료') : rest ? `쉼표 · 오늘 하면 ${n + 1}일째` : n > 0 ? `오늘 하면 ${n + 1}일째` : '오늘 시작해요'
   return (
     <div className="shrink-0 text-right" aria-label={`${n}일 연속 학습 중, ${sub}`}>
       <p className="flex items-baseline justify-end gap-1 whitespace-nowrap font-jua text-xl leading-tight text-slate-deep"><span aria-hidden="true">🔥</span><span>{`${n}일`}</span><span className="text-sm">연속</span></p>

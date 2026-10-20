@@ -3,8 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import * as db from '../lib/db.js'
 import { gradeMeaning, gradeSpelling, speechScore, SPEECH_PASS } from '../lib/grading.js'
-import { applyAnswer, applyReview, MODE_FIELD, MODE_LABEL, nextCandidates, reviewQueue, sendToWrongNote, shuffle, statusOf, todayQueue, ymd } from '../lib/study.js'
-import { canListen, listenOnce, speak } from '../lib/speech.js'
+import { applyAnswer, applyReview, clozeOf, ENOUGH_X, MODE_FIELD, MODE_LABEL, nextCandidates, PRACTICE_MODES, practiceQueue, reviewQueue, sendToWrongNote, shuffle, statusOf, todayQueue, ymd } from '../lib/study.js'
+import { canListen, listenOnce, speak, speakTTS } from '../lib/speech.js'
 import { isIOS, openOutside, pronHereOK } from '../lib/browser.js'
 import SelfPron from '../components/SelfPron.jsx'
 import MyAnswer from '../components/MyAnswer.jsx'
@@ -18,15 +18,16 @@ import { savedMic } from '../lib/mic.js'
 function focusQueue(words, ids, setIds) {
   const pool = ids ? words.filter((w) => ids.includes(w.id)) : words.filter((w) => setIds.includes(w.id) && statusOf(w) !== 'o')
   const items = []
-  for (const w of pool) for (const m of ['ko', 'en', 'sp']) if (!w[MODE_FIELD[m]]) items.push({ id: w.id, mode: m })
-  // 같은 단어가 연달아 나오지 않게 퀴즈 종류별로 묶어서 섞기
-  return ['ko', 'en', 'sp'].flatMap((m) => shuffle(items.filter((x) => x.mode === m))).slice(0, 30)
+  for (const w of pool) for (const m of ['ko', 'en']) if (!w[MODE_FIELD[m]]) items.push({ id: w.id, mode: m })
+  // 같은 단어가 연달아 나오지 않게 퀴즈 종류별로 묶어서 섞기(○ = 뜻 + 철자, 발음은 따로)
+  return ['ko', 'en'].flatMap((m) => shuffle(items.filter((x) => x.mode === m))).slice(0, 30)
 }
 
 // setIds: 오늘의 단어(하루 목표 개수). 일반 퀴즈는 이 단어들만 — 다 맞히면 같은 단어로 다시
 function buildQueue(words, mode, src, ids, setIds, seenIds) {
   if (mode === 'focus') return focusQueue(words, ids, setIds)
   if (mode === 'review') return reviewQueue(words, seenIds)
+  if (PRACTICE_MODES.includes(mode)) return practiceQueue(words, setIds, mode)
   if (src === 'wrong') {
     return shuffle(words.filter((w) => (w.wrong_modes || []).includes(mode))).slice(0, 20).map((w) => ({ id: w.id, mode }))
   }
@@ -71,13 +72,13 @@ export default function Quiz() {
     setInput(''); setRes(null); setSent(false); setSpFails(0)
     // 영어→뜻·발음 문제는 들어오자마자 발음 재생(뜻→영어는 정답이 드러나므로 재생 안 함)
     // queue도 지켜봐야 첫 문제(단어 목록을 불러온 직후)에서도 재생됨
-    if ((qmode === 'ko' || qmode === 'sp') && w) setTimeout(() => speak(w.word), 250)
+    if ((qmode === 'ko' || qmode === 'sp' || qmode === 'dict') && w) setTimeout(() => speak(w.word), 250)
     if (qmode !== 'sp') setTimeout(() => inputRef.current?.focus(), 100)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx, queue])
 
   if (!queue) return <p className="py-20 text-center text-soft">불러오는 중…</p>
-  if (!['ko', 'en', 'sp', 'review', 'focus'].includes(mode)) return <Empty title="없는 퀴즈예요"><Link to="/study" className="btn-main mt-2">돌아가기</Link></Empty>
+  if (!['ko', 'en', 'sp', 'review', 'focus', ...PRACTICE_MODES].includes(mode)) return <Empty title="없는 퀴즈예요"><Link to="/study" className="btn-main mt-2">돌아가기</Link></Empty>
 
   const practiceRound = ['ko', 'en', 'sp'].includes(mode) && queue[0]?.practice
   const title = mode === 'review' ? '오늘 복습' : mode === 'focus' ? `○ 만들기 · ${MODE_LABEL[qmode] || ''}` : `${src === 'wrong' ? '오답노트 · ' : ''}${MODE_LABEL[mode]}${practiceRound ? ' · 다시 외우기' : ''}`
@@ -104,7 +105,7 @@ export default function Quiz() {
     return (
       <div>
         <Header title={title} back />
-        <Empty title={mode === 'focus' ? '오늘의 단어가 모두 ○ 완료예요! 🎉' : mode === 'review' ? '오늘 복습할 단어가 없어요' : src === 'wrong' ? '오답노트가 비어 있어요' : '단어장에 단어를 먼저 넣어 주세요'}>
+        <Empty title={mode === 'cloze' ? '예문이 준비된 단어가 아직 없어요' : mode === 'focus' ? '오늘의 단어가 모두 ○ 완료예요! 🎉' : mode === 'review' ? '오늘 복습할 단어가 없어요' : src === 'wrong' ? '오답노트가 비어 있어요' : '단어장에 단어를 먼저 넣어 주세요'}>
           <Link to={src === 'wrong' || mode === 'review' ? '/study' : '/add'} className="btn-main mt-2">{src === 'wrong' || mode === 'review' ? '학습으로' : '단어 추가'}</Link>
         </Empty>
       </div>
@@ -118,7 +119,7 @@ export default function Quiz() {
     const daily3 = ['ko', 'en', 'sp'].includes(mode) && src !== 'wrong'
     const setWords = setIds.map((id) => words.find((x) => x.id === id)).filter(Boolean)
     // 남은(모르는) 문제 수: 방금 푼 결과가 화면 상태에 이미 반영돼 있으므로 그대로 계산
-    const remaining = daily3 ? setWords.filter((x) => !x[MODE_FIELD[mode]]).length : mode === 'review' ? 0 : buildQueue(words, mode, src, ids, setIds, seenToday()).length
+    const remaining = daily3 ? setWords.filter((x) => !x[MODE_FIELD[mode]]).length : mode === 'review' || PRACTICE_MODES.includes(mode) ? 0 : buildQueue(words, mode, src, ids, setIds, seenToday()).length
     const more = daily3 ? nextCandidates(words, setIds).length : 0
     const goal = member?.daily_goal || 5
     // 새로고침하지 않고 다시 시작(저장 중인 답이 끊기지 않게)
@@ -158,7 +159,8 @@ export default function Quiz() {
               ? <button className="btn-main" onClick={restart}>모르는 단어 {remaining}개 한 번 더</button>
               : <p className="pop mx-auto flex items-center gap-2 rounded-full bg-sage px-4 py-1.5 font-jua text-white">✓ 오늘의 단어 이 퀴즈 통과!</p>}
             <button className={remaining > 0 ? 'btn-ghost' : 'btn-main'} onClick={againAll}>오늘의 단어 {setWords.length}개 처음부터 다시</button>
-            {remaining === 0 && more > 0 && <button className="btn-ghost" onClick={addMore}>새 단어 {Math.min(goal, more)}개 더 하기</button>}
+            {remaining === 0 && more > 0 && setWords.length < goal * ENOUGH_X && <button className="btn-ghost" onClick={addMore}>새 단어 {Math.min(goal, more)}개 더 하기</button>}
+            {remaining === 0 && more > 0 && setWords.length >= goal * ENOUGH_X && <p className="text-sm text-soft">🌙 오늘 새 단어는 충분해요. 내일 이어서 해요</p>}
             <button className="text-sm text-soft underline" onClick={() => nav('/study')}>그만하기</button>
           </div>
         ) : remaining > 0 ? (
@@ -168,11 +170,11 @@ export default function Quiz() {
           </div>
         ) : (
           <>
-            <p className="pop flex items-center gap-2 rounded-full bg-sage px-4 py-1.5 font-jua text-white">✓ {mode === 'review' ? '오늘 복습 끝!' : src === 'wrong' ? '오답노트 모두 통과!' : '모두 통과!'}</p>
+            <p className="pop flex items-center gap-2 rounded-full bg-sage px-4 py-1.5 font-jua text-white">✓ {mode === 'review' ? '오늘 복습 끝!' : PRACTICE_MODES.includes(mode) ? `${MODE_LABEL[mode]} 끝!` : src === 'wrong' ? '오답노트 모두 통과!' : '모두 통과!'}</p>
             <div className="mt-1 flex gap-2">
               <button className="btn-ghost" onClick={() => nav('/study')}>다른 퀴즈</button>
-              {mode === 'review'
-                ? <button className="btn-main" onClick={restart}>한 번 더 복습</button>
+              {mode === 'review' || PRACTICE_MODES.includes(mode)
+                ? <button className="btn-main" onClick={restart}>{mode === 'review' ? '한 번 더 복습' : '한 번 더 하기'}</button>
                 : <button className="btn-main" onClick={() => nav('/book')}>단어장 보기</button>}
             </div>
           </>
@@ -180,6 +182,9 @@ export default function Quiz() {
       </div>
     )
   }
+
+  // 빈칸 채우기는 예문 속 모양(studies 등)이 정답
+  function ansOf(x) { return (qmode === 'cloze' && clozeOf(x)?.ans) || x.word }
 
   async function record(ok, extra = {}) {
     setRes({ ok, ...extra })
@@ -202,7 +207,7 @@ export default function Quiz() {
       const g = gradeMeaning(input, w.meaning, w.accepted)
       record(g.ok, { close: g.close })
     } else {
-      const g = gradeSpelling(input, w.word)
+      const g = gradeSpelling(input, ansOf(w))
       record(g.ok, { close: g.close })
     }
   }
@@ -251,6 +256,7 @@ export default function Quiz() {
   }
 
   const already = (w.wrong_modes || []).includes(qmode)
+  const cz = qmode === 'cloze' ? clozeOf(w) : null
   const progress = ((idx + (res ? 1 : 0)) / queue.length) * 100
 
   return (
@@ -260,8 +266,23 @@ export default function Quiz() {
 
       <div className={`card relative mb-4 flex min-h-[220px] flex-col items-center justify-center gap-3 p-6 text-center ${res && !res.ok ? 'wiggle border-no' : ''} ${res?.ok ? 'pop glow-ok border-ok' : ''}`}>
         <Reaction kind={res ? (res.ok ? 'ok' : 'no') : null} k={`${idx}-${res?.ok}-${res?.heard || ''}`} />
-        <p className="font-jua text-sm text-soft">{qmode === 'ko' ? '뜻을 적어 보세요' : qmode === 'en' ? '영어로 적어 보세요' : selfMode ? '듣고 따라 말한 뒤 내 목소리와 비교해 보세요' : '마이크를 누르고 읽어 보세요 (70% 비슷하면 통과)'}</p>
-        {qmode === 'en' ? (
+        <p className="font-jua text-sm text-soft">{qmode === 'ko' ? '뜻을 적어 보세요' : qmode === 'en' ? '영어로 적어 보세요' : qmode === 'dict' ? '들리는 단어를 영어로 적어 보세요' : qmode === 'cloze' ? '빈칸에 들어갈 영어를 적어 보세요' : selfMode ? '듣고 따라 말한 뒤 내 목소리와 비교해 보세요' : '마이크를 누르고 읽어 보세요 (70% 비슷하면 통과)'}</p>
+        {qmode === 'dict' ? (
+          <>
+            <button onClick={() => speak(w.word)} className="flex h-20 w-20 items-center justify-center rounded-full bg-slate/10 text-4xl" aria-label="다시 듣기">🔊</button>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => speakTTS(w.word, { rate: 0.5 })} className="chip">🐢 천천히</button>
+              {res && <span className="chip">{w.meaning}</span>}
+            </div>
+            <p className="max-w-full break-words font-title tracking-[0.3em] text-soft">{w.word.replace(/[A-Za-z]/g, '_')}</p>
+          </>
+        ) : qmode === 'cloze' && cz ? (
+          <>
+            <p className="max-w-full break-keep font-title text-xl leading-relaxed text-ink">{cz.before}<span className="mx-0.5 inline-block min-w-[3ch] border-b-2 border-tang px-1 text-tang">{res ? cz.ans : cz.ans[0] + '…'}</span>{cz.after}</p>
+            {cz.ko && <p className="break-keep text-sm text-soft">{cz.ko}</p>}
+            <button onClick={() => speakTTS(cz.before + cz.ans + cz.after)} className="chip">🔊 문장 듣기</button>
+          </>
+        ) : qmode === 'en' ? (
           <>
             <p className={`break-words font-jua text-slate-deep ${w.meaning.length > 14 ? 'text-2xl' : 'text-3xl'}`}>{w.meaning}</p>
             <p className={`max-w-full break-words font-title text-soft ${w.word.length > 10 ? 'tracking-[0.15em]' : 'tracking-[0.3em]'}`}>{w.word[0]}{w.word.slice(1).replace(/[A-Za-z]/g, '_')}</p>
@@ -277,8 +298,8 @@ export default function Quiz() {
         {res && !res.ok && !res.retry && (
           <div className="space-y-1">
             <p className="font-jua text-xl text-coral">{res.close ? '아까워요!' : '틀렸어요'}</p>
-            <MyAnswer input={input} word={w.word} mode={qmode} />
-            <p className="text-slate-deep">정답: <b className="font-title text-lg">{qmode === 'ko' ? w.meaning : w.word}</b>
+            <MyAnswer input={input} word={ansOf(w)} mode={qmode === 'ko' ? 'ko' : 'en'} />
+            <p className="text-slate-deep">정답: <b className="font-title text-lg">{qmode === 'ko' ? w.meaning : ansOf(w)}</b>
               {qmode !== 'ko' && <button onClick={() => speak(w.word)} className="ml-1">🔊</button>}</p>
             {res.judgedNo && <p className="text-xs text-soft">AI: {res.judgedNo}</p>}
           </div>
@@ -336,7 +357,9 @@ export default function Quiz() {
             <button onClick={aiJudge} disabled={judging} className="btn-ghost w-full">{judging ? 'AI가 채점 중…' : '🤖 내 답도 맞는 것 같아요 (AI 재채점)'}</button>
           )}
           <div className="flex gap-2">
-            {!already && !sent ? (
+            {PRACTICE_MODES.includes(qmode) ? (
+              <span className="flex-1 self-center text-center text-sm text-soft">연습 문제예요</span>
+            ) : !already && !sent ? (
               <button onClick={toWrongNote} className="btn-coral flex-1 whitespace-nowrap px-3">📌 오답노트로</button>
             ) : (
               <span className="flex-1 self-center text-center text-sm text-soft">📌 오답노트에 있어요</span>

@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import * as db from './lib/db.js'
 import { enrichPending, personalize, storyOn } from './lib/enrich.js'
-import { enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, sendToSet, ymd, gnawDays, pickGnawWords, reviewCount, wrongDue } from './lib/study.js'
+import { enqueue, flushQueued, mergePatchResult, nextCandidates, nextStreak, PatchTracker, resolveTodaySet, sendToSet, ymd, gnawDays, pickGnawWords, reviewCount, wrongDue, ENOUGH_X } from './lib/study.js'
 import { BottomNav, Confetti, Toast } from './components/ui.jsx'
 import { fanfare } from './lib/sfx.js'
 import { levelProgress, normLevel } from './lib/levels.js'
@@ -275,6 +275,7 @@ export default function App() {
     const day = ymd()
     const next = updateDaily((d) => ({ done: (d.done || 0) + 1 }))
     if (next && next.done === member.daily_goal) { setTimeout(fanfare, 700); showToast('🎉 오늘 목표 달성!') }
+    if (next && next.done === member.daily_goal * ENOUGH_X) showToast('🌙 오늘은 충분해요! 쉬었다가 내일 하면 더 오래 기억나요')
     const s = nextStreak(member, day)
     if (s) { try { await updateMember(s) } catch { /* */ } }
   }, [member, updateMember, showToast, updateDaily])

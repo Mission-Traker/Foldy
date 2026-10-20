@@ -47,13 +47,18 @@ describe('○△× 상태', () => {
   it('아무것도 안 했으면 ×', () => expect(statusOf(base)).toBe('x'))
   it('하나라도 시도하면 △', () => expect(statusOf({ ...base, attempted: true })).toBe('t'))
   it('셋 다 맞히면 ○', () => expect(statusOf({ ...base, en_ok: true, ko_ok: true, sp_ok: true })).toBe('o'))
-  it('두 개만 맞히면 △', () => expect(statusOf({ ...base, en_ok: true, ko_ok: true })).toBe('t'))
+  it('뜻·철자를 맞히면 ○(발음은 따로 배지)', () => expect(statusOf({ ...base, en_ok: true, ko_ok: true })).toBe('o'))
+  it('뜻·발음만 맞히면 △', () => expect(statusOf({ ...base, ko_ok: true, sp_ok: true })).toBe('t'))
 })
 
 describe('답 반영·복습 일정', () => {
-  it('세 번째 정답으로 ○가 되면 내일 복습 예약', () => {
-    const p = applyAnswer({ ...base, en_ok: true, ko_ok: true }, 'sp', true, '2026-10-15')
-    expect(p).toMatchObject({ sp_ok: true, review_step: 1, next_review: '2026-10-16' })
+  it('철자까지 맞혀 ○가 되면 내일 복습 예약', () => {
+    const p = applyAnswer({ ...base, ko_ok: true }, 'en', true, '2026-10-15')
+    expect(p).toMatchObject({ en_ok: true, review_step: 1, next_review: '2026-10-16' })
+  })
+  it('발음은 ○를 바꾸지 않음', () => {
+    const p = applyAnswer({ ...base, en_ok: true, ko_ok: true, review_step: 2 }, 'sp', false)
+    expect(p.review_step).toBeUndefined()
   })
   it('○ 단어를 틀리면 △로 내려가고 복습 해제', () => {
     const p = applyAnswer({ ...base, en_ok: true, ko_ok: true, sp_ok: true, review_step: 2 }, 'ko', false)
@@ -599,5 +604,29 @@ describe('틀린 철자 비교', async () => {
     expect(show('meazure', 'measure')).toBe('mea[z]_ure'.replace('[z]_', '[z]_'))
     expect(show('measure', 'measure')).toBe('measure')
     expect(show('Measur', 'measure')).toBe('Measur_')
+  })
+})
+
+
+describe('연속 학습 쉼표·연습 퀴즈', async () => {
+  const { nextStreak, liveStreak, onRest, clozeOf, practiceQueue } = await import('../src/lib/study.js')
+  it('하루 쉬어도 쉼표로 이어짐(7일에 한 번)', () => {
+    const m = { streak: 5, best_streak: 5, last_study: '2026-10-18' }
+    expect(liveStreak(m, '2026-10-20')).toBe(5)
+    expect(onRest(m, '2026-10-20')).toBe(true)
+    expect(nextStreak(m, '2026-10-20')).toMatchObject({ streak: 6, rest_day: '2026-10-19' })
+    const used = { ...m, rest_day: '2026-10-15' }
+    expect(liveStreak(used, '2026-10-20')).toBe(0)
+    expect(nextStreak(used, '2026-10-20').streak).toBe(1)
+    expect(nextStreak({ ...m, last_study: '2026-10-17' }, '2026-10-20').streak).toBe(1)
+  })
+  it('빈칸: 예문 속 모양으로, 없으면 null', () => {
+    expect(clozeOf({ word: 'study', example: { en: 'He studies English.' } }).ans).toBe('studies')
+    expect(clozeOf({ word: 'make', example: { en: 'I made a cake.' } })).toBe(null)
+  })
+  it('연습 문제는 기록을 바꾸지 않는 practice', () => {
+    const ws = [{ id: 'a', word: 'apple', example: { en: 'I eat an apple.' } }, { id: 'b', word: 'go' }]
+    expect(practiceQueue(ws, ['a', 'b'], 'cloze').map((x) => x.id)).toEqual(['a'])
+    expect(practiceQueue(ws, ['a', 'b'], 'dict').every((x) => x.practice)).toBe(true)
   })
 })

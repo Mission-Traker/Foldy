@@ -1,12 +1,34 @@
 // 학습 상태·복습 일정·정렬 — 의존성 없음(단위 테스트 대상)
 
 export const MODES = ['ko', 'en', 'sp'] // ko: 영어 보고 뜻 쓰기, en: 뜻 보고 영어 쓰기, sp: 발음
-export const MODE_LABEL = { ko: '영어 → 뜻', en: '뜻 → 영어', sp: '발음' }
+export const MODE_LABEL = { ko: '영어 → 뜻', en: '뜻 → 영어', sp: '발음', dict: '듣고 쓰기', cloze: '빈칸 채우기' }
+// 연습 퀴즈(○·복습 기록은 바꾸지 않음, 맞힌 수·연속 학습일에는 들어감)
+export const PRACTICE_MODES = ['dict', 'cloze']
+// 예문 속 그 단어 자리를 빈칸으로 → { before, after, ans } (예문에 단어가 없으면 null)
+export function clozeOf(w) {
+  const en = w?.example?.en
+  if (!en || !w.word || /\s/.test(w.word.trim())) return null
+  const base = w.word.trim().toLowerCase().replace(/[^a-z]/g, '')
+  if (base.length < 2) return null
+  const stem = base.length > 4 ? base.replace(/e$|y$/, '') : base
+  const re = new RegExp(`\\b(${stem}[a-z]*)\\b`, 'i')
+  const m = en.match(re)
+  if (!m || m[1].length > base.length + 4) return null
+  return { before: en.slice(0, m.index), after: en.slice(m.index + m[1].length), ans: m[1], ko: w.example.ko || '' }
+}
+// 오늘의 단어로 연습 문제(모자라면 다른 단어로 채움, 최대 10개)
+export function practiceQueue(words, setIds, mode, rand = Math.random) {
+  const ok = (w) => (mode === 'cloze' ? !!clozeOf(w) : true)
+  const inSet = setIds.map((id) => words.find((w) => w.id === id)).filter((w) => w && ok(w))
+  const rest = shuffle(words.filter((w) => !setIds.includes(w.id) && ok(w)), rand)
+  return [...shuffle(inSet, rand), ...rest].slice(0, 10).map((w) => ({ id: w.id, mode, practice: true }))
+}
 export const MODE_FIELD = { ko: 'ko_ok', en: 'en_ok', sp: 'sp_ok' }
 
 // ○ 완료 / △ 학습 중 / × 미학습
+// ○ = 뜻 + 철자. 발음은 ○와 따로 모으는 배지(마이크 환경 때문에 ○가 막히지 않게)
 export function statusOf(w) {
-  if (w.en_ok && w.ko_ok && w.sp_ok) return 'o'
+  if (w.en_ok && w.ko_ok) return 'o'
   if (w.attempted || w.en_ok || w.ko_ok || w.sp_ok) return 't'
   return 'x'
 }
@@ -152,10 +174,24 @@ export function seeded(seedStr) {
 }
 
 // 연속 학습일 갱신
+// 쉼표: 7일에 한 번, 하루를 통째로 쉬어도 연속 학습일이 끊기지 않음
+export const REST_GAP = 7
+// 하루 목표의 이만큼을 넘기면 '오늘은 충분해요'(몰아서 하고 끊기는 것을 막음) — 새 단어도 더 열지 않음
+export const ENOUGH_X = 3
+export function restAvailable(member, today = ymd()) {
+  if (!member?.rest_day) return true
+  return member.rest_day <= addDays(today, -REST_GAP)
+}
 export function nextStreak(member, today = ymd()) {
   if (member.last_study === today) return null
-  const streak = member.last_study === addDays(today, -1) ? (member.streak || 0) + 1 : 1
-  return { streak, best_streak: Math.max(streak, member.best_streak || 0), last_study: today }
+  const yesterday = addDays(today, -1)
+  let streak = 1
+  let rest = null
+  if (member.last_study === yesterday) streak = (member.streak || 0) + 1
+  else if (member.last_study === addDays(today, -2) && restAvailable(member, today)) { streak = (member.streak || 0) + 1; rest = yesterday }
+  const out = { streak, best_streak: Math.max(streak, member.best_streak || 0), last_study: today }
+  if (rest) out.rest_day = rest
+  return out
 }
 
 // 단어 입력 검증(사진·직접 추가 공통)
@@ -293,8 +329,13 @@ export const reviewCount = (words, seenIds = [], today = ymd()) => {
 // 화면에 보일 연속 학습일: 어제나 오늘 공부했으면 이어지는 중, 그보다 오래됐으면 0(끊김)
 export function liveStreak(member, today = ymd()) {
   if (!member?.last_study) return 0
-  return member.last_study === today || member.last_study === addDays(today, -1) ? member.streak || 0 : 0
+  if (member.last_study === today || member.last_study === addDays(today, -1)) return member.streak || 0
+  // 어제 하루 쉬었지만 쉼표가 남아 있으면 오늘 하면 이어짐
+  if (member.last_study === addDays(today, -2) && restAvailable(member, today)) return member.streak || 0
+  return 0
 }
+// 연속일이 지금 쉼표 덕분에 살아 있는지(오늘 해야 이어짐)
+export const onRest = (member, today = ymd()) => !!member?.last_study && member.last_study === addDays(today, -2) && restAvailable(member, today) && (member.streak || 0) > 0
 
 // 갉아먹기 장면(오래 쉬었다 돌아왔을 때) — 실제 단어는 바꾸지 않는 연출
 // 며칠 쉬었는지: 마지막 학습일로부터 2일 이상 지났거나(=하루 이상 통째로 쉼) 학습 알림으로 들어왔을 때만

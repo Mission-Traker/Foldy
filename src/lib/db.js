@@ -5,7 +5,7 @@ const KEY = import.meta.env.VITE_SUPABASE_KEY || 'sb_publishable_kMgYoZQrs5LRk-z
 const TOKEN_KEY = 'foldy.session'
 const MEMBER_KEY = 'foldy.member'
 const MTOK_KEY = 'foldy.memberTokens' // 구성원별 잠금 해제 토큰
-const MEMBER_COLS = 'id,family_id,name,avatar,level,daily_goal,streak,best_streak,last_study,created_at,has_pin,story,pet,name_changed_at,level_base'
+const MEMBER_COLS = 'id,family_id,name,avatar,level,daily_goal,streak,best_streak,last_study,created_at,has_pin,story,pet,name_changed_at,level_base,rest_day'
 
 function store(k, v) {
   try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)) } catch { /* 저장 불가 환경 */ }

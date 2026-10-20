@@ -213,7 +213,7 @@ try {
   await page.goto(BASE + '/#/book')
   await page.locator('ul li').first().waitFor()
   const before = await page.locator('ul > li').count()
-  check('단어 앞에 지우기 체크칸 없음', (await page.getByRole('button', { name: /선택$/ }).count()) === 0)
+  check('기본 화면엔 단어 앞 체크칸 없음(☑ 선택을 눌러야 나옴)', (await page.getByRole('checkbox').count()) === 0)
   check('단어 바로 뒤 🔊 발음 듣기', await page.getByRole('button', { name: 'umbrella 발음 듣기' }).isVisible())
   await page.getByRole('button', { name: 'umbrella 메뉴' }).click()
   await page.getByRole('menuitem', { name: '🗑 삭제' }).click()

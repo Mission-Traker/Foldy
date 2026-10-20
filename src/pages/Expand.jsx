@@ -141,7 +141,7 @@ export function ExpandGuide({ words, compact = false }) {
     else { st.o++; if (s === 'example') st.open++; else if (w.enriched) st.ready++; else st.wait++ }
   }
   const steps = [
-    { t: '단어에 ○ 받기', d: '영어 → 뜻, 뜻 → 영어, 발음 세 퀴즈를 모두 맞히면 ○가 붙어요', n: `○ 단어 ${st.o}개`, on: st.o > 0 },
+    { t: '단어에 ○ 받기', d: '영어 → 뜻, 뜻 → 영어 두 퀴즈를 모두 맞히면 ○가 붙어요', n: `○ 단어 ${st.o}개`, on: st.o > 0 },
     { t: '유의어·반의어 준비', d: '○를 받으면 AI가 비슷한 말과 반대말을 자동으로 만들어요', n: st.wait ? `준비 중 ${st.wait}개` : '기다릴 단어 없음', on: st.ready + st.open > 0 },
     { t: '유의어·반의어 퀴즈 맞히기', d: '비슷한 말·반대말의 뜻을 맞히면 그 단어의 예문이 열려요', n: `확장할 단어 ${st.ready}개`, on: st.ready > 0 },
     { t: '예문 열림', d: '예문은 단어장에서 단어를 눌러 볼 수 있어요', n: `예문 열린 단어 ${st.open}개`, on: st.open > 0 },

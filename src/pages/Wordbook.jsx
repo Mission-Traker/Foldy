@@ -273,7 +273,7 @@ export default function Wordbook() {
           <span className="text-2xl">🎯</span>
           <span className="flex-1 text-sm">
             <b className="font-jua text-slate-deep">○를 기다리는 단어 {counts.x + counts.t}개</b>
-            <span className="block text-xs text-soft">세 가지 퀴즈를 다 맞히면 ○</span>
+            <span className="block text-xs text-soft">뜻·철자 퀴즈를 다 맞히면 ○</span>
           </span>
           <span className="whitespace-nowrap text-sm text-soft">지금 끝내기 ›</span>
         </Link>

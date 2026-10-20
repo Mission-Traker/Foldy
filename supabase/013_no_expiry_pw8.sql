@@ -4,3 +4,9 @@ alter table public.foldy_member_sessions alter column expires_at set default (no
 update public.foldy_sessions set expires_at = now() + interval '100 years' where expires_at > now();
 update public.foldy_member_sessions set expires_at = now() + interval '100 years' where expires_at > now();
 -- foldy_signup / foldy_change_password / foldy_reset_password: 비밀번호 길이 검사 < 4 → < 8
+
+-- 2026-10-20 (적용 이름: foldy_rest_day_o_rule): 연속 학습 쉼표 + ○ 기준(뜻+철자)
+alter table public.foldy_members add column if not exists rest_day date;
+grant select (rest_day), update (rest_day) on public.foldy_members to anon, authenticated;
+update public.foldy_words set review_step = 1, next_review = current_date + 1
+where ko_ok and en_ok and not coalesce(sp_ok, false) and coalesce(review_step, 0) = 0;

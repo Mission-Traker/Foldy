@@ -10,7 +10,7 @@ import { pronHereOK } from '../lib/browser.js'
 const CARDS = [
   { mode: 'ko', icon: '🔤', title: '영어 보고 뜻 쓰기', desc: '비슷한 뜻이면 정답이에요', cls: 'bg-paper border-line' },
   { mode: 'en', icon: '✏️', title: '뜻 보고 영어 쓰기', desc: '철자까지 정확하게', cls: 'bg-paper border-line' },
-  { mode: 'sp', icon: '🎤', title: '발음하기', desc: '정석 발음과 70% 비슷하면 통과', cls: 'bg-paper border-line' },
+  { mode: 'sp', icon: '🎤', title: '발음하기', desc: '통과하면 🎤 발음 배지(○와 따로)', cls: 'bg-paper border-line' },
 ]
 
 export default function Study() {
@@ -29,7 +29,7 @@ export default function Study() {
     return (
       <div>
         <Header title="학습" />
-        <Empty title="단어장이 비어 있어요" desc="단어를 넣으면 세 가지 퀴즈로 외울 수 있어요"><Link to="/add" className="btn-main mt-2">단어 추가</Link></Empty>
+        <Empty title="단어장이 비어 있어요" desc="단어를 넣으면 퀴즈로 외울 수 있어요"><Link to="/add" className="btn-main mt-2">단어 추가</Link></Empty>
       </div>
     )
   }
@@ -64,7 +64,7 @@ export default function Study() {
           <span className="text-soft">›</span>
         </Link>
       )}
-      <p className="mb-3 text-sm text-soft">세 가지 퀴즈를 모두 맞히면 단어에 <b className="text-sage">○</b>가 붙어요.</p>
+      <p className="mb-3 text-sm text-soft">뜻과 철자를 모두 맞히면 단어에 <b className="text-sage">○</b>가 붙어요. 발음은 따로 🎤 배지를 모아요.</p>
       <div className="space-y-3">
         {CARDS.map((c) => {
           const left = setWords.filter((w) => !w[MODE_FIELD[c.mode]]).length
@@ -97,6 +97,22 @@ export default function Study() {
           <span className="text-soft">›</span>
         </Link>
       )}
+
+      {/* 연습 퀴즈: ○ 기록은 바꾸지 않고 맞힌 수에 들어감 */}
+      <h2 className="mb-2 mt-6 font-jua text-lg text-slate-deep">✨ 연습하기</h2>
+      <div className="grid grid-cols-2 gap-2">
+        <Link to="/quiz/dict" className="rounded-2xl border border-line bg-paper px-3 py-3">
+          <span className="text-2xl">🎧</span>
+          <b className="mt-1 block font-jua text-slate-deep">듣고 쓰기</b>
+          <span className="block break-keep text-xs text-soft">소리만 듣고 철자 쓰기</span>
+        </Link>
+        <Link to="/quiz/cloze" className="rounded-2xl border border-line bg-paper px-3 py-3">
+          <span className="text-2xl">🧩</span>
+          <b className="mt-1 block font-jua text-slate-deep">빈칸 채우기</b>
+          <span className="block break-keep text-xs text-soft">예문 속 빈칸에 단어 쓰기</span>
+        </Link>
+      </div>
+      <p className="mt-1.5 text-xs text-soft">🎤 발음 배지 {words.filter((w) => w.sp_ok).length}개 모았어요</p>
 
       <div className="mb-2 mt-6 flex items-center justify-between">
         <h2 className="font-jua text-lg text-slate-deep">📅 시험 대비</h2>
