@@ -52,13 +52,15 @@ const MAX_DURATION = { extract: 60, enrich: 60, story: 60, judge: 30, pron: 30, 
 function remaining(req) { return req?.foldyDeadline ? req.foldyDeadline - Date.now() : 40000 }
 async function freeChat(opts) {
   const c = freeConf()
-  const models = [c.model, c.model]
+  let models = [c.model, c.model]
   if (c.base === GEMINI_BASE && GEMINI_BACKUP !== c.model) models.push(GEMINI_BACKUP)
+  // 짧은 판단(채점)은 가볍고 빠른 모델 먼저 — 붐빌 때 오래 기다리지 않게
+  if (opts.fast && c.base === GEMINI_BASE && GEMINI_BACKUP !== c.model) models = [GEMINI_BACKUP, c.model, GEMINI_BACKUP]
   let last
   for (let i = 0; i < models.length; i++) {
     const left = remaining(opts.req)
     if (i > 0 && left < 6000) break
-    try { return await freeChatOnce(c, models[i], { ...opts, timeout: Math.max(3000, Math.min(opts.image ? 55000 : 40000, left - 1500)) }) } catch (e) {
+    try { return await freeChatOnce(c, models[i], { ...opts, timeout: Math.max(3000, Math.min(opts.image ? 55000 : opts.fast ? 9000 : 40000, left - 1500)) }) } catch (e) {
       last = e
       if (!e.busy) throw e
       if (i < models.length - 1) await new Promise((r) => setTimeout(r, i === 0 ? 700 : 200))
@@ -127,12 +129,12 @@ async function takeQuota(req, kind) {
 }
 
 // 글자만 다루는 작업: 무료 AI만(가족당 하루 한도 안에서). 형식이 깨지면 한 번 더
-export async function textLLM({ system, text, maxTokens = 2000, check = () => true, req }) {
+export async function textLLM({ system, text, maxTokens = 2000, check = () => true, req, fast = false }) {
   if (!hasFree()) throw new FreeOnlyError()
   if (!(await takeQuota(req, 'free_text'))) throw new LimitError()
   for (let i = 0; i < 2; i++) {
     if (i > 0 && remaining(req) < 6000) break
-    const out = await freeChat({ req, system: i ? system + '\n\n반드시 요청한 형식만 정확히 출력하라.' : system, text, maxTokens })
+    const out = await freeChat({ req, fast, system: i ? system + '\n\n반드시 요청한 형식만 정확히 출력하라.' : system, text, maxTokens })
     if (check(out)) return { text: out, via: 'free' }
   }
   throw new Error('AI 응답 형식이 맞지 않아요. 다시 해 주세요')

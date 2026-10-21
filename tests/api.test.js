@@ -66,7 +66,7 @@ describe('AI 서버 경로 보호', () => {
     const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '기분 좋은' }), res)
     expect(JSON.parse(res.body).ok).toBe(true)
   })
-  it('유료 AI(Claude) 키가 있어도 절대 부르지 않음 — 무료 응답이 깨지면 500', async () => {
+  it('유료 AI(Claude) 키가 있어도 절대 부르지 않음 — 무료 응답이 깨지면 503(바쁨 안내)', async () => {
     process.env.FREE_LLM_BASE_URL = 'https://free.example/v1'
     process.env.FREE_LLM_API_KEY = 'f'
     process.env.ANTHROPIC_API_KEY = 'test'
@@ -74,7 +74,7 @@ describe('AI 서버 경로 보호', () => {
     vi.stubGlobal('fetch', vi.fn(async (url) => { calls.push(url); return url.includes('free.example') ? { ok: true, json: async () => ({}), text: async () => JSON.stringify({ choices: [{ message: { content: '죄송해요 모르겠어요' } }] }) } : fam(url, true) }))
     const { default: h } = await import('../api/judge.js')
     const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '자동차' }), res)
-    expect(res.statusCode).toBe(500)
+    expect(res.statusCode).toBe(503)
     expect(calls.some((u) => u.includes('anthropic') || u.includes('foldy_ai_paid'))).toBe(false)
   })
   it('무료 AI가 없으면 503(Claude 키만 있어도)', async () => {

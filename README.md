@@ -62,6 +62,11 @@
 - 😱 갉아먹기 장면: 이틀 이상 쉬었거나 학습 알림으로 들어오면 하루 한 번, 캐릭터들이 단어 3개를 갉아먹는 연출 → '복습하고 되찾기'. 단어장 내용은 바뀌지 않음
 - 연속 학습일(🔥, 하루라도 빠지면 0으로 표시), 하루 목표 기본 5개(홈 '✎ 목표 바꾸기'·내 정보에서 1~50개로 조절) — 목표 수만큼 오늘의 추천 단어가 나옴
 
+## AI 재채점(뜻 쓰기에서 '내 답도 맞는 것 같아요')
+- 먼저 앱에 들어 있는 사전(허용 답안·유의어 뜻)에서 찾아 맞으면 AI를 기다리지 않고 바로 정답
+- AI는 빠른 모델 먼저(gemini-flash-lite → flash), 한 번에 9초까지 · 화면은 25초가 지나면 멈춤
+- AI가 바쁘거나 응답이 없으면 '🔄 다시 채점' · '✓ 맞는 답이에요'(내가 인정 → 허용 답안에 저장)를 보여 줌
+
 ## 학습 중 다른 단어로 바꾸기
 - 학습 화면의 오늘의 단어 칩(🔄)을 누르거나, 퀴즈 문제 아래 '🔄 다른 단어로 바꾸기'
 - ✅ 이미 알아요: 그 단어를 ○로 표시(3일 뒤 확인)하고 아직 모르는 단어로 교체 · 🔄 그냥 다른 단어로: 표시 없이 교체
@@ -211,6 +216,7 @@ BASE=http://localhost:4173 node tests/e2e-pron.mjs     # 소개 건너뛰기·�
 PHASE=a FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 아니면 잠김 5개 → SQL로 그 가족 구성원을 foldy_admins에 넣고
 PHASE=b FID=e2e_adxx node tests/e2e-admin.mjs     # 관리자 페이지 4개 탭·유료 AI 없음·랜딩 미리보기·숫자 비밀번호·재방문 지표 18개
 BASE=http://localhost:4173 node tests/e2e-streak.mjs   # 연속 학습일 9개
+BASE=http://localhost:4173 node tests/e2e-judge.mjs    # AI 재채점: 바쁨·무응답에도 멈추지 않음·실제 AI 7개
 BASE=http://localhost:4173 node tests/e2e-swap.mjs     # 학습 화면·퀴즈에서 다른 단어로 바꾸기 9개
 BASE=http://localhost:4173 node tests/e2e-pick.mjs     # 단어장에서 고른 단어만 오늘 학습·퀴즈 8개
 BASE=http://localhost:4173 node tests/e2e-pet.mjs      # 가족 펫: 데려오기·돌봄권·돌보기·같은 펫·서버 거절·이름 바꾸기 21개

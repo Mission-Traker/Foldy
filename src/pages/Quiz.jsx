@@ -14,6 +14,7 @@ import MicPicker from '../components/MicPicker.jsx'
 import PronSheet from '../components/PronSheet.jsx'
 import { savedMic } from '../lib/mic.js'
 import { track } from '../lib/track.js'
+import { loadVocab } from '../lib/vocab.js'
 import SwapWord from '../components/SwapWord.jsx'
 
 // 완료 도전: 오늘의 단어 중 ✕·△ 단어의 아직 못 맞힌 퀴즈만 모아서(단어 하나만 고를 수도 있음)
@@ -255,24 +256,34 @@ export default function Quiz() {
     } finally { setListening(false) }
   }
 
+  // 내 답을 맞다고 인정(사전에서 찾았거나 · AI가 맞다고 했거나 · AI가 바쁠 때 내가 맞다고 한 경우)
+  async function acceptMine(note) {
+    const fixed = applyAnswer({ ...w }, qmode, true)
+    const accepted = [...new Set([...(w.accepted || []), input.trim()])].slice(0, 20)
+    await patchWord(w.id, { ...fixed, accepted })
+    setScore((s) => ({ ...s, ok: s.ok + 1 }))
+    setRes({ ok: true, judged: note })
+    sfx.correct()
+    bumpDaily()
+    setTimeout(() => setIdx((i) => i + 1), 1400)
+  }
   async function aiJudge() {
+    if (judging) return
     setJudging(true)
     try {
-      const r = await db.ai('judge', { word: w.word, meaning: w.meaning, answer: input })
-      if (r.ok) {
-        const fixed = applyAnswer({ ...w }, qmode, true)
-        const accepted = [...new Set([...(w.accepted || []), input.trim()])].slice(0, 20)
-        await patchWord(w.id, { ...fixed, accepted })
-        setScore((s) => ({ ...s, ok: s.ok + 1 }))
-        setRes({ ok: true, judged: r.reason })
-        sfx.correct()
-        bumpDaily()
-        setTimeout(() => setIdx((i) => i + 1), 1400)
-      } else {
-        setRes((x) => ({ ...x, judgedNo: r.reason || 'AI도 다른 뜻으로 봤어요' }))
-      }
+      // 1) 앱에 들어 있는 사전(허용 답안·유의어 뜻)에서 먼저 찾아봄 — AI를 기다리지 않음
+      const map = await loadVocab().catch(() => null)
+      const v = map && map.get(w.word.toLowerCase())
+      const more = v ? [...(v.acc || []), ...(v.syn?.[1] ? [v.syn[1]] : [])] : []
+      if (more.length && gradeMeaning(input, w.meaning, more).ok) { await acceptMine('사전에 있는 뜻이에요'); return }
+      // 2) AI 재채점(오래 걸리면 25초에서 멈춤)
+      const r = await db.ai('judge', { word: w.word, meaning: w.meaning, answer: input }, { timeout: 25000 })
+      if (r.ok) await acceptMine(r.reason)
+      else setRes((x) => ({ ...x, judgedNo: r.reason || 'AI도 다른 뜻으로 봤어요' }))
     } catch (err) {
-      showToast(err.code === 'NO_KEY' ? 'AI 기능을 준비하고 있어요' : err.message)
+      if (err.code === 'LIMIT') showToast(err.message)
+      // AI가 바쁘거나 응답이 없으면: 다시 시도하거나 내가 맞다고 정할 수 있게
+      setRes((x) => ({ ...x, aiBusy: err.code === 'NO_KEY' ? 'AI 기능을 준비하고 있어요' : err.code === 'LIMIT' ? err.message : 'AI가 지금 바빠서 채점하지 못했어요' }))
     } finally { setJudging(false) }
   }
 
@@ -314,7 +325,7 @@ export default function Quiz() {
           </div>
         )}
         {res?.ok && <p className="font-jua text-2xl text-sage">정답! {res.judged ? '🤖' : '🎉'}</p>}
-        {res?.judged && <p className="text-xs text-soft">AI: {res.judged}</p>}
+        {res?.judged && <p className="break-keep text-xs text-soft">{res.judged}</p>}
         {res && !res.ok && !res.retry && (
           <div className="space-y-1">
             <p className="font-jua text-xl text-coral">{res.close ? '아까워요!' : '틀렸어요'}</p>
@@ -381,8 +392,17 @@ export default function Quiz() {
 
       {res && !res.ok && !res.retry && (
         <div className="space-y-2">
-          {qmode === 'ko' && input.trim() && !res.judgedNo && (
-            <button onClick={aiJudge} disabled={judging} className="btn-ghost w-full">{judging ? 'AI가 채점 중…' : '🤖 내 답도 맞는 것 같아요 (AI 재채점)'}</button>
+          {qmode === 'ko' && input.trim() && !res.judgedNo && !res.aiBusy && (
+            <button onClick={aiJudge} disabled={judging} className="btn-ghost w-full">{judging ? 'AI가 채점 중… (최대 25초)' : '🤖 내 답도 맞는 것 같아요 (AI 재채점)'}</button>
+          )}
+          {qmode === 'ko' && res.aiBusy && (
+            <div className="rounded-2xl bg-paper p-3 text-center ring-1 ring-line">
+              <p className="mb-2 break-keep text-sm text-soft">{res.aiBusy}</p>
+              <div className="flex gap-2">
+                <button onClick={() => { setRes((x) => ({ ...x, aiBusy: null })); setTimeout(aiJudge, 0) }} disabled={judging} className="btn-ghost flex-1 whitespace-nowrap !px-2 text-sm">🔄 다시 채점</button>
+                <button onClick={() => acceptMine('내가 맞다고 정했어요')} disabled={judging} className="btn-ghost flex-1 whitespace-nowrap !px-2 text-sm">✓ 맞는 답이에요</button>
+              </div>
+            </div>
           )}
           <div className="flex gap-2">
             {PRACTICE_MODES.includes(qmode) ? (

@@ -216,12 +216,20 @@ export async function putCache(items) {
 }
 
 // 서버 AI 호출
-export async function ai(path, body) {
-  const r = await fetch(`/api/${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-foldy-token': session?.token || '' },
-    body: JSON.stringify(body),
-  })
+export async function ai(path, body, { timeout = 0 } = {}) {
+  let r
+  try {
+    r = await fetch(`/api/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-foldy-token': session?.token || '' },
+      body: JSON.stringify(body),
+      ...(timeout ? { signal: AbortSignal.timeout(timeout) } : {}),
+    })
+  } catch (e) {
+    const err = new Error(e?.name === 'TimeoutError' || e?.name === 'AbortError' ? 'AI가 너무 오래 걸려요' : '인터넷 연결을 확인해 주세요')
+    err.code = 'BUSY'
+    throw err
+  }
   const data = await r.json().catch(() => ({}))
   if (!r.ok) {
     const err = new Error(data.error || `오류 ${r.status}`)
