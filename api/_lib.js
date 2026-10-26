@@ -1,4 +1,4 @@
-// 서버 전용 도우미 — 무료 AI(Gemini) 키는 여기(서버)에서만 사용합니다. 유료 AI는 쓰지 않아요.
+// 서버 전용 도우미 — AI 키는 여기(서버)에서만 사용합니다. 글은 무료 AI(Gemini)만, 사진 읽기만 Claude(월 상한 안에서) → 실패하면 무료 AI
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gilpvbwpbioihvjbldpm.supabase.co'
 const SUPABASE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_kMgYoZQrs5LRk-zrUshxOA_wZz1keiW'
 
@@ -44,6 +44,56 @@ function freeConf() {
 }
 export function hasFree() { return !!freeConf() }
 export function hasFreeVision() { return !!freeConf()?.vision }
+
+// ── 사진 읽기 전용 Claude ──────────────────────────────────────────
+// 키: ANTHROPIC_API_KEY (Vercel 환경변수). 한 달 상한: FOLDY_CLAUDE_CAP_USD(기본 7달러 ≈ 1만 원), 가족당 하루: FOLDY_CLAUDE_DAILY(기본 30장)
+const CLAUDE_MODEL = () => process.env.FOLDY_CLAUDE_MODEL || 'claude-haiku-5-5'
+const CLAUDE_PRICE = { in: Number(process.env.FOLDY_CLAUDE_PRICE_IN || 0.10), out: Number(process.env.FOLDY_CLAUDE_PRICE_OUT || 0.50) } // 100만 토큰당 달러
+export function hasClaudeVision() { return !!process.env.ANTHROPIC_API_KEY && process.env.FOLDY_CLAUDE_OFF !== '1' }
+async function rpc(req, name, body) {
+  const token = req?.headers?.['x-foldy-token']
+  if (!token) return null
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json', 'x-foldy-token': token },
+    body: JSON.stringify(body),
+  })
+  if (!r.ok) return null
+  return r.json().catch(() => null)
+}
+async function claudeVision({ req, system, text, image, mediaType, maxTokens }) {
+  // 상한 확인이 안 되면(오류) 돈이 드는 쪽은 쓰지 않음
+  const allowed = await rpc(req, 'foldy_claude_take', { p_cap_usd: Number(process.env.FOLDY_CLAUDE_CAP_USD || 7), p_daily: Number(process.env.FOLDY_CLAUDE_DAILY || 30) }).catch(() => null)
+  if (allowed !== true) return null
+  let ok = false, usd = 0
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: CLAUDE_MODEL(),
+        max_tokens: Math.min(maxTokens || 4000, 8000),
+        system,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/jpeg', data: image } },
+          { type: 'text', text },
+        ] }],
+      }),
+      // 실패해도 무료 AI가 쓸 시간을 남김
+      signal: AbortSignal.timeout(Math.max(5000, Math.min(28000, remaining(req) - 25000))),
+    })
+    const data = await r.json().catch(() => ({}))
+    const u = data?.usage || {}
+    usd = ((u.input_tokens || 0) * CLAUDE_PRICE.in + (u.output_tokens || 0) * CLAUDE_PRICE.out) / 1e6
+    if (!r.ok) throw new Error(`Claude 응답 오류(${r.status}) ${data?.error?.message || ''}`.trim())
+    const out = (data.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('')
+    if (!out) throw new Error('Claude 응답이 비었어요')
+    ok = true
+    return out
+  } finally {
+    await rpc(req, 'foldy_claude_add', { p_usd: usd, p_ok: ok }).catch(() => {})
+  }
+}
 
 // 무료 등급은 붐비면 503·429가 잦음 → 잠깐 쉬었다가 같은 모델로 한 번, 그래도 안 되면 가벼운 모델(Gemini)로 한 번 더
 const GEMINI_BACKUP = process.env.GEMINI_BACKUP_MODEL || 'gemini-flash-lite-latest'
@@ -142,6 +192,12 @@ export async function textLLM({ system, text, maxTokens = 2000, check = () => tr
 
 // 사진 읽기: 사진도 되는 무료 AI(Gemini)로. 안 되면 화면에서 기기 안 글자 인식(Tesseract)으로 대신함
 export async function visionLLM({ system, text, image, mediaType, maxTokens = 8000, check = () => true, req }) {
+  // ① Claude(Haiku): 월 상한·가족당 하루 장수 안에서만. 실패하면 조용히 무료 AI로
+  if (hasClaudeVision()) {
+    const out = await claudeVision({ req, system, text, image, mediaType, maxTokens }).catch((e) => { console.error('[claude-vision]', e.message); return null })
+    if (out && check(out)) return { text: out, via: 'claude' }
+  }
+  // ② 무료 AI(Gemini)
   if (!hasFreeVision()) throw new FreeOnlyError()
   if (!(await takeQuota(req, 'free_vision'))) throw new LimitError()
   const out = await hedgedVision({ req, system, text, maxTokens, image, mediaType, check })
@@ -201,7 +257,7 @@ export async function guard(req, res, { needVision = false } = {}) {
   req.foldyDeadline = Date.now() + ((MAX_DURATION[name] || 30) - 3) * 1000
   const fam = await requireFamily(req)
   if (!fam) { send(res, 401, { error: '로그인이 필요해요' }); return false }
-  const ok = needVision ? hasFreeVision() : hasFree()
+  const ok = needVision ? hasFreeVision() || hasClaudeVision() : hasFree()
   if (!ok) { send(res, 503, { error: 'AI 기능을 준비하고 있어요', code: 'NO_KEY' }); return false }
   return true
 }

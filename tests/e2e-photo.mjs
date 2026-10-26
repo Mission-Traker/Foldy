@@ -16,7 +16,8 @@ await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1
 const page = await ctx.newPage()
 const errors = []
 page.on('pageerror', (e) => { if (!/importScripts|tesseract/i.test(e.message)) errors.push(e.message) })
-let mode = 'busyThenOk', calls = 0
+let mode = 'busyThenOk', calls = 0, lastVia = '?'
+page.on('response', async (r) => { if (r.url().includes('/api/extract') && mode === 'live') { try { lastVia = (await r.json()).via } catch {} } })
 await page.route('**/api/extract', async (route) => {
   if (mode === 'live') return route.continue()
   calls++
@@ -61,7 +62,7 @@ try {
     await upload(1)
     const secs = Math.round((Date.now() - t0) / 1000)
     const n = await page.locator('input[value="whisper"], input[value="ancient"], input[value="harvest"]').count()
-    check('실제 AI로 사진 한 장 읽기', n > 0, `${secs}초, 찾은 단어 ${n}개 확인`)
+    check('실제 AI로 사진 한 장 읽기', n > 0, `${secs}초, 찾은 단어 ${n}개 확인 · 읽은 AI: ${lastVia}`)
   }
   check('화면 오류 없음', errors.length === 0, errors.join(' | '))
 } catch (e) { check('진행 중 오류', false, e.message.split('\n')[0]) }

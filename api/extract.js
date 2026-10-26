@@ -10,7 +10,7 @@ export default async function handler(req, res) {
     if (!image || typeof image !== 'string') return send(res, 400, { error: '사진이 없어요' })
     if (image.length > 6_000_000) return send(res, 413, { error: '사진이 너무 커요' })
     const type = ['image/jpeg', 'image/png', 'image/webp'].includes(mediaType) ? mediaType : 'image/jpeg'
-    const { text } = await visionLLM({
+    const { text, via } = await visionLLM({
       req, image, mediaType: type, maxTokens: 8000,
       check: (t) => canParse(t) || /"word"\s*:/.test(t),
       text: '이 사진의 영어 단어와 한글 뜻을 JSON 배열로만 출력해.',
@@ -30,7 +30,7 @@ export default async function handler(req, res) {
       .map((x) => ({ word: String(x.word || '').trim().slice(0, 60), meaning: String(x.meaning || '').trim().slice(0, 120) }))
       .filter((x) => /^[A-Za-z]/.test(x.word))
       .slice(0, 200)
-    send(res, 200, { words })
+    send(res, 200, { words, via })
   } catch (e) {
     send(res, e.code === 'LIMIT' ? 429 : 500, { error: e.code === 'LIMIT' ? e.message : '사진을 읽지 못했어요: ' + e.message, code: e.code })
   }

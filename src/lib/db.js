@@ -262,6 +262,7 @@ export const petAdopt = (species, name) => rpcOrThrow('foldy_pet_adopt', { p_spe
 export const petRename = (name) => rpcOrThrow('foldy_pet_rename', { p_name: name })
 export const petCare = (memberId, action) => rpcOrThrow('foldy_pet_care', { p_member: memberId, p_action: action })
 export const adminAnalytics = (days = 14, tests = false) => rpcOrThrow('foldy_admin_analytics', { p_days: days, p_tests: tests })
+export const adminClaudeSpend = () => rpcOrThrow('foldy_admin_claude_spend', {})
 // 사용 기록 보내기(실패해도 조용히)
 export const trackEvents = (dev, events, test) => client.rpc('foldy_track', { p_dev: dev, p_events: events, p_test: !!test }).then(() => {}, () => {})
 export const adminFamilies = (tests = false) => rpcOrThrow('foldy_admin_families', { p_tests: tests })

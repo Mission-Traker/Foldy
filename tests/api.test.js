@@ -163,6 +163,62 @@ describe('무료 AI(Gemini)·하루 한도', () => {
     const g = calls.find((c) => c.url.includes('generativelanguage'))
     expect(g.body).toContain('data:image/png;base64,AAAA')
   })
+  const claudeFetch = ({ take = true, claude = 'ok', calls }) => vi.fn(async (url, opt) => {
+    calls.push({ url: String(url), body: opt?.body })
+    if (String(url).includes('foldy_claude_take')) return { ok: true, json: async () => take }
+    if (String(url).includes('foldy_claude_add')) return { ok: true, json: async () => null }
+    if (String(url).includes('anthropic.com')) return claude === 'ok'
+      ? { ok: true, json: async () => ({ content: [{ type: 'text', text: '[{"word":"brave","meaning":"용감한"}]' }], usage: { input_tokens: 2000, output_tokens: 1000 } }) }
+      : { ok: false, status: 529, json: async () => ({ error: { message: 'overloaded' } }) }
+    if (String(url).includes('generativelanguage')) return { ok: true, text: async () => JSON.stringify({ choices: [{ message: { content: '[{"word":"apple","meaning":"사과"}]' } }] }) }
+    return fam(url)
+  })
+  it('사진 읽기: Claude 키가 있으면 Claude 먼저(쓴 금액 기록, 무료 AI는 안 부름)', async () => {
+    process.env.GEMINI_API_KEY = 'g'; process.env.ANTHROPIC_API_KEY = 'k'
+    const calls = []
+    vi.stubGlobal('fetch', claudeFetch({ calls }))
+    const { default: h } = await import('../api/extract.js')
+    const res = mockRes(); await h(req({ image: 'AAAA', mediaType: 'image/jpeg' }), res)
+    const body = JSON.parse(res.body)
+    expect(body.words).toEqual([{ word: 'brave', meaning: '용감한' }])
+    expect(body.via).toBe('claude')
+    const a = calls.find((c) => c.url.includes('anthropic.com'))
+    expect(JSON.parse(a.body).model).toBe('claude-haiku-5-5')
+    expect(a.body).toContain('"data":"AAAA"')
+    expect(calls.some((c) => c.url.includes('generativelanguage'))).toBe(false)
+    const add = JSON.parse(calls.find((c) => c.url.includes('foldy_claude_add')).body)
+    expect(add.p_ok).toBe(true)
+    expect(add.p_usd).toBeCloseTo(0.0007, 6)
+  })
+  it('사진 읽기: Claude가 실패하면 무료 AI로 이어서 읽음', async () => {
+    process.env.GEMINI_API_KEY = 'g'; process.env.ANTHROPIC_API_KEY = 'k'
+    const calls = []
+    vi.stubGlobal('fetch', claudeFetch({ calls, claude: 'fail' }))
+    const { default: h } = await import('../api/extract.js')
+    const res = mockRes(); await h(req({ image: 'AAAA', mediaType: 'image/jpeg' }), res)
+    const body = JSON.parse(res.body)
+    expect(body.words).toEqual([{ word: 'apple', meaning: '사과' }])
+    expect(body.via).toBe('free')
+    expect(JSON.parse(calls.find((c) => c.url.includes('foldy_claude_add')).body).p_ok).toBe(false)
+  })
+  it('사진 읽기: 이번 달 상한을 넘으면 Claude를 부르지 않고 무료 AI로', async () => {
+    process.env.GEMINI_API_KEY = 'g'; process.env.ANTHROPIC_API_KEY = 'k'
+    const calls = []
+    vi.stubGlobal('fetch', claudeFetch({ calls, take: false }))
+    const { default: h } = await import('../api/extract.js')
+    const res = mockRes(); await h(req({ image: 'AAAA', mediaType: 'image/jpeg' }), res)
+    expect(JSON.parse(res.body).words).toEqual([{ word: 'apple', meaning: '사과' }])
+    expect(calls.some((c) => c.url.includes('anthropic.com'))).toBe(false)
+  })
+  it('글(채점)은 Claude 키가 있어도 Claude를 부르지 않음', async () => {
+    process.env.GEMINI_API_KEY = 'g'; process.env.ANTHROPIC_API_KEY = 'k'
+    const calls = []
+    vi.stubGlobal('fetch', vi.fn(async (url) => { calls.push(String(url)); return String(url).includes('generativelanguage') ? { ok: true, text: async () => JSON.stringify({ choices: [{ message: { content: '{"ok":true,"reason":"같은 뜻"}' } }] }) } : fam(url) }))
+    const { default: h } = await import('../api/judge.js')
+    const res = mockRes(); await h(req({ word: 'happy', meaning: '행복한', answer: '기쁜' }), res)
+    expect(res.statusCode).toBe(200)
+    expect(calls.some((u) => u.includes('anthropic'))).toBe(false)
+  })
   it('가족당 하루 한도를 넘으면 429(무료 AI도 부르지 않음)', async () => {
     process.env.GEMINI_API_KEY = 'g'
     const calls = []

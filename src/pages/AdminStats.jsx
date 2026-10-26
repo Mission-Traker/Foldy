@@ -10,7 +10,7 @@ const EVENT = {
 }
 const SUB = {
   skip: '건너뜀', done: '끝까지', direct: '직접', invited: '소개', photo: '사진', manual: '직접 적기', recommend: '추천 단어', family: '가족 단어',
-  ai: 'AI', ocr: '기기 글자 인식', self: '내 목소리', auto: '자동 채점', ko: '뜻 쓰기', en: '철자 쓰기', sp: '발음', daily: '오늘의 한 판',
+  ai: '무료 AI', claude: 'Claude', ocr: '기기 글자 인식', self: '내 목소리', auto: '자동 채점', ko: '뜻 쓰기', en: '철자 쓰기', sp: '발음', daily: '오늘의 한 판',
   review: '복습', feed: '밥', known: '이미 알아요', other: '그냥 바꾸기', walk: '산책', bath: '목욕', focus: '오늘의 단어', dict: '듣고 쓰기', cloze: '빈칸 채우기', login: '로그인 탭', signup: '가입 탭', forgot: '비밀번호 찾기',
 }
 const PAGE = {
@@ -132,6 +132,7 @@ function Body({ r }) {
       <Card title="🎯 퀴즈를 끝까지 푸나요" desc="시작 대비 끝까지 푼 비율이 낮으면 문제가 너무 많거나 어렵다는 신호예요.">
         <Rows rows={(r.quiz || []).map((x) => [SUB[x.mode] || x.mode, `${x.ended}/${x.started}번 · ${pct(x.ended, x.started) ?? '—'}%`, pct(x.ended, x.started) < 50])} empty="아직 기록이 없어요" />
         <p className="mt-2 text-xs text-soft">사진으로 단어: 성공 {r.photo?.ok || 0} · 실패 {r.photo?.fail || 0} · 담긴 단어 {r.photo?.words || 0}개</p>
+        <ClaudeSpend />
       </Card>
 
       <Card title="🛑 마지막으로 머문 곳" desc="이틀 넘게 다시 오지 않은 기기가 마지막으로 본 화면·한 일. 많이 몰린 곳이 병목 후보예요.">
@@ -182,5 +183,18 @@ function Rows({ rows, empty }) {
         </li>
       ))}
     </ul>
+  )
+}
+
+// 사진 읽기에 쓴 Claude 금액(한 달 상한 7달러 ≈ 1만 원)
+function ClaudeSpend() {
+  const [rows, setRows] = useState(null)
+  useEffect(() => { db.adminClaudeSpend().then(setRows).catch(() => setRows([])) }, [])
+  if (!rows) return null
+  const now = rows[0]
+  return (
+    <p className="mt-1 break-keep text-xs text-soft">
+      Claude 사진 읽기 이번 달: {now ? `${now.calls}장 · ${Number(now.usd).toFixed(3)}달러(약 ${Math.round(Number(now.usd) * 1450).toLocaleString()}원)${now.fails ? ` · 실패 ${now.fails}번` : ''}` : '아직 없음'} · 상한 7달러
+    </p>
   )
 }

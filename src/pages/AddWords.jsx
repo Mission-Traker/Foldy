@@ -151,10 +151,13 @@ export default function AddWords() {
       try { pic = await toJpegBase64(f) } catch (err) { failed.push({ name: f.name, reason: err.message }); continue }
       let got = []
       let useOcr = aiDown
+      let via = 'ai'
       if (!aiDown) {
         setWait({ index: i, total: list.length, found, stage: 'ai' })
         try {
-          got = (await db.ai('extract', { image: pic.base64, mediaType: 'image/jpeg' }, { timeout: 65000 })).words
+          const r = await db.ai('extract', { image: pic.base64, mediaType: 'image/jpeg' }, { timeout: 65000 })
+          got = r.words
+          via = r.via === 'claude' ? 'claude' : 'ai'
           busyRun = 0
         } catch (err) {
           // 하루 한도·준비 안 됨이면 남은 사진도 기기 인식으로, 잠깐 붐빈 것이면 이 사진만 기기 인식으로(다음 사진은 다시 AI로)
@@ -173,7 +176,7 @@ export default function AddWords() {
           got = await ocrCanvas(pic.canvas, (p) => setWait((w) => (w ? { ...w, ocrProgress: p } : w)), known)
         } catch (err) { failed.push({ name: f.name, reason: '글자 인식 실패: ' + err.message }); continue }
       }
-      track('photo', { ok: got.length > 0, via: useOcr ? 'ocr' : 'ai', n: got.length })
+      track('photo', { ok: got.length > 0, via: useOcr ? 'ocr' : via, n: got.length })
       if (!got.length) { failed.push({ name: f.name, reason: '단어를 찾지 못했어요(더 밝고 반듯하게 찍어 주세요)' }); continue }
       // 뜻이 빠진 단어는 내장 사전으로 채움
       const dict = await loadDict()
