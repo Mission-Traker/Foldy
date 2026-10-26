@@ -143,30 +143,37 @@ export default function AddWords() {
     setImg(URL.createObjectURL(list[0]))
     let found = 0
     let aiDown = false
+    let busyRun = 0 // 붐빔이 연달아 2번이면 남은 사진은 기기 인식으로
     for (let i = 0; i < list.length; i++) {
       const f = list[i]
       setWait({ index: i, total: list.length, found, stage: 'convert' })
       let pic
       try { pic = await toJpegBase64(f) } catch (err) { failed.push({ name: f.name, reason: err.message }); continue }
       let got = []
+      let useOcr = aiDown
       if (!aiDown) {
         setWait({ index: i, total: list.length, found, stage: 'ai' })
         try {
-          got = (await db.ai('extract', { image: pic.base64, mediaType: 'image/jpeg' })).words
+          got = (await db.ai('extract', { image: pic.base64, mediaType: 'image/jpeg' }, { timeout: 65000 })).words
+          busyRun = 0
         } catch (err) {
-          // AI를 못 쓰면(키·크레딧·서버 오류) 기기 안 무료 글자 인식으로 대신
-          aiDown = true
-          showToast('AI 대신 기기에서 글자를 읽어요(조금 덜 정확해요): ' + err.message)
+          // 하루 한도·준비 안 됨이면 남은 사진도 기기 인식으로, 잠깐 붐빈 것이면 이 사진만 기기 인식으로(다음 사진은 다시 AI로)
+          useOcr = true
+          busyRun++
+          if (err.code === 'LIMIT' || err.code === 'NO_KEY' || err.code === 429 || busyRun >= 2) aiDown = true
+          showToast(err.code === 'LIMIT' || err.code === 429
+            ? '오늘 사진 AI 한도를 다 써서 기기에서 글자를 읽어요(조금 덜 정확해요)'
+            : 'AI가 붐벼서 이 사진은 기기에서 글자를 읽어요(조금 덜 정확해요)')
         }
       }
-      if (aiDown) {
+      if (useOcr) {
         setWait({ index: i, total: list.length, found, stage: 'ocr', ocrProgress: 0 })
         try {
           const known = new Set((await loadDict()).map((d) => d.lw))
           got = await ocrCanvas(pic.canvas, (p) => setWait((w) => (w ? { ...w, ocrProgress: p } : w)), known)
         } catch (err) { failed.push({ name: f.name, reason: '글자 인식 실패: ' + err.message }); continue }
       }
-      track('photo', { ok: got.length > 0, via: aiDown ? 'ocr' : 'ai', n: got.length })
+      track('photo', { ok: got.length > 0, via: useOcr ? 'ocr' : 'ai', n: got.length })
       if (!got.length) { failed.push({ name: f.name, reason: '단어를 찾지 못했어요(더 밝고 반듯하게 찍어 주세요)' }); continue }
       // 뜻이 빠진 단어는 내장 사전으로 채움
       const dict = await loadDict()

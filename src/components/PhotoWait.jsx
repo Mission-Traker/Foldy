@@ -21,6 +21,7 @@ export default function PhotoWait({ index, total, found, stage, ocrProgress }) {
     const b = setInterval(() => setSec((s) => s + 1), 1000)
     return () => { clearInterval(a); clearInterval(b) }
   }, [])
+  useEffect(() => { setSec(0) }, [index, stage])
   const pct = Math.round(((index + (ocrProgress || Math.min(0.9, sec / 25))) / total) * 100)
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-cream/95 px-6 backdrop-blur" role="status" aria-live="polite">
@@ -42,7 +43,7 @@ export default function PhotoWait({ index, total, found, stage, ocrProgress }) {
         <div className="h-full rounded-full bg-gradient-to-r from-tang via-mustard to-sage transition-all duration-700" style={{ width: `${Math.max(6, Math.min(99, pct))}%` }} />
       </div>
       <p key={tip} className="pop max-w-xs text-center text-sm text-soft">💡 {TIPS[tip]}</p>
-      {sec > 25 && <p className="mt-3 text-xs text-soft">단어가 많은 페이지는 30초쯤 걸려요</p>}
+      {stage === 'ai' && sec > 20 && <p className="mt-3 break-keep text-center text-xs text-soft">AI가 조금 붐벼요. 길어도 1분 안에 끝나요</p>}
     </div>
   )
 }

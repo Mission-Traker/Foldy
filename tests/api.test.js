@@ -50,6 +50,33 @@ describe('AI 서버 경로 보호', () => {
     const res = mockRes(); await h(req({ image: 'AAAA', mediaType: 'image/jpeg' }), res)
     expect(JSON.parse(res.body).words).toEqual([{ word: 'apple', meaning: '사과' }])
   })
+  it('사진 읽기: 기본 모델이 대답이 없으면 가벼운 모델을 함께 보내 먼저 온 답을 씀', async () => {
+    process.env.GEMINI_API_KEY = 'g'
+    process.env.FOLDY_VISION_HEDGE_MS = '50'
+    vi.resetModules()
+    const used = []
+    vi.stubGlobal('fetch', vi.fn(async (url, opt) => {
+      if (!String(url).includes('generativelanguage')) return fam(url)
+      const model = JSON.parse(opt.body).model
+      used.push(model)
+      if (model !== 'gemini-flash-lite-latest') return new Promise((_, rej) => opt.signal.addEventListener('abort', () => rej(new Error('aborted'))))
+      return { ok: true, json: async () => ({}), text: async () => JSON.stringify({ choices: [{ message: { content: '[{"word":"brave","meaning":"용감한"}]' } }] }) }
+    }))
+    const { default: h } = await import('../api/extract.js')
+    const res = mockRes(); await h(req({ image: 'AAAA', mediaType: 'image/jpeg' }), res)
+    delete process.env.FOLDY_VISION_HEDGE_MS
+    expect(res.statusCode).toBe(200)
+    expect(JSON.parse(res.body).words).toEqual([{ word: 'brave', meaning: '용감한' }])
+    expect(used).toEqual(['gemini-flash-latest', 'gemini-flash-lite-latest'])
+  })
+  it('사진 읽기: 두 모델 다 붐비면 실패를 알려 줌', async () => {
+    process.env.GEMINI_API_KEY = 'g'
+    vi.stubGlobal('fetch', vi.fn(async (url) => String(url).includes('generativelanguage') ? { ok: false, status: 503, text: async () => 'busy' } : fam(url)))
+    const { default: h } = await import('../api/extract.js')
+    const res = mockRes(); await h(req({ image: 'AAAA', mediaType: 'image/jpeg' }), res)
+    expect(res.statusCode).toBe(500)
+    expect(JSON.parse(res.body).error).toContain('붐벼요')
+  })
   it('사진이 없으면 400', async () => {
     process.env.GEMINI_API_KEY = 'g'
     vi.stubGlobal('fetch', vi.fn(async (url) => fam(url)))

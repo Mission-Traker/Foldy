@@ -144,9 +144,40 @@ export async function textLLM({ system, text, maxTokens = 2000, check = () => tr
 export async function visionLLM({ system, text, image, mediaType, maxTokens = 8000, check = () => true, req }) {
   if (!hasFreeVision()) throw new FreeOnlyError()
   if (!(await takeQuota(req, 'free_vision'))) throw new LimitError()
-  const out = await freeChat({ req, system, text, maxTokens, image, mediaType })
-  if (!check(out)) throw new Error('무료 AI가 사진을 읽지 못했어요. 다시 해 주세요')
+  const out = await hedgedVision({ req, system, text, maxTokens, image, mediaType, check })
   return { text: out, via: 'free' }
+}
+
+// 사진은 기본 모델이 붐비면 50초 넘게 대답이 없다가 끊기는 일이 잦음(그러면 다른 모델로 넘어갈 시간이 없음).
+// → 기본 모델을 먼저 보내고, HEDGE_MS 안에 답이 없거나 실패하면 가벼운 모델을 함께 보내 먼저 온 올바른 답을 씀
+const HEDGE_MS = Number(process.env.FOLDY_VISION_HEDGE_MS || 14000)
+async function hedgedVision({ req, check, ...opts }) {
+  const c = freeConf()
+  const models = [c.model]
+  if (c.base === GEMINI_BASE && GEMINI_BACKUP !== c.model) models.push(GEMINI_BACKUP)
+  return await new Promise((resolve, reject) => {
+    let pending = 0, started = 0, done = false, lastErr = null, timer = null
+    const end = (fn, v) => { if (!done) { done = true; clearTimeout(timer); fn(v) } }
+    const settleIfIdle = () => {
+      if (done || pending > 0) return
+      if (started < models.length && remaining(req) >= 6000) return startNext()
+      end(reject, lastErr?.busy || !lastErr ? new Error('무료 AI가 지금 붐벼요. 조금 뒤 다시 해 주세요') : lastErr)
+    }
+    function startNext() {
+      clearTimeout(timer)
+      if (done || started >= models.length) return
+      const left = remaining(req)
+      if (started > 0 && left < 6000) return
+      const model = models[started++]
+      pending++
+      freeChatOnce(c, model, { ...opts, timeout: Math.max(5000, left - 1500) }).then(
+        (out) => { pending--; if (check(out)) end(resolve, out); else { lastErr = new Error('무료 AI가 사진을 읽지 못했어요. 다시 해 주세요'); settleIfIdle() } },
+        (e) => { pending--; lastErr = e; if (!e.busy) console.error('[vision]', model, e.message); settleIfIdle() },
+      )
+      if (started < models.length) timer = setTimeout(startNext, HEDGE_MS)
+    }
+    startNext()
+  })
 }
 
 export function canParse(t) {
