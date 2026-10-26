@@ -11,9 +11,13 @@ export default function Auth({ preview = false }) {
   const { setSession } = useApp()
   // 친구 가족이 보낸 소개 링크(?from=이름)로 왔으면 가족 만들기부터
   const invitedBy = (() => { try { return (new URLSearchParams(location.search).get('from') || '').replace(/[<>]/g, '').slice(0, 20) } catch { return '' } })()
-  const [tab, setTab] = useState(invitedBy ? 'signup' : 'login')
+  // 가족 초대 링크(?join=가족아이디)로 왔으면 로그인 + 아이디 채우기
+  const joinId = (() => { try { return (new URLSearchParams(location.search).get('join') || '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 30) } catch { return '' } })()
+  // 처음 온 기기는 '가족 만들기'부터, 이 기기에서 로그인한 적이 있으면 '로그인'부터
+  const hadLogin = (() => { try { return localStorage.getItem('foldy.hadLogin') === '1' } catch { return false } })()
+  const [tab, setTab] = useState(joinId ? 'login' : invitedBy ? 'signup' : hadLogin ? 'login' : 'signup')
   useEffect(() => { track('auth_view', { kind: tab }) }, [tab])
-  const [f, setF] = useState({ login: '', pw: '', name: '' })
+  const [f, setF] = useState({ login: joinId, pw: '', name: '' })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [agree, setAgree] = useState(false)
@@ -36,7 +40,8 @@ export default function Auth({ preview = false }) {
     setBusy(true)
     try {
       const s = tab === 'login' ? await db.login(loginId, f.pw) : await db.signup(loginId, f.pw, f.name.trim().slice(0, 30))
-      track(tab === 'login' ? 'login' : 'signup', { kind: invitedBy ? 'invited' : 'direct' })
+      track(tab === 'login' ? 'login' : 'signup', { kind: invitedBy ? 'invited' : joinId ? 'join' : 'direct' })
+      try { localStorage.setItem('foldy.hadLogin', '1') } catch { /* */ }
       if (tab === 'signup') {
         db.markGuardian().catch(() => {})
         if (invitedBy) db.markInvited(invitedBy).catch(() => {})
@@ -85,6 +90,11 @@ export default function Auth({ preview = false }) {
               className={`rounded-full py-2 font-jua ${tab === k ? 'bg-paper text-slate-deep shadow-card' : 'text-soft'}`}>{l}</button>
           ))}
         </div>
+        {tab === 'signup' && !invitedBy && (
+          <p className="-mt-1 mb-3 break-keep rounded-2xl bg-cream px-3 py-2 text-center text-xs text-ink/80">
+            가족이 보낸 아이디가 있나요? <button type="button" className="font-jua text-slate-deep underline" onClick={() => { setTab('login'); setErr('') }}>그 아이디로 로그인</button>
+          </p>
+        )}
         <form onSubmit={submit} className="space-y-3">
           {tab === 'signup' && (
             <div>

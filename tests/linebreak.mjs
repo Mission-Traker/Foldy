@@ -112,6 +112,8 @@ for (const W of WIDTHS) {
     if (k < total) await page.getByRole('button', { name: '다음' }).click()
   }
   await page.getByRole('button', { name: '폴디 시작하기' }).click()
+  await audit(page, '처음 온 기기 · 가족 만들기')
+  await page.getByRole('button', { name: '로그인', exact: true }).click()
   await audit(page, '로그인')
   await page.getByRole('button', { name: '비밀번호를 잊었어요' }).click()
   await audit(page, '비밀번호 찾기')
@@ -198,6 +200,9 @@ for (const W of WIDTHS) {
   await audit(page, '내 프로필(이름 잠김)')
   await page.getByRole('button', { name: '닫기' }).first().click()
   await page.goto(BASE + '/#/me')
+  await audit(page, '내 정보(설정 접힘)')
+  if (!(await page.getByRole('button', { name: '비밀번호 바꾸기' }).isVisible())) await page.getByRole('button', { name: /설정 더 보기/ }).click()
+  await audit(page, '내 정보(설정 펼침)')
   for (const [btn, name, close] of [['비밀번호 바꾸기', '비밀번호 바꾸기 창', '닫기'], [/복구 코드 (만들기|새로 받기)/, '복구 코드 창', '닫기'], ['가족 계정 탈퇴', '탈퇴 창', '그만두기']]) {
     await page.getByRole('button', { name: btn }).click()
     await audit(page, name)
@@ -209,7 +214,7 @@ for (const W of WIDTHS) {
 
   // 카톡 안 브라우저(아이폰)로 열었을 때: 바깥 브라우저 안내 + 발음은 내 목소리로 확인
   const ctx2 = await browser.newContext({ viewport: { width: W, height: 800 }, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 KAKAOTALK 10.8.5' })
-  await ctx2.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1') } catch {} })
+  await ctx2.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1'); localStorage.setItem('foldy.noStarter', '1'); localStorage.setItem('foldy.hadLogin', '1'); localStorage.setItem('foldy.meMore', '1') } catch {} })
   const p2 = await ctx2.newPage()
   await p2.goto(BASE)
   await p2.getByLabel('가족 아이디').fill(id + W)

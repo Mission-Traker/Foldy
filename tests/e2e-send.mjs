@@ -10,7 +10,7 @@ const results = []
 const check = (name, ok, extra = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${extra ? ' — ' + extra : ''}`) }
 const browser = await pw.chromium.launch()
 const ctx = await browser.newContext({ viewport: { width: 360, height: 780 } })
-await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1') } catch {} })
+await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1'); localStorage.setItem('foldy.noStarter', '1'); localStorage.setItem('foldy.hadLogin', '1'); localStorage.setItem('foldy.meMore', '1') } catch {} })
 const page = await ctx.newPage()
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message))
@@ -107,6 +107,7 @@ try {
   check('퀴즈 하나 맞히면 게이지 1 XP', (await page.locator('body').textContent()).includes('1/90'))
   await page.goto(BASE + '/#/me')
   await page.getByText('레벨 진단하기').waitFor()
+  await page.getByRole('button', { name: '레벨 바꾸기' }).click()
   const meTxt = await page.locator('body').textContent()
   check('내 정보 레벨 Lv.01~Lv.10', ['Lv.01', 'Lv.05', 'Lv.10'].every((x) => meTxt.includes(x)))
   check('관리자 아님 → 수정요청 알림 문구 없음', !meTxt.includes('관리자라서'))

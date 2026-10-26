@@ -12,7 +12,7 @@ const check = (n, ok, x = '') => { results.push(ok); console.log(`${ok ? 'PASS' 
 const ymd = (d) => { const t = new Date(Date.now() + d * 86400e3); const z = (n) => String(n).padStart(2, '0'); return `${t.getFullYear()}-${z(t.getMonth() + 1)}-${z(t.getDate())}` }
 const browser = await pw.chromium.launch()
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Asia/Seoul' })
-await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1'); for (const k of Object.keys(localStorage)) if (k.startsWith('foldy.gnaw')) localStorage.removeItem(k) } catch {} })
+await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1'); localStorage.setItem('foldy.noStarter', '1'); localStorage.setItem('foldy.hadLogin', '1'); localStorage.setItem('foldy.meMore', '1'); for (const k of Object.keys(localStorage)) if (k.startsWith('foldy.gnaw')) localStorage.removeItem(k) } catch {} })
 const page = await ctx.newPage()
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message))

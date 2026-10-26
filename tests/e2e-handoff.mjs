@@ -12,7 +12,7 @@ const check = (name, ok, extra = '') => { results.push({ name, ok }); console.lo
 const KAKAO = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 KAKAOTALK 10.8.5'
 const SAFARI = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
 const browser = await pw.chromium.launch()
-const init = () => { try { localStorage.setItem('foldy.introSeen', '1') } catch {} }
+const init = () => { try { localStorage.setItem('foldy.introSeen', '1'); localStorage.setItem('foldy.noStarter', '1'); localStorage.setItem('foldy.hadLogin', '1'); localStorage.setItem('foldy.meMore', '1') } catch {} }
 
 async function grabHandoff(page) {
   // 카톡 → 사파리 이동(kakaotalk://)은 테스트 브라우저에서 못 따라가므로, 서버가 준 한 번 쓰는 코드로 사파리 주소를 만듦

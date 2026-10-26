@@ -13,7 +13,7 @@ const results = []
 const check = (n, ok, x = '') => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${n}${x ? ' — ' + x : ''}`) }
 const browser = await pw.chromium.launch()
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, ...(PHASE === 'b' ? { storageState: STATE } : {}) })
-await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1') } catch {} }) // 소개 슬라이드는 e2e-intro.mjs에서 따로 점검
+await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1'); localStorage.setItem('foldy.noStarter', '1'); localStorage.setItem('foldy.hadLogin', '1'); localStorage.setItem('foldy.meMore', '1') } catch {} }) // 소개 슬라이드는 e2e-intro.mjs에서 따로 점검
 const page = await ctx.newPage()
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message)); page.on('dialog', (d) => d.accept())

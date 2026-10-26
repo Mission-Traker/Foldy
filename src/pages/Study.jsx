@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { QuickStartButton } from '../components/QuickStart.jsx'
 import { Link } from 'react-router-dom'
 import * as db from '../lib/db.js'
 import { useApp } from '../App.jsx'
@@ -32,7 +33,7 @@ export default function Study() {
       <div>
         <Header title="학습" />
       {swap && <SwapWord w={swap} onClose={() => setSwap(null)} />}
-        <Empty title="단어장이 비어 있어요" desc="단어를 넣으면 퀴즈로 외울 수 있어요"><Link to="/add" className="btn-main mt-2">단어 추가</Link></Empty>
+        <Empty title="단어장이 비어 있어요" desc="추천 단어로 바로 시작하거나, 교재 단어를 넣어 보세요"><QuickStartButton where="study" /><Link to="/add" className="btn-ghost mt-1 w-full max-w-xs">단어 직접 넣기</Link></Empty>
       </div>
     )
   }

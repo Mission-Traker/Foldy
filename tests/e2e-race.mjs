@@ -7,7 +7,7 @@ try { pw = require('playwright') } catch { pw = require('/opt/npm-tools/node_mod
 const BASE = process.env.BASE || 'http://localhost:4173'
 const browser = await pw.chromium.launch()
 const ctx = await browser.newContext({ viewport: { width: 360, height: 780 } })
-await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1') } catch {} })
+await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1'); localStorage.setItem('foldy.noStarter', '1'); localStorage.setItem('foldy.hadLogin', '1'); localStorage.setItem('foldy.meMore', '1') } catch {} })
 const page = await ctx.newPage()
 let delayOn = false
 await page.route(/foldy_members\?select/, async (route) => {

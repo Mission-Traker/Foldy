@@ -186,7 +186,7 @@ export const INVITE_URL = 'https://bit.ly/foldy-voca'
 export function inviteText(familyName, loginId) {
   return [
     `📒 우리 가족 영어 단어장 '폴디'에 초대해요!`,
-    INVITE_URL,
+    `${location.origin}/?join=${encodeURIComponent(loginId || '')}`,
     '',
     `가족 아이디: ${loginId}  (비밀번호는 따로 알려 줄게요)`,
     '',

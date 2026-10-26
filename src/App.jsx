@@ -39,6 +39,8 @@ export const useApp = () => useContext(Ctx)
 
 export default function App() {
   const [session, setSession] = useState(db.getSession())
+  // 이 기기에서 로그인한 적이 있으면 다음에 로그인 화면을 '로그인' 탭부터
+  useEffect(() => { if (session) try { localStorage.setItem('foldy.hadLogin', '1') } catch { /* */ } }, [session])
   // 새로고침 때 로그인·프로필 화면이 잠깐 보이지 않게: 마지막 구성원 목록으로 바로 그리고 뒤에서 새로 받음
   const [members, setMembers] = useState(() => (session && cacheGet('members:' + session.family_id)) || [])
   const [member, setMember] = useState(() => {

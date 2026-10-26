@@ -10,7 +10,7 @@ const results = []
 const check = (name, ok, extra = '') => { results.push({ name, ok }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${extra ? ' — ' + extra : ''}`) }
 const browser = await pw.chromium.launch()
 const ctx = await browser.newContext({ viewport: { width: 360, height: 780 }, acceptDownloads: true })
-await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1') } catch {} })
+await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1'); localStorage.setItem('foldy.noStarter', '1'); localStorage.setItem('foldy.hadLogin', '1'); localStorage.setItem('foldy.meMore', '1') } catch {} })
 const page = await ctx.newPage()
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message))
@@ -58,6 +58,9 @@ try {
     await page.waitForTimeout(1300)
   }
   check('오늘의 한 판: 끝까지 풀면 완료 화면', await seen('오늘의 한 판 끝!'), `${n}문제`)
+  check('끝낸 화면에서 알림 켜기 권유', await seen('내일 잊지 않게 알려 드릴까요?'))
+  await page.getByRole('button', { name: '괜찮아요' }).click()
+  check('괜찮아요 누르면 권유 닫힘', !(await page.getByText('내일 잊지 않게 알려 드릴까요?').isVisible()))
   await page.goto(BASE + '/#/')
   check('홈: 오늘의 한 판 완료 표시', await seen('오늘의 한 판 완료'))
 

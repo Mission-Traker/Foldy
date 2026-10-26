@@ -11,7 +11,7 @@ const results = []
 const check = (n, ok, x = '') => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${n}${x ? ' — ' + x : ''}`) }
 const browser = await pw.chromium.launch()
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } })
-await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1') } catch {} })
+await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1'); localStorage.setItem('foldy.noStarter', '1'); localStorage.setItem('foldy.hadLogin', '1'); localStorage.setItem('foldy.meMore', '1') } catch {} })
 const page = await ctx.newPage()
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message))

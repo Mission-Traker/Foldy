@@ -10,10 +10,12 @@ import LevelBar from '../components/LevelBar.jsx'
 import { usePet, PetSheet } from '../components/PetCard.jsx'
 import HomeNotices from '../components/HomeNotices.jsx'
 import FamilyPetCard from '../components/FamilyPetCard.jsx'
+import { StarterSheet, useQuickStart, STARTER_N } from '../components/QuickStart.jsx'
 
 export default function Home() {
   const { member, words, daily, updateDaily, addWords, showToast, aiState, ready, openProfile, updateMember, patchMemberLocal } = useApp()
   const [goalEdit, setGoalEdit] = useState(false)
+  const quick = useQuickStart()
   const [petOpen, setPetOpen] = useState(false)
   const pet = usePet()
   const goalTimer = useRef()
@@ -96,6 +98,7 @@ export default function Home() {
   const total = words.length
   return (
     <div className="pt-[max(env(safe-area-inset-top),16px)]">
+      {ready && total === 0 && <StarterSheet />}
       {/* 머리: 캐릭터(누르면 내 캐릭터) · 인사 · 연속 학습일 */}
       <div className="mb-3 flex items-center gap-3">
         <button onClick={() => setPetOpen(true)} aria-label="내 캐릭터 보기" className="relative shrink-0 active:scale-95">
@@ -116,10 +119,20 @@ export default function Home() {
             <p className="text-sm text-white/75"><span className="block">문제 {member.daily_goal}개 맞히기{again > 0 && <> + 다시 볼 단어 {again}개</>}</span><span className="block">{enough ? `${done}개 맞혔어요 · 내일 이어서 하면 더 오래 기억나요` : `지금 ${done}개 맞혔어요`}</span></p>
           </div>
         </div>
-        <Link to={!total ? '/add' : '/quiz/daily'}
-          className="mt-4 flex w-full items-center justify-center rounded-full bg-paper py-3 font-jua text-lg text-slate-deep shadow-[0_3px_0_rgba(0,0,0,.18)] active:translate-y-[2px] active:shadow-none">
-          {!total ? '첫 단어 넣기' : runDone ? '✓ 오늘의 한 판 완료 · 한 판 더' : '▶ 오늘의 한 판'}
-        </Link>
+        {!total ? (
+          <>
+            <button onClick={() => quick.start('home')} disabled={quick.busy}
+              className="mt-4 flex w-full items-center justify-center rounded-full bg-paper py-3 font-jua text-lg text-slate-deep shadow-[0_3px_0_rgba(0,0,0,.18)] active:translate-y-[2px] active:shadow-none">
+              {quick.busy ? '단어 담는 중…' : `⚡ 추천 단어 ${STARTER_N}개로 바로 시작`}
+            </button>
+            <Link to="/add?tab=photo" className="mt-2 block text-center text-sm text-white/85">📷 내 교재 단어부터 넣기 ›</Link>
+          </>
+        ) : (
+          <Link to="/quiz/daily"
+            className="mt-4 flex w-full items-center justify-center rounded-full bg-paper py-3 font-jua text-lg text-slate-deep shadow-[0_3px_0_rgba(0,0,0,.18)] active:translate-y-[2px] active:shadow-none">
+            {runDone ? '✓ 오늘의 한 판 완료 · 한 판 더' : '▶ 오늘의 한 판'}
+          </Link>
+        )}
         {total > 0 && !runDone && <p className="mt-1.5 text-center text-xs text-white/70">복습 → 오늘의 단어를 한 번에, 5분이면 끝나요</p>}
         {again > 0 && total > 0 && (
           <Link to="/wrong/practice" className="mt-2 block text-center text-sm text-white/85">📌 다시 볼 단어 {again}개 먼저 하기 ›</Link>

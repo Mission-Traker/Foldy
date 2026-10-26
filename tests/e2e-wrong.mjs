@@ -14,7 +14,7 @@ const kst = (d = 0) => new Date(Date.now() + 9 * 3600e3 + d * 86400e3).toISOStri
 const MEAN = { library: '도서관', pressure: '압력', fortune: '행운', apple: '사과', tiger: '호랑이' }
 const browser = await pw.chromium.launch()
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } })
-await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1') } catch {} })
+await ctx.addInitScript(() => { try { localStorage.setItem('foldy.introSeen', '1'); localStorage.setItem('foldy.noStarter', '1'); localStorage.setItem('foldy.hadLogin', '1'); localStorage.setItem('foldy.meMore', '1') } catch {} })
 const page = await ctx.newPage()
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message))

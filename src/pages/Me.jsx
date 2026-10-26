@@ -19,6 +19,8 @@ export default function Me() {
   const [sound, setSound] = useState(soundOn())
   const [privacy, setPrivacy] = useState(false)
   const [admin, setAdmin] = useState(false)
+  const [levelOpen, setLevelOpen] = useState(false)
+  const [more, setMore] = useState(() => { try { return localStorage.getItem('foldy.meMore') === '1' } catch { return false } })
   useEffect(() => { db.isAdminMember(member?.id).then(setAdmin) }, [member?.id])
   const done = words.filter((w) => statusOf(w) === 'o').length
 
@@ -40,6 +42,7 @@ export default function Me() {
     } catch (e) { showToast(e.message) }
   }
 
+  const curLevel = LEVELS.find((l) => l.id === normLevel(member.level))
   return (
     <div>
       <Header title="내 정보" />
@@ -60,23 +63,6 @@ export default function Me() {
       </div>
 
       <section className="card mb-4 p-4">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="font-jua text-lg text-slate-deep">레벨</h2>
-          <Link to="/level-test" className="chip">레벨 진단하기</Link>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {LEVELS.map((l) => (
-            <button key={l.id} onClick={() => setLevel(l.id)}
-              className={`rounded-2xl border-2 p-3 text-left ${normLevel(member.level) === l.id ? 'border-slate-deep bg-slate/10' : 'border-line'}`}>
-              <b className="font-jua text-slate-deep">{l.label}</b>
-              <span className="block text-[11px] text-soft">{l.desc}</span>
-            </button>
-          ))}
-        </div>
-        <p className="mt-2 text-[11px] text-soft">기준: 2022 개정 영어과 교육과정 기본 어휘 3,000개를 자주 쓰는 순서로 9단계, Lv.10은 그 밖의 실전 단어예요.</p>
-      </section>
-
-      <section className="card mb-4 p-4">
         <h2 className="mb-1 font-jua text-lg text-slate-deep">오늘의 목표</h2>
         <p className="mb-3 text-xs text-soft">기본 5개 · 하루에 맞힐 문제 수이자, 홈에 나오는 오늘의 추천 단어 수예요(최대 50).</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -88,24 +74,30 @@ export default function Me() {
           </div>
         </div>
       </section>
-
-      <section className="card mb-4 flex items-center justify-between p-4">
-        <div>
-          <h2 className="font-jua text-lg text-slate-deep">효과음</h2>
-          <p className="text-xs text-soft">타자 소리·정답·오답 소리 (이 기기에만 적용)</p>
-        </div>
-        <button role="switch" aria-checked={sound} aria-label="효과음"
-          onClick={() => { const v = !sound; setSound(v); setSoundOn(v); if (v) correct() }}
-          className={`relative h-8 w-14 rounded-full transition ${sound ? 'bg-sage' : 'bg-line'}`}>
-          <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${sound ? 'left-7' : 'left-1'}`} />
-        </button>
-      </section>
-
+      <NotifySection member={member} admin={admin} showToast={showToast} />
       <section className="card mb-4 p-4">
-        <h2 className="mb-2 font-jua text-lg text-slate-deep">발음 퀴즈 마이크</h2>
-        <MicPicker />
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="font-jua text-lg text-slate-deep">레벨</h2>
+          <Link to="/level-test" className="chip">레벨 진단하기</Link>
+        </div>
+        {!levelOpen ? (
+          <button className="flex w-full items-center gap-3 rounded-2xl border-2 border-slate-deep bg-slate/10 p-3 text-left" onClick={() => setLevelOpen(true)} aria-label="레벨 바꾸기">
+            <span className="min-w-0 flex-1"><b className="font-jua text-slate-deep">{curLevel?.label}</b><span className="block text-[11px] text-soft">{curLevel?.desc}</span></span>
+            <span className="whitespace-nowrap text-sm text-slate">바꾸기 ▾</span>
+          </button>
+        ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {LEVELS.map((l) => (
+            <button key={l.id} onClick={() => { setLevel(l.id); setLevelOpen(false) }}
+              className={`rounded-2xl border-2 p-3 text-left ${normLevel(member.level) === l.id ? 'border-slate-deep bg-slate/10' : 'border-line'}`}>
+              <b className="font-jua text-slate-deep">{l.label}</b>
+              <span className="block text-[11px] text-soft">{l.desc}</span>
+            </button>
+          ))}
+        </div>
+        )}
+        <p className="mt-2 text-[11px] text-soft">기준: 2022 개정 영어과 교육과정 기본 어휘 3,000개를 자주 쓰는 순서로 9단계, Lv.10은 그 밖의 실전 단어예요.</p>
       </section>
-
       <section className="card mb-4 p-4">
         <h2 className="mb-2 font-jua text-lg text-slate-deep">우리 가족 ({session?.name})</h2>
         <ul className="mb-3 space-y-2">
@@ -120,17 +112,36 @@ export default function Me() {
         {adding ? <MemberForm onDone={() => setAdding(false)} onCancel={() => setAdding(false)} /> : <button className="btn-ghost w-full" onClick={() => setAdding(true)}>＋ 가족 추가</button>}
         <p className="mt-2 text-[11px] text-soft">가족 아이디: <b>{session?.login_id}</b> — 다른 기기에서도 이 아이디로 들어오면 같은 단어장이 보여요.</p>
       </section>
-
-      <StorySection />
-      <NotifySection member={member} admin={admin} showToast={showToast} />
-
       <InviteSection session={session} showToast={showToast} />
-      <FriendInviteSection session={session} showToast={showToast} />
-
       <MyFeedback memberName={member.name} memberId={member.id} />
 
+      <button className="mb-4 flex w-full items-center justify-between rounded-2xl border-2 border-line bg-paper px-4 py-3 font-jua text-slate-deep" aria-expanded={more}
+        onClick={() => { const v = !more; setMore(v); try { localStorage.setItem('foldy.meMore', v ? '1' : '0') } catch { /* */ } }}>
+        <span>⚙️ 설정 더 보기</span><span className="text-sm text-soft">{more ? '접기 ▴' : '효과음 · 마이크 · 예문 · 계정 ▾'}</span>
+      </button>
+      {more && (
+        <>
+      <section className="card mb-4 flex items-center justify-between p-4">
+        <div>
+          <h2 className="font-jua text-lg text-slate-deep">효과음</h2>
+          <p className="text-xs text-soft">타자 소리·정답·오답 소리 (이 기기에만 적용)</p>
+        </div>
+        <button role="switch" aria-checked={sound} aria-label="효과음"
+          onClick={() => { const v = !sound; setSound(v); setSoundOn(v); if (v) correct() }}
+          className={`relative h-8 w-14 rounded-full transition ${sound ? 'bg-sage' : 'bg-line'}`}>
+          <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${sound ? 'left-7' : 'left-1'}`} />
+        </button>
+      </section>
+      <section className="card mb-4 p-4">
+        <h2 className="mb-2 font-jua text-lg text-slate-deep">발음 퀴즈 마이크</h2>
+        <MicPicker />
+      </section>
+      <StorySection />
+      <FriendInviteSection session={session} showToast={showToast} />
       <AccountSection session={session} showToast={showToast} openPrivacy={() => setPrivacy(true)}
         onLeft={() => { setSession(null); setMember(null); showToast('탈퇴했어요. 그동안 고마웠어요') }} />
+        </>
+      )}
 
       {aiState === 'nokey' && <p className="mb-3 text-center text-xs text-coral">AI 기능을 준비하고 있어요. 조금만 기다려 주세요.</p>}
       <button className="btn-ghost w-full" onClick={async () => { await db.logout(); setSession(null); setMember(null) }}>로그아웃</button>

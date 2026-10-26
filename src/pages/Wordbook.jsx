@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { QuickStartButton } from '../components/QuickStart.jsx'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../App.jsx'
 import { expandStage, sortWords, statusOf, cleanEntry, MODE_FIELD, PICK_MAX, pickNeed } from '../lib/study.js'
@@ -305,7 +306,8 @@ export default function Wordbook() {
         <p className="py-10 text-center text-soft">불러오는 중…</p>
       ) : !words.length ? (
         <Empty title="아직 단어가 없어요" desc="교재 사진을 찍어 한 번에 넣거나, 직접 적어 보세요.">
-          <div className="mt-2 flex gap-2"><Link to="/add?tab=photo" className="btn-tang">📷 사진</Link><Link to="/add?tab=manual" className="btn-ghost">✍️ 직접</Link></div>
+          <QuickStartButton where="book" />
+          <div className="mt-1 flex gap-2"><Link to="/add?tab=photo" className="btn-tang">📷 사진</Link><Link to="/add?tab=manual" className="btn-ghost">✍️ 직접</Link></div>
         </Empty>
       ) : !list.length ? (
         <Empty title="조건에 맞는 단어가 없어요" i={2} />
