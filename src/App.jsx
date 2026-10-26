@@ -105,7 +105,9 @@ export default function App() {
       // 다른 기기에서 숫자 비밀번호가 걸렸는데 이 기기는 아직 안 열었으면: 프로필 고르기(비밀번호 입력)로
       const m = found && found.has_pin && !db.hasMemberToken(found.id) ? null : found
       // 같은 사람이면 새 정보만 덮고(단어를 다시 불러오지 않게), 없어진 사람이면 프로필 고르기로
-      setMember((cur) => (m ? (cur && cur.id === m.id ? { ...cur, ...m } : m) : cur && cur._new ? cur : null))
+      // 방금 만든 구성원(_new)은 서버 목록에 아직 없을 때만 지킴 — 서버에 있고 숫자 비밀번호가 걸렸으면 반드시 프로필 고르기로
+      const locked = !!found && !m
+      setMember((cur) => (m ? (cur && cur.id === m.id ? { ...cur, ...m } : m) : !locked && cur && cur._new ? cur : null))
       setMembersReady(true)
     }).catch((e) => {
       setMembersReady(true)

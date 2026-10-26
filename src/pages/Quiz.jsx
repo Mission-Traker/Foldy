@@ -86,7 +86,7 @@ export default function Quiz() {
   if (!['ko', 'en', 'sp', 'review', 'focus', 'daily', ...PRACTICE_MODES].includes(mode)) return <Empty title="없는 퀴즈예요"><Link to="/study" className="btn-main mt-2">돌아가기</Link></Empty>
 
   const practiceRound = ['ko', 'en', 'sp'].includes(mode) && queue[0]?.practice
-  const title = mode === 'daily' ? `오늘의 한 판 · ${item?.review ? '복습' : MODE_LABEL[qmode] || ''}` : mode === 'review' ? '오늘 복습' : mode === 'focus' ? `○ 만들기 · ${MODE_LABEL[qmode] || ''}` : `${src === 'wrong' ? '오답노트 · ' : ''}${MODE_LABEL[mode]}${practiceRound ? ' · 다시 외우기' : ''}`
+  const title = mode === 'daily' ? ((t) => (t ? `오늘의 한 판 · ${t}` : '오늘의 한 판'))(item?.review ? '복습' : MODE_LABEL[qmode] || '') : mode === 'review' ? '오늘 복습' : mode === 'focus' ? `○ 만들기 · ${MODE_LABEL[qmode] || ''}` : `${src === 'wrong' ? '오답노트 · ' : ''}${MODE_LABEL[mode]}${practiceRound ? ' · 다시 외우기' : ''}`
 
   if (!queue.length && ['ko', 'en', 'sp'].includes(mode) && src !== 'wrong' && words.length) {
     // 이 퀴즈는 모든 단어를 이미 통과함
